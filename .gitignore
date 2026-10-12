@@ -1,0 +1,14 @@
+node_modules
+dist
+*.tsbuildinfo
+.lemmata/
+.dev-workspace
+.DS_Store
+.env
+.env.*
+coverage
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen
+apps/desktop/src-tauri/resources
+apps/desktop/src-tauri/binaries
+docs/tickets/**
