@@ -7,8 +7,10 @@ dist
 .env
 .env.*
 coverage
-apps/desktop/src-tauri/target
-apps/desktop/src-tauri/gen
-apps/desktop/src-tauri/resources
-apps/desktop/src-tauri/binaries
 docs/tickets/**
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/patches
+!.yarn/sdks
+!.yarn/versions

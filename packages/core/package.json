@@ -1,13 +1,16 @@
 {
   "name": "core",
-  "packageManager": "yarn@4.18.1",
+  "type": "module",
+  "private": true,
   "dependencies": {
     "@libsql/client": "^0.18.0",
     "dotenv": "^18.0.7",
     "drizzle-orm": "1.0.0-rc.4"
   },
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "drizzle-kit": "1.0.0-rc.4",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }
