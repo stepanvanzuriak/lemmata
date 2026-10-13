@@ -1,111 +1,89 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "./fonts/fonts.css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-serif: "STIX Two Text", serif;
+
+  --color-lm-paper: #f3f4f0;
+  --color-lm-ink: #17191c;
+  --color-lm-ink2: #2b2e33;
+  --color-lm-muted: #5b6068;
+  --color-lm-line: #dee0d9;
+  --color-lm-hair: #ecede8;
+  --color-lm-chip: #eef0ea;
+  --color-lm-track: #e7e9e3;
+  --color-lm-field: #f7f8f5;
+  --color-lm-aside: #fafaf8;
+  --color-lm-code: #1b1d21;
+
+  --color-lm-nav: #16181b;
+  --color-lm-nav-raised: #22252a;
+  --color-lm-nav-active: #2a2e35;
+  --color-lm-nav-line: #33373e;
+  --color-lm-nav-text: #c3c7cd;
+  --color-lm-nav-dim: #9499a1;
+  --color-lm-nav-muted: #8e939b;
+  --color-lm-nav-fg: #e6e8eb;
+  --color-lm-nav-card: #1e2125;
+  --color-lm-nav-card-line: #2c3036;
+  --color-lm-badge-green: #9fd8b8;
+  --color-lm-badge-amber: #f2c38b;
+
+  --color-lm-accent: #2747c9;
+  --color-lm-accent-soft: #e6eafb;
+  --color-lm-accent-ink: #1f3aa6;
+
+  --color-lm-ok: #1f7a4d;
+  --color-lm-ok-soft: #e3f1e9;
+  --color-lm-ok-ink: #185c3b;
+  --color-lm-warn: #b4540a;
+  --color-lm-warn-soft: #fbebdd;
+  --color-lm-warn-ink: #8a3f06;
+  --color-lm-warn-line: #efc9a2;
+  --color-lm-danger: #a1281a;
+  --color-lm-teal: #0f766e;
+  --color-lm-teal-soft: #ddefec;
+  --color-lm-teal-ink: #0b5a53;
+}
+
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --accent: #2747c9;
+  --accent-foreground: #ffffff;
+  --background: #f3f4f0;
+  --foreground: #17191c;
+  --border: #dee0d9;
+  --field-border: #dee0d9;
+  --field-background: #f7f8f5;
+  --radius: 0.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+html {
+  background: var(--color-lm-paper);
+  color: var(--color-lm-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 body {
   margin: 0;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+@layer base {
+  a {
+    color: var(--color-lm-accent);
+  }
+
+  a:hover {
+    color: #1a33a0;
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+summary::-webkit-details-marker {
+  display: none;
 }
