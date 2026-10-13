@@ -47,8 +47,8 @@
   --color-lm-teal: #0f766e;
   --color-lm-teal-soft: #ddefec;
   --color-lm-teal-ink: #0b5a53;
+  --color-lm-surface: var(--lm-surface);
 }
-
 
 :root {
   --accent: #2747c9;
@@ -58,7 +58,12 @@
   --border: #dee0d9;
   --field-border: #dee0d9;
   --field-background: #f7f8f5;
-  --radius: 0.5rem;
+  --lm-surface: #ffffff;
+  --radius: 6px;
+}
+
+.dark {
+  --lm-surface: #22252a;
 }
 
 html {
@@ -72,7 +77,6 @@ html {
 body {
   margin: 0;
 }
-
 
 @layer base {
   a {
