@@ -1,6 +1,5 @@
 import { createBrowserRouter } from "react-router";
 import { AppShell } from "../components/AppShell";
-import { RoutePlaceholder } from "../components/RoutePlaceholder";
 import { Workspaces } from "../pages/Workspaces";
 
 export type RouteHandle = { title: string };

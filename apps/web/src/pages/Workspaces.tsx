@@ -2,8 +2,12 @@ import { Button, Typography } from "@heroui/react";
 import { WorkspacesCard } from "../components/WorkspacesCard";
 import { ProjectCard } from "../components/ProjectCard";
 import { RecentSessions } from "../components/RecentSessions";
+import { useCreateProject, useGetAllProjects } from "../api/projects";
 
 export function Workspaces() {
+  const createProject = useCreateProject();
+  const { data } = useGetAllProjects();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -42,16 +46,25 @@ export function Workspaces() {
             <Button
               variant="tertiary"
               className="ml-auto border border-lm-line"
+              isPending={createProject.isPending}
+              onPress={() => {
+                // Temporary: plain prompts until the New Project dialog is designed.
+                const title = window.prompt("Project title");
+                if (title) {
+                  createProject.mutate({ title });
+                }
+              }}
             >
               New Project
             </Button>
           </div>
-          <ProjectCard
-            path="~/research/sumsets"
-            title="Sumsets in finite fields"
-            description="Bounds on $|A + A|$ for $A \subseteq \mathbb{F}_p$ with small doubling; Freiman-type structure for $|A| < p/(2K)$."
-          />
-          <ProjectCard path="~/research/energy" title="Addition energy notes" />
+          {data?.map((project) => (
+            <ProjectCard
+              path={project.dir ?? `~`}
+              title={project.title}
+              description={project.statement}
+            />
+          ))}
         </section>
         <div className="flex min-w-0 grow basis-85 flex-col gap-6">
           <RecentSessions />

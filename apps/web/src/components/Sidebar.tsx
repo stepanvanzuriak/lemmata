@@ -60,12 +60,12 @@ export function Sidebar() {
   return (
     <nav
       aria-label="Primary"
-      className="box-border flex grow basis-[232px] flex-col gap-5 bg-lm-nav px-3.5 py-5 text-lm-nav-text"
+      className="box-border flex grow basis-58 flex-col gap-5 bg-lm-nav px-3.5 py-5 text-lm-nav-text"
     >
       <div className="flex items-center gap-2.5 px-2">
         <div
           aria-hidden="true"
-          className="flex size-[30px] items-center justify-center rounded-[7px] bg-lm-accent text-white"
+          className="flex size-7.5 items-center justify-center rounded-[7px] bg-lm-accent text-white"
         >
           <LemmataMark width={24} height={24} />
         </div>
@@ -107,7 +107,7 @@ export function Sidebar() {
       </Select>
 
       <div className="flex flex-col gap-0.5">
-        {nav.map(({ to, label, Icon, badge }) => (
+        {nav.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -122,14 +122,14 @@ export function Sidebar() {
           >
             <Icon width={18} height={18} aria-hidden="true" />
             {label}
-            {badge && (
+            {/* {badge && (
               <Chip
                 size="sm"
                 className={`ml-auto rounded-[10px] font-mono text-[11px] text-lm-nav ${badge.className}`}
               >
                 {badge.text}
               </Chip>
-            )}
+            )} */}
           </NavLink>
         ))}
 

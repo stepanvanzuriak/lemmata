@@ -9,4 +9,15 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:4317",
+        changeOrigin: true,
+        headers: {
+          "x-lemmata-token": process.env.LEMMATA_TOKEN ?? "dev-token",
+        },
+      },
+    },
+  },
 });

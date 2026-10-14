@@ -1,17 +1,14 @@
 import { Card, Typography } from "@heroui/react";
 import { Katex } from "./Katex";
 
-const DEFAULT_DESCRIPTION =
-  "Lorem ipsum dolor sit amet consectetur. Sed arcu donec id aliquam dolor sed amet faucibus etiam.";
-
 export function ProjectCard({
   title,
   path,
-  description = DEFAULT_DESCRIPTION,
+  description,
 }: {
   title: string;
   path: string;
-  description?: string;
+  description: string;
 }) {
   return (
     <Card className="w-full gap-3 rounded-xl border border-lm-line px-5 py-4.5 shadow-none">
@@ -31,7 +28,7 @@ export function ProjectCard({
         </div>
 
         <Card.Description className="text-base leading-[1.45] text-lm-ink2">
-          <Katex>{description}</Katex>
+          <Katex>{description ?? ""}</Katex>
         </Card.Description>
       </Card.Header>
     </Card>
