@@ -10,19 +10,19 @@ export function WorkspacesCard({
   subTitle: string;
 }) {
   return (
-    <Card className="w-100">
-      <Card.Header>
-        <Typography type="body-sm" color="muted" className="mb-2">
+    <Card className="gap-1.5 rounded-xl border border-lm-line px-4.5 py-4 shadow-none">
+      <Card.Header className="gap-1.5">
+        <Typography type="body-sm" color="muted">
           {title}
         </Typography>
         <Card.Description>
-          <Typography type="h1" className="font-mono font-normal">
+          <Typography type="h1" className="font-mono text-[26px] font-medium">
             {description}
           </Typography>
         </Card.Description>
       </Card.Header>
       <Card.Footer>
-        <Typography type="body-sm" color="muted">
+        <Typography type="body-xs" color="muted">
           {subTitle}
         </Typography>
       </Card.Footer>

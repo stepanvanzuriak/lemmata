@@ -59,7 +59,7 @@
   --field-border: #dee0d9;
   --field-background: #f7f8f5;
   --lm-surface: #ffffff;
-  --radius: 6px;
+  --radius: 0.25rem;
 }
 
 .dark {

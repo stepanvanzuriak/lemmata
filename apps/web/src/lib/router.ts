@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from "react-router";
+import { createBrowserRouter } from "react-router";
 import { AppShell } from "../components/AppShell";
 import { RoutePlaceholder } from "../components/RoutePlaceholder";
 import { Workspaces } from "../pages/Workspaces";
