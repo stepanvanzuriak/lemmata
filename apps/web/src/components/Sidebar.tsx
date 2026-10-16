@@ -1,10 +1,9 @@
-import { useState, type ComponentType, type SVGProps } from "react";
+import type { ComponentType, SVGProps } from "react";
 import { NavLink } from "react-router";
-import { Chip, ListBox, Select, Typography, type Key } from "@heroui/react";
+import { Chip, ListBox, Select, Typography } from "@heroui/react";
 import {
   BookOpen,
   ChartColumn,
-  CircleFill,
   Comment,
   FileText,
   Gear,
@@ -13,44 +12,32 @@ import {
   LayoutCells,
   NodesRight,
 } from "@gravity-ui/icons";
+import { useGetAllProjects } from "../api/projects";
+import { useCurrentProjectId } from "../lib/hooks";
+import { useProjectStore } from "../stores/project";
 import { paths } from "../lib/paths";
+import { DaemonStatus } from "./DaemonStatus";
 import { LemmataMark } from "./LemmataMark";
+import { Markdown } from "./Markdown";
 
 type NavItem = {
   to: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  badge?: { text: string; className: string };
 };
 
 const nav: NavItem[] = [
   { to: paths.workspace, label: "Workspace", Icon: LayoutCells },
   { to: paths.canvas, label: "Research canvas", Icon: NodesRight },
-  {
-    to: paths.sessions,
-    label: "Sessions",
-    Icon: Comment,
-    badge: { text: "2", className: "bg-lm-badge-green" },
-  },
+  { to: paths.sessions, label: "Sessions", Icon: Comment },
   { to: paths.notebook, label: "Notebook", Icon: BookOpen },
-  {
-    to: paths.literature,
-    label: "Literature",
-    Icon: FileText,
-    badge: { text: "7", className: "bg-lm-badge-amber" },
-  },
+  { to: paths.literature, label: "Literature", Icon: FileText },
   { to: paths.usage, label: "Usage & budgets", Icon: ChartColumn },
 ];
 
 const phase2 = [
   { label: "Research memory", Icon: Layers },
   { label: "Semantic graph", Icon: GraphNode },
-];
-
-const projects = [
-  { id: "research", path: "~/research" },
-  { id: "lemmata", path: "~/lemmata" },
-  { id: "scratch", path: "~/scratch" },
 ];
 
 const rowBase = "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm";
@@ -61,7 +48,11 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export function Sidebar() {
-  const [project, setProject] = useState<Key | null>(projects[0].id);
+  const { data: projects = [] } = useGetAllProjects();
+  const currentId = useCurrentProjectId(projects.map(({ id }) => id));
+  const setCurrentProjectId = useProjectStore(
+    (state) => state.setCurrentProjectId,
+  );
 
   return (
     <nav
@@ -93,18 +84,29 @@ export function Sidebar() {
       <Select
         aria-label="Project"
         variant="secondary"
-        value={project}
-        onChange={setProject}
+        placeholder="No projects yet"
+        isDisabled={projects.length === 0}
+        value={currentId ?? null}
+        onChange={(id) => id && setCurrentProjectId(String(id))}
       >
         <Select.Trigger className="min-h-11 rounded-lg border border-lm-nav-line bg-lm-nav-raised px-3 text-[13px] text-lm-nav-fg">
-          <Select.Value className="font-mono" />
+          <Select.Value />
           <Select.Indicator />
         </Select.Trigger>
         <Select.Popover>
           <ListBox>
-            {projects.map(({ id, path }) => (
-              <ListBox.Item key={id} id={id} textValue={path}>
-                <span className="font-mono">{path}</span>
+            {projects.map(({ id, title, dir }) => (
+              <ListBox.Item key={id} id={id} textValue={title}>
+                <span className="flex min-w-0 flex-col">
+                  <Markdown inline className="truncate">
+                    {title}
+                  </Markdown>
+                  {dir && (
+                    <span className="truncate font-mono text-xs text-lm-muted">
+                      {dir}
+                    </span>
+                  )}
+                </span>
                 <ListBox.ItemIndicator />
               </ListBox.Item>
             ))}
@@ -122,14 +124,6 @@ export function Sidebar() {
           >
             <Icon width={18} height={18} aria-hidden="true" />
             {label}
-            {/* {badge && (
-              <Chip
-                size="sm"
-                className={`ml-auto rounded-[10px] font-mono text-[11px] text-lm-nav ${badge.className}`}
-              >
-                {badge.text}
-              </Chip>
-            )} */}
           </NavLink>
         ))}
 
@@ -155,18 +149,7 @@ export function Sidebar() {
         Settings
       </NavLink>
 
-      <div className="flex flex-col items-start gap-1.5 rounded-[10px] border border-lm-nav-card-line bg-lm-nav-card p-3">
-        <Chip size="sm" color="success" variant="soft">
-          <CircleFill width={6} />
-          <Chip.Label>Daemon running</Chip.Label>
-        </Chip>
-        <Typography type="body-xs" className="font-mono text-lm-nav-dim">
-          127.0.0.1:4317
-        </Typography>
-        <Typography type="body-xs" className="text-lm-nav-dim">
-          Lean 4.34.1 · Python 3.12 · uv
-        </Typography>
-      </div>
+      <DaemonStatus />
     </nav>
   );
 }

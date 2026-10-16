@@ -6,7 +6,8 @@ import {
   Typography,
 } from "@heroui/react";
 import { Display, Moon, Sun } from "@gravity-ui/icons";
-import { useTheme, type ThemePreference } from "../lib/theme";
+import { useTheme } from "../lib/hooks";
+import type { ThemePreference } from "../stores/theme";
 
 const themes: {
   id: ThemePreference;

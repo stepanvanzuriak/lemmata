@@ -15,11 +15,9 @@ export function WorkspacesCard({
         <Typography type="body-sm" color="muted">
           {title}
         </Typography>
-        <Card.Description>
-          <Typography type="h1" className="font-mono text-[26px] font-medium">
-            {description}
-          </Typography>
-        </Card.Description>
+        <Typography type="h1" className="font-mono text-[26px] font-medium">
+          {description}
+        </Typography>
       </Card.Header>
       <Card.Footer>
         <Typography type="body-xs" color="muted">

@@ -6,7 +6,12 @@ export default defineConfig({
       "packages/*",
       {
         extends: "./apps/web/vite.config.ts",
-        test: { name: "web", root: "./apps/web", environment: "happy-dom" },
+        test: {
+          name: "web",
+          root: "./apps/web",
+          environment: "happy-dom",
+          setupFiles: ["./src/__tests__/helpers/setup.ts"],
+        },
       },
     ],
   },

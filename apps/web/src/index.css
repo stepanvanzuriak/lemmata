@@ -29,8 +29,6 @@
   --color-lm-nav-fg: #e6e8eb;
   --color-lm-nav-card: #1e2125;
   --color-lm-nav-card-line: #2c3036;
-  --color-lm-badge-green: #9fd8b8;
-  --color-lm-badge-amber: #f2c38b;
 
   --color-lm-accent: #2747c9;
   --color-lm-accent-soft: #e6eafb;
@@ -133,4 +131,62 @@ body {
 
 summary::-webkit-details-marker {
   display: none;
+}
+
+@layer components {
+  .markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .markdown > :last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown :where(p, ul, ol, pre, blockquote, .katex-display) {
+    margin: 0.5em 0;
+  }
+
+  .markdown :where(h1, h2, h3, h4) {
+    margin: 0.8em 0 0.3em;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .markdown h1 {
+    font-size: 1.3em;
+  }
+
+  .markdown h2 {
+    font-size: 1.15em;
+  }
+
+  .markdown :where(ul, ol) {
+    padding-left: 1.4em;
+  }
+
+  .markdown ul {
+    list-style: disc;
+  }
+
+  .markdown ol {
+    list-style: decimal;
+  }
+
+  .markdown :where(code) {
+    border-radius: 4px;
+    background: var(--color-lm-chip);
+    padding: 0.1em 0.3em;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+
+  .markdown blockquote {
+    border-left: 3px solid var(--color-lm-line);
+    padding-left: 0.8em;
+    color: var(--color-lm-muted);
+  }
+}
+
+.katex {
+  text-transform: none;
 }

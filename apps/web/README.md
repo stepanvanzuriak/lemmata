@@ -9,4 +9,5 @@ Run it with `yarn dev` from the repo root (it needs the daemon for data). Vite p
 - `src/api/`: fetch functions and query hooks per resource, typed with `shared`.
 - `src/components/`: shell (sidebar, top bar) and shared pieces.
 - `src/index.css`: design tokens (`--color-lm-*`) with light and dark values.
-- `src/lib/theme.ts`: System / Light / Dark preference, set on the Settings page.
+- `src/stores/`: zustand stores for client state: `theme.ts` (System / Light / Dark, set on the Settings page) and
+  `project.ts` (current project). Shared hooks such as `useTheme` live in `src/lib/hooks.ts`.

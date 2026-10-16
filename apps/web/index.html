@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lemmata</title>
     <script>
-      // Apply the theme before first paint so pages do not flash light. Keep in sync with src/lib/theme.ts.
       try {
-        const saved = localStorage.getItem("lemmata-theme");
+        const saved = JSON.parse(localStorage.getItem("lemmata-theme"))?.state
+          ?.preference;
         const dark =
           saved === "dark" ||
           (saved !== "light" &&

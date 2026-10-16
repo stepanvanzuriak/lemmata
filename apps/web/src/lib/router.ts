@@ -1,9 +1,17 @@
 import { createBrowserRouter } from "react-router";
 import { AppShell } from "../components/AppShell";
+import { RouteError } from "../components/RouteError";
+import { RoutePlaceholder } from "../components/RoutePlaceholder";
 import { Settings } from "../pages/Settings";
 import { Workspaces } from "../pages/Workspaces";
 
 export type RouteHandle = { title: string };
+
+const placeholder = (path: string, title: string) => ({
+  path,
+  Component: RoutePlaceholder,
+  handle: { title } satisfies RouteHandle,
+});
 
 export const router = createBrowserRouter([
   {
@@ -11,28 +19,25 @@ export const router = createBrowserRouter([
     Component: AppShell,
     children: [
       {
-        index: true,
-        Component: Workspaces,
-        handle: { title: "Workspace" } satisfies RouteHandle,
-      },
-      {
-        path: "canvas",
-        handle: { title: "Research canvas" } satisfies RouteHandle,
-      },
-      { path: "sessions", handle: { title: "Sessions" } satisfies RouteHandle },
-      { path: "notebook", handle: { title: "Notebook" } satisfies RouteHandle },
-      {
-        path: "literature",
-        handle: { title: "Literature" } satisfies RouteHandle,
-      },
-      {
-        path: "usage",
-        handle: { title: "Usage & budgets" } satisfies RouteHandle,
-      },
-      {
-        path: "settings",
-        Component: Settings,
-        handle: { title: "Settings" } satisfies RouteHandle,
+        ErrorBoundary: RouteError,
+        children: [
+          {
+            index: true,
+            Component: Workspaces,
+            handle: { title: "Workspace" } satisfies RouteHandle,
+          },
+          placeholder("canvas", "Research canvas"),
+          placeholder("sessions", "Sessions"),
+          placeholder("notebook", "Notebook"),
+          placeholder("literature", "Literature"),
+          placeholder("usage", "Usage & budgets"),
+          {
+            path: "settings",
+            Component: Settings,
+            handle: { title: "Settings" } satisfies RouteHandle,
+          },
+          placeholder("*", "Not found"),
+        ],
       },
     ],
   },

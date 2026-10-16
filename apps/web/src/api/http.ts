@@ -43,12 +43,27 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-api.interceptors.response.use(undefined, (error: unknown) => {
-  if (isAxiosError<{ error?: string }>(error) && error.response) {
-    const { status, data } = error.response;
+const UNREACHABLE = "Can't reach the Lemmata daemon.";
 
-    throw new ApiError(status, data?.error ?? `Request failed: ${status}`);
+api.interceptors.response.use(undefined, (error: unknown) => {
+  if (!isAxiosError<{ error?: string }>(error)) {
+    throw error;
   }
 
-  throw error;
+  if (!error.response) {
+    throw new ApiError(0, UNREACHABLE);
+  }
+
+  const { status, data } = error.response;
+
+  if (data?.error) {
+    throw new ApiError(status, data.error);
+  }
+
+  // The dev proxy answers 502/504 when the daemon is down.
+  if (status === 502 || status === 504) {
+    throw new ApiError(status, UNREACHABLE);
+  }
+
+  throw new ApiError(status, `Request failed: ${status}`);
 });

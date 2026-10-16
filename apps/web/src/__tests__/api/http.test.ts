@@ -66,3 +66,11 @@ it("throws the server's error message", async () => {
     new ApiError(400, "title: title is required"),
   );
 });
+
+it("explains an unreachable daemon behind the dev proxy", async () => {
+  respond(502, "");
+
+  await expect(api.get("/projects")).rejects.toEqual(
+    new ApiError(502, "Can't reach the Lemmata daemon."),
+  );
+});

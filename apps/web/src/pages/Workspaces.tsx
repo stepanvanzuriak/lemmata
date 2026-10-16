@@ -1,18 +1,37 @@
-import { Button, Typography } from "@heroui/react";
+import { Typography } from "@heroui/react";
 import { WorkspacesCard } from "../components/WorkspacesCard";
 import { ProjectCard } from "../components/ProjectCard";
 import { RecentSessions } from "../components/RecentSessions";
-import {
-  useCreateProject,
-  useDeleteProject,
-  useGetAllProjects,
-} from "../api/projects";
+import { useGetAllProjects } from "../api/projects";
+import { NewProjectDialog } from "../components/NewProjectDialog";
+import { Empty, ErrorNote, Loading } from "../components/State";
+
+function ProjectList() {
+  const { data, error, isPending, refetch } = useGetAllProjects();
+
+  if (isPending) {
+    return <Loading label="Loading projects…" />;
+  }
+
+  if (error) {
+    return <ErrorNote error={error} onRetry={() => refetch()} />;
+  }
+
+  if (data.length === 0) {
+    return (
+      <Empty
+        title="No projects yet"
+        description="A project is a problem to work on: a statement to prove or refute."
+      />
+    );
+  }
+
+  return data.map((project) => (
+    <ProjectCard key={project.id} project={project} />
+  ));
+}
 
 export function Workspaces() {
-  const createProject = useCreateProject();
-  const deleteProject = useDeleteProject();
-  const { data } = useGetAllProjects();
-
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -48,34 +67,9 @@ export function Workspaces() {
             <Typography type="h4" className="m-0 text-base font-semibold">
               Projects
             </Typography>
-            <Button
-              variant="tertiary"
-              className="ml-auto border border-lm-line"
-              isPending={createProject.isPending}
-              onPress={() => {
-                // Temporary: plain prompts until the New Project dialog is designed.
-                const title = window.prompt("Project title");
-                if (title) {
-                  createProject.mutate({ title });
-                }
-              }}
-            >
-              New Project
-            </Button>
+            <NewProjectDialog />
           </div>
-          {data?.map((project) => (
-            <ProjectCard
-              path={project.dir ?? `~`}
-              title={project.title}
-              description={project.statement}
-              onDelete={() => {
-                // TODO: Replace with proper ask
-                if (window.confirm("Are you sure?")) {
-                  deleteProject.mutate(project.id);
-                }
-              }}
-            />
-          ))}
+          <ProjectList />
         </section>
         <div className="flex min-w-0 grow basis-85 flex-col gap-6">
           <RecentSessions />
