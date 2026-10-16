@@ -7,6 +7,7 @@ import {
   CircleFill,
   Comment,
   FileText,
+  Gear,
   GraphNode,
   Layers,
   LayoutCells,
@@ -53,6 +54,11 @@ const projects = [
 ];
 
 const rowBase = "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm";
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `${rowBase} no-underline hover:text-white ${
+    isActive ? "bg-lm-nav-active font-medium text-white" : "text-lm-nav-text"
+  }`;
 
 export function Sidebar() {
   const [project, setProject] = useState<Key | null>(projects[0].id);
@@ -112,13 +118,7 @@ export function Sidebar() {
             key={to}
             to={to}
             end={to === paths.workspace}
-            className={({ isActive }) =>
-              `${rowBase} no-underline hover:text-white ${
-                isActive
-                  ? "bg-lm-nav-active font-medium text-white"
-                  : "text-lm-nav-text"
-              }`
-            }
+            className={navLinkClass}
           >
             <Icon width={18} height={18} aria-hidden="true" />
             {label}
@@ -147,7 +147,15 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="mt-auto flex flex-col items-start gap-1.5 rounded-[10px] border border-lm-nav-card-line bg-lm-nav-card p-3">
+      <NavLink
+        to={paths.settings}
+        className={(state) => `mt-auto -mb-3 ${navLinkClass(state)}`}
+      >
+        <Gear width={18} height={18} aria-hidden="true" />
+        Settings
+      </NavLink>
+
+      <div className="flex flex-col items-start gap-1.5 rounded-[10px] border border-lm-nav-card-line bg-lm-nav-card p-3">
         <Chip size="sm" color="success" variant="soft">
           <CircleFill width={6} />
           <Chip.Label>Daemon running</Chip.Label>

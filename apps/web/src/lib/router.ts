@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import { AppShell } from "../components/AppShell";
+import { Settings } from "../pages/Settings";
 import { Workspaces } from "../pages/Workspaces";
 
 export type RouteHandle = { title: string };
@@ -27,6 +28,11 @@ export const router = createBrowserRouter([
       {
         path: "usage",
         handle: { title: "Usage & budgets" } satisfies RouteHandle,
+      },
+      {
+        path: "settings",
+        Component: Settings,
+        handle: { title: "Settings" } satisfies RouteHandle,
       },
     ],
   },

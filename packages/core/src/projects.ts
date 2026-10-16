@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { Db } from "./db/index.js";
 import type { CreateProjectInput, Project } from "shared";
 import { project } from "./db/schema.js";
@@ -24,4 +24,16 @@ export async function createProject(
 
 export function listProjects(db: Db): Promise<Project[]> {
   return db.select().from(project).orderBy(desc(project.updatedAt));
+}
+
+export async function deleteProject(
+  db: Db,
+  projectId: string,
+): Promise<Project> {
+  const [row] = await db
+    .delete(project)
+    .where(eq(project.id, projectId))
+    .returning();
+
+  return row!;
 }

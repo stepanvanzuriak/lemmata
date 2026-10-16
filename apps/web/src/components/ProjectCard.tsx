@@ -1,14 +1,16 @@
-import { Card, Typography } from "@heroui/react";
+import { Button, Card, Typography } from "@heroui/react";
 import { Katex } from "./Katex";
 
 export function ProjectCard({
   title,
   path,
   description,
+  onDelete,
 }: {
   title: string;
   path: string;
   description: string;
+  onDelete: VoidFunction;
 }) {
   return (
     <Card className="w-full gap-3 rounded-xl border border-lm-line px-5 py-4.5 shadow-none">
@@ -31,6 +33,11 @@ export function ProjectCard({
           <Katex>{description ?? ""}</Katex>
         </Card.Description>
       </Card.Header>
+      <Card.Footer>
+        <Button variant="danger" onClick={onDelete}>
+          Delete
+        </Button>
+      </Card.Footer>
     </Card>
   );
 }

@@ -2,10 +2,15 @@ import { Button, Typography } from "@heroui/react";
 import { WorkspacesCard } from "../components/WorkspacesCard";
 import { ProjectCard } from "../components/ProjectCard";
 import { RecentSessions } from "../components/RecentSessions";
-import { useCreateProject, useGetAllProjects } from "../api/projects";
+import {
+  useCreateProject,
+  useDeleteProject,
+  useGetAllProjects,
+} from "../api/projects";
 
 export function Workspaces() {
   const createProject = useCreateProject();
+  const deleteProject = useDeleteProject();
   const { data } = useGetAllProjects();
 
   return (
@@ -63,6 +68,12 @@ export function Workspaces() {
               path={project.dir ?? `~`}
               title={project.title}
               description={project.statement}
+              onDelete={() => {
+                // TODO: Replace with proper ask
+                if (window.confirm("Are you sure?")) {
+                  deleteProject.mutate(project.id);
+                }
+              }}
             />
           ))}
         </section>

@@ -27,6 +27,16 @@ export async function getProjects(): Promise<Project[]> {
   return res.json();
 }
 
+export async function deleteProject(id: string): Promise<Project> {
+  const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+
+  if (!res.ok) {
+    throw new Error(`Delete project failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export const projectsKey = ["projects"] as const;
 
 export function useCreateProject() {
@@ -42,5 +52,14 @@ export function useGetAllProjects() {
   return useQuery({
     queryKey: projectsKey,
     queryFn: getProjects,
+  });
+}
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProject,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey }),
   });
 }

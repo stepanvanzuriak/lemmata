@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createProject, listProjects, type Db } from "core";
+import { createProject, listProjects, deleteProject, type Db } from "core";
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : undefined);
 
@@ -25,5 +25,12 @@ export function projectRoutes(db: Db) {
       });
 
       return c.json(project, 201);
+    })
+    .delete("/:id", async (c) => {
+      const id = c.req.param("id");
+
+      const project = await deleteProject(db, id);
+
+      return c.json(project, 200);
     });
 }

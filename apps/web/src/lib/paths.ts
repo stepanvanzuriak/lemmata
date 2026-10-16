@@ -5,4 +5,5 @@ export const paths = {
   notebook: "/notebook",
   literature: "/literature",
   usage: "/usage",
+  settings: "/settings",
 } as const;
