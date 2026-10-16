@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 import { NavLink } from "react-router";
-import { Chip, ListBox, Select, Typography } from "@heroui/react";
+import { Chip, Typography } from "@heroui/react";
 import {
   BookOpen,
   ChartColumn,
@@ -12,13 +12,9 @@ import {
   LayoutCells,
   NodesRight,
 } from "@gravity-ui/icons";
-import { useGetAllProjects } from "../api/projects";
-import { useCurrentProjectId } from "../lib/hooks";
-import { useProjectStore } from "../stores/project";
 import { paths } from "../lib/paths";
 import { DaemonStatus } from "./DaemonStatus";
 import { LemmataMark } from "./LemmataMark";
-import { Markdown } from "./Markdown";
 
 type NavItem = {
   to: string;
@@ -48,12 +44,6 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export function Sidebar() {
-  const { data: projects = [] } = useGetAllProjects();
-  const currentId = useCurrentProjectId(projects.map(({ id }) => id));
-  const setCurrentProjectId = useProjectStore(
-    (state) => state.setCurrentProjectId,
-  );
-
   return (
     <nav
       aria-label="Primary"
@@ -80,39 +70,6 @@ export function Sidebar() {
           v0.1
         </Chip>
       </div>
-
-      <Select
-        aria-label="Project"
-        variant="secondary"
-        placeholder="No projects yet"
-        isDisabled={projects.length === 0}
-        value={currentId ?? null}
-        onChange={(id) => id && setCurrentProjectId(String(id))}
-      >
-        <Select.Trigger className="min-h-11 rounded-lg border border-lm-nav-line bg-lm-nav-raised px-3 text-[13px] text-lm-nav-fg">
-          <Select.Value />
-          <Select.Indicator />
-        </Select.Trigger>
-        <Select.Popover>
-          <ListBox>
-            {projects.map(({ id, title, dir }) => (
-              <ListBox.Item key={id} id={id} textValue={title}>
-                <span className="flex min-w-0 flex-col">
-                  <Markdown inline className="truncate">
-                    {title}
-                  </Markdown>
-                  {dir && (
-                    <span className="truncate font-mono text-xs text-lm-muted">
-                      {dir}
-                    </span>
-                  )}
-                </span>
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            ))}
-          </ListBox>
-        </Select.Popover>
-      </Select>
 
       <div className="flex flex-col gap-0.5">
         {nav.map(({ to, label, Icon }) => (
