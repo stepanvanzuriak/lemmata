@@ -1,12 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { openDb } from "./db/index.js";
-import { MIGRATIONS_FOLDER } from "./index.js";
+import { openDb } from "../db/index.js";
+import { MIGRATIONS_FOLDER } from "../index.js";
 import {
   createProject,
   deleteProject,
   listProjects,
   updateProject,
-} from "./projects.js";
+} from "../projects.js";
 
 afterEach(() => {
   vi.useRealTimers();

@@ -1,7 +1,11 @@
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "./db/index.js";
-import type { CreateProjectInput, Project, UpdateProjectInput } from "shared";
-import { project } from "./db/schema.js";
+import {
+  project,
+  type CreateProjectInput,
+  type Project,
+  type UpdateProjectInput,
+} from "./db/schema.js";
 import { isoNow } from "./ids.js";
 
 export async function createProject(

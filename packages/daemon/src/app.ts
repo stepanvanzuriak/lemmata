@@ -1,19 +1,50 @@
 import { Hono } from "hono";
 import type { Db } from "core";
+import type { Toolchain } from "shared";
 import {
   hostAndOrigin,
   requireToken,
   type SecurityOptions,
 } from "./security.js";
 import { projectRoutes } from "./routes/projects.js";
+import { workspaceRoutes } from "./routes/workspace.js";
+import { serveWeb } from "./static.js";
 
-export function createApp(db: Db, security: SecurityOptions) {
-  return new Hono()
+export type AppOptions = {
+  db: Db;
+  security: SecurityOptions;
+  workspaceDir: string;
+  toolchain: Promise<Toolchain>;
+  staticDir?: string;
+};
+
+export function createApp({
+  db,
+  security,
+  workspaceDir,
+  toolchain,
+  staticDir,
+}: AppOptions) {
+  const app = new Hono()
     .use("*", hostAndOrigin(security))
     .use("/api/*", requireToken(security))
     .get("/api/health", (c) => c.json({ ok: true }))
     .route("/api/projects", projectRoutes(db))
+    .route(
+      "/api/workspace",
+      workspaceRoutes({
+        dir: workspaceDir,
+        address: () => `127.0.0.1:${security.port}`,
+        toolchain,
+      }),
+    )
     .notFound((c) => c.json({ error: "not found" }, 404));
+
+  if (staticDir) {
+    app.get("*", ...serveWeb(staticDir));
+  }
+
+  return app;
 }
 
 export type AppType = ReturnType<typeof createApp>;

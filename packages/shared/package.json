@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "@typescript/native": "npm:typescript@^7.0.2"
+  },
+  "dependencies": {
+    "core": "workspace:*"
   }
 }

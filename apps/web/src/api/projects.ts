@@ -1,40 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateProjectInput, Project } from "shared";
+import { api } from "./http";
 
-export async function createProject(
-  input: CreateProjectInput,
-): Promise<Project> {
-  const res = await fetch("/api/projects", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(input),
-  });
+export async function createProject(input: CreateProjectInput) {
+  const { data } = await api.post<Project>("/projects", input);
 
-  if (!res.ok) {
-    throw new Error(`Create project failed: ${res.status}`);
-  }
-
-  return res.json();
+  return data;
 }
 
-export async function getProjects(): Promise<Project[]> {
-  const res = await fetch("/api/projects");
+export async function getProjects() {
+  const { data } = await api.get<Project[]>("/projects");
 
-  if (!res.ok) {
-    throw new Error(`Get projects failed: ${res.status}`);
-  }
-
-  return res.json();
+  return data;
 }
 
-export async function deleteProject(id: string): Promise<Project> {
-  const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+export async function deleteProject(id: string) {
+  const { data } = await api.delete<Project>(`/projects/${id}`);
 
-  if (!res.ok) {
-    throw new Error(`Delete project failed: ${res.status}`);
-  }
-
-  return res.json();
+  return data;
 }
 
 export const projectsKey = ["projects"] as const;

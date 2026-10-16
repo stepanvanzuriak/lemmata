@@ -1,6 +1,12 @@
 export { openDb, schema, type Db } from "./db/index.js";
-export type { Project, CreateProjectInput, UpdateProjectInput } from "shared";
-export type { ProjectRow, NewProject } from "./db/schema.js";
+export {
+  projectSchema,
+  createProjectSchema,
+  updateProjectSchema,
+  type Project,
+  type CreateProjectInput,
+  type UpdateProjectInput,
+} from "./db/schema.js";
 export { initWorkspace } from "./workspace.js";
 export {
   createProject,

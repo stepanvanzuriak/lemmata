@@ -1,47 +1,37 @@
 import { Hono } from "hono";
 import {
   createProject,
+  createProjectSchema,
   listProjects,
   deleteProject,
   getProject,
   type Db,
 } from "core";
-
-const str = (v: unknown) => (typeof v === "string" ? v.trim() : undefined);
+import { validate } from "../validate.js";
 
 export function projectRoutes(db: Db) {
   return new Hono()
     .get("/", async (c) => c.json(await listProjects(db)))
     .get("/:id", async (c) => {
-      const id = c.req.param("id");
-      const project = await getProject(db, id);
+      const project = await getProject(db, c.req.param("id"));
+
+      if (!project) {
+        return c.json({ error: "project not found" }, 404);
+      }
 
       return c.json(project, 200);
     })
-    .post("/", async (c) => {
-      const body: unknown = await c.req.json().catch(() => null);
-      const raw =
-        typeof body === "object" && body !== null
-          ? (body as Record<string, unknown>)
-          : {};
-      const title = str(raw.title);
-
-      if (!title) {
-        return c.json({ error: "title is required" }, 400);
-      }
-
-      const project = await createProject(db, {
-        title,
-        statement: str(raw.statement),
-        dir: str(raw.dir) || null,
-      });
+    .post("/", validate("json", createProjectSchema), async (c) => {
+      const project = await createProject(db, c.req.valid("json"));
 
       return c.json(project, 201);
     })
     .delete("/:id", async (c) => {
-      const id = c.req.param("id");
+      const project = await deleteProject(db, c.req.param("id"));
 
-      const project = await deleteProject(db, id);
+      if (!project) {
+        return c.json({ error: "project not found" }, 404);
+      }
 
       return c.json(project, 200);
     });

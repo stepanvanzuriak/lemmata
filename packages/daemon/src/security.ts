@@ -1,5 +1,5 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
+import { bearerAuth } from "hono/bearer-auth";
 
 export const TOKEN_HEADER = "x-lemmata-token";
 
@@ -9,42 +9,39 @@ export type SecurityOptions = {
   allowedOrigins?: string[];
 };
 
-const digest = (s: string) => createHash("sha256").update(s).digest();
+/** Characters `bearerAuth` accepts in a token. Generated tokens (base64url) always match. */
+export const TOKEN_PATTERN = /^[A-Za-z0-9._~+/-]+=*$/;
 
-export function tokenMatches(
-  given: string | undefined,
-  expected: string,
-): boolean {
-  return given ? timingSafeEqual(digest(given), digest(expected)) : false;
-}
-
-export function hostAndOrigin({
-  port,
-  allowedOrigins = [],
-}: SecurityOptions): MiddlewareHandler {
-  const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
-  const origins = new Set(
-    [...hosts].map((h) => `http://${h}`).concat(allowedOrigins),
-  );
+export function hostAndOrigin(options: SecurityOptions): MiddlewareHandler {
   return async (c, next) => {
-    if (!hosts.has(c.req.header("host") ?? "")) {
+    const hosts = [`127.0.0.1:${options.port}`, `localhost:${options.port}`];
+
+    if (!hosts.includes(c.req.header("host") ?? "")) {
       return c.json({ error: "forbidden host" }, 403);
     }
 
     const origin = c.req.header("origin");
+    const origins = hosts
+      .map((h) => `http://${h}`)
+      .concat(options.allowedOrigins ?? []);
 
-    if (origin !== undefined && !origins.has(origin)) {
+    if (origin !== undefined && !origins.includes(origin)) {
       return c.json({ error: "forbidden origin" }, 403);
     }
+
     await next();
   };
 }
 
-export function requireToken({ token }: SecurityOptions): MiddlewareHandler {
-  return async (c, next) => {
-    if (!tokenMatches(c.req.header(TOKEN_HEADER), token)) {
-      return c.json({ error: "unauthorized" }, 401);
-    }
-    await next();
-  };
+export function requireToken(options: SecurityOptions): MiddlewareHandler {
+  const unauthorized = { message: { error: "unauthorized" } };
+
+  return bearerAuth({
+    token: options.token,
+    headerName: TOKEN_HEADER,
+    prefix: "",
+    noAuthenticationHeader: unauthorized,
+    invalidToken: unauthorized,
+    invalidAuthenticationHeader: { message: { error: "malformed token" } },
+  });
 }

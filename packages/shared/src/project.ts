@@ -1,16 +1,5 @@
-export type Project = {
-  id: string;
-  title: string;
-  statement: string;
-  dir: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type CreateProjectInput = {
-  title: string;
-  statement?: string;
-  dir?: string | null;
-};
-
-export type UpdateProjectInput = Partial<CreateProjectInput>;
+export type {
+  Project,
+  CreateProjectInput,
+  UpdateProjectInput,
+} from "core/schema";

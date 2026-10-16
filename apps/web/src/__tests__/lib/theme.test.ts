@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { setThemePreference } from "./theme";
+import { setThemePreference } from "../../lib/theme";
 
 beforeEach(() => {
   localStorage.clear();
