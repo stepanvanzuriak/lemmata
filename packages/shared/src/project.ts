@@ -12,3 +12,5 @@ export type CreateProjectInput = {
   statement?: string;
   dir?: string | null;
 };
+
+export type UpdateProjectInput = Partial<CreateProjectInput>;

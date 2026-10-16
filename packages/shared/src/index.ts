@@ -1,1 +1,5 @@
-export type { Project, CreateProjectInput } from "./project.js";
+export type {
+  Project,
+  CreateProjectInput,
+  UpdateProjectInput,
+} from "./project.js";

@@ -1,11 +1,23 @@
 import { Hono } from "hono";
-import { createProject, listProjects, deleteProject, type Db } from "core";
+import {
+  createProject,
+  listProjects,
+  deleteProject,
+  getProject,
+  type Db,
+} from "core";
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : undefined);
 
 export function projectRoutes(db: Db) {
   return new Hono()
     .get("/", async (c) => c.json(await listProjects(db)))
+    .get("/:id", async (c) => {
+      const id = c.req.param("id");
+      const project = await getProject(db, id);
+
+      return c.json(project, 200);
+    })
     .post("/", async (c) => {
       const body: unknown = await c.req.json().catch(() => null);
       const raw =

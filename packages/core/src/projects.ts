@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "./db/index.js";
-import type { CreateProjectInput, Project } from "shared";
+import type { CreateProjectInput, Project, UpdateProjectInput } from "shared";
 import { project } from "./db/schema.js";
 import { isoNow } from "./ids.js";
 
@@ -32,6 +32,34 @@ export async function deleteProject(
 ): Promise<Project> {
   const [row] = await db
     .delete(project)
+    .where(eq(project.id, projectId))
+    .returning();
+
+  return row!;
+}
+
+export async function getProject(db: Db, projectId: string): Promise<Project> {
+  const [row] = await db
+    .select()
+    .from(project)
+    .where(eq(project.id, projectId));
+
+  return row!;
+}
+
+export async function updateProject(
+  db: Db,
+  projectId: string,
+  input: UpdateProjectInput,
+): Promise<Project> {
+  const [row] = await db
+    .update(project)
+    .set({
+      title: input.title,
+      statement: input.statement,
+      dir: input.dir,
+      updatedAt: isoNow(),
+    })
     .where(eq(project.id, projectId))
     .returning();
 
