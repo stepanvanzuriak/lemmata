@@ -2,7 +2,7 @@ import ReactMarkdown, { type Options } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
-import { normalizeMath } from "../lib/math";
+import { normalizeMath } from "../../lib/math";
 
 const remarkPlugins: Options["remarkPlugins"] = [remarkMath];
 const rehypePlugins: Options["rehypePlugins"] = [

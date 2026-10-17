@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Button,
   FieldError,
@@ -10,16 +9,14 @@ import {
   TextField,
 } from "@heroui/react";
 import { Plus } from "@gravity-ui/icons";
-import { useCreateProject } from "../api/projects";
-import { useProjectStore } from "../stores/project";
-import { Markdown } from "./Markdown";
-import { ErrorNote } from "./State";
+import { useCreateProject } from "../../api/projects";
+import { useProjectStore } from "../../stores/project";
+import { ErrorNote } from "../common/State";
 
 const FORM_ID = "new-project";
 
-function NewProjectForm({ close }: { close: () => void }) {
+function NewProjectForm({ close }: { close: VoidFunction }) {
   const createProject = useCreateProject();
-  const [statement, setStatement] = useState("");
   const setCurrentProjectId = useProjectStore(
     (state) => state.setCurrentProjectId,
   );
@@ -37,7 +34,7 @@ function NewProjectForm({ close }: { close: () => void }) {
             createProject.mutate(
               {
                 title: String(form.get("title")),
-                statement,
+                statement: String(form.get("statement")),
                 dir: String(form.get("dir")),
               },
               {
@@ -51,11 +48,11 @@ function NewProjectForm({ close }: { close: () => void }) {
         >
           <TextField name="title" isRequired autoFocus>
             <Label>Title</Label>
-            <Input placeholder="Cauchy–Davenport in $\mathbb{Z}_5$" />
+            <Input placeholder="Cauchy-Davenport in $\mathbb{Z}_5$" />
             <FieldError />
           </TextField>
 
-          <TextField name="statement" value={statement} onChange={setStatement}>
+          <TextField name="statement">
             <Label>Statement</Label>
             <TextArea
               rows={5}
@@ -63,12 +60,6 @@ function NewProjectForm({ close }: { close: () => void }) {
             />
             <FieldError />
           </TextField>
-
-          {statement.trim() && (
-            <div className="max-h-48 overflow-auto rounded-lg border border-lm-line bg-lm-field px-3 py-2 text-sm text-lm-ink">
-              <Markdown>{statement}</Markdown>
-            </div>
-          )}
 
           <TextField name="dir">
             <Label>Folder</Label>

@@ -1,8 +1,8 @@
 import { AlertDialog, Button } from "@heroui/react";
 import type { Project } from "shared";
-import { useDeleteProject } from "../api/projects";
-import { Markdown } from "./Markdown";
-import { ErrorNote } from "./State";
+import { useDeleteProject } from "../../api/projects";
+import { Markdown } from "../common/Markdown";
+import { ErrorNote } from "../common/State";
 
 export function DeleteProjectDialog({
   project,

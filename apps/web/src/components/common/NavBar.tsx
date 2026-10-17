@@ -1,7 +1,7 @@
 import { useMatch } from "react-router";
 import { SearchField } from "@heroui/react";
-import { paths } from "../lib/paths";
-import { ProjectSelect } from "./ProjectSelect";
+import { paths } from "../../lib/paths";
+import { ProjectSelect } from "../project/ProjectSelect";
 
 export function NavBar() {
   const isCanvasPage = useMatch(paths.canvas) !== null;

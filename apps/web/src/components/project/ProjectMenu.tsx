@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Button, Dropdown, Label } from "@heroui/react";
-import { EllipsisVertical, TrashBin } from "@gravity-ui/icons";
+import { EllipsisVertical, TrashBin, Pencil } from "@gravity-ui/icons";
 import type { Project } from "shared";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
+import { EditProjectDialog } from "./EditProjectDialog";
 
 export function ProjectMenu({ project }: { project: Project }) {
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   return (
@@ -21,11 +23,19 @@ export function ProjectMenu({ project }: { project: Project }) {
         <Dropdown.Popover placement="bottom end">
           <Dropdown.Menu
             onAction={(key) => {
+              if (key === "edit") {
+                setEditProjectOpen(true);
+              }
+
               if (key === "delete") {
                 setConfirmingDelete(true);
               }
             }}
           >
+            <Dropdown.Item id="edit" textValue="Edit">
+              <Pencil width={14} height={14} aria-hidden="true" />
+              <Label>Edit</Label>
+            </Dropdown.Item>
             <Dropdown.Item id="delete" textValue="Delete" variant="danger">
               <TrashBin
                 width={14}
@@ -33,12 +43,17 @@ export function ProjectMenu({ project }: { project: Project }) {
                 aria-hidden="true"
                 className="text-danger"
               />
-              <Label>Delete…</Label>
+              <Label>Delete</Label>
             </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown.Popover>
       </Dropdown>
 
+      <EditProjectDialog
+        project={project}
+        isOpen={editProjectOpen}
+        onOpenChange={setEditProjectOpen}
+      />
       <DeleteProjectDialog
         project={project}
         isOpen={confirmingDelete}

@@ -1,8 +1,8 @@
 import { render } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { Markdown } from "../../components/Markdown";
+import { Markdown } from "../../components/common/Markdown";
 
-const title = "Cauchy–Davenport in $\\mathbb{Z}_5$";
+const title = "Cauchy-Davenport in $\\mathbb{Z}_5$";
 
 it("renders inline math without a paragraph wrapper", () => {
   const { container } = render(
@@ -13,7 +13,7 @@ it("renders inline math without a paragraph wrapper", () => {
 
   expect(container.querySelector("p")).toBeNull();
   expect(container.querySelector(".katex")).not.toBeNull();
-  expect(container.textContent).toContain("Cauchy–Davenport in");
+  expect(container.textContent).toContain("Cauchy-Davenport in");
 });
 
 it("renders markdown blocks and display math", () => {

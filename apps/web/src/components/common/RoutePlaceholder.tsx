@@ -1,5 +1,5 @@
 import { Typography } from "@heroui/react";
-import { useRouteTitle } from "../lib/hooks";
+import { useRouteTitle } from "../../lib/hooks";
 
 export function RoutePlaceholder() {
   const title = useRouteTitle();

@@ -12,9 +12,9 @@ import {
   LayoutCells,
   NodesRight,
 } from "@gravity-ui/icons";
-import { paths } from "../lib/paths";
+import { paths } from "../../lib/paths";
 import { DaemonStatus } from "./DaemonStatus";
-import { LemmataMark } from "./LemmataMark";
+import { LemmataMark } from "../icons/LemmataMark";
 
 type NavItem = {
   to: string;

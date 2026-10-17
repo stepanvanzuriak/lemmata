@@ -1,7 +1,7 @@
 import { Chip, Typography } from "@heroui/react";
 import { CircleFill } from "@gravity-ui/icons";
 import type { Toolchain } from "shared";
-import { useWorkspace } from "../api/workspace";
+import { useWorkspace } from "../../api/workspace";
 
 const toolNames: Record<keyof Toolchain, string> = {
   claude: "Claude Code",

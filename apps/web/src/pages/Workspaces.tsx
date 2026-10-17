@@ -1,10 +1,10 @@
 import { Typography } from "@heroui/react";
-import { WorkspacesCard } from "../components/WorkspacesCard";
-import { ProjectCard } from "../components/ProjectCard";
-import { RecentSessions } from "../components/RecentSessions";
+import { WorkspacesCard } from "../components/workspace/WorkspacesCard";
+import { ProjectCard } from "../components/project/ProjectCard";
+import { RecentSessions } from "../components/common/RecentSessions";
 import { useGetAllProjects } from "../api/projects";
-import { NewProjectDialog } from "../components/NewProjectDialog";
-import { Empty, ErrorNote, Loading } from "../components/State";
+import { NewProjectDialog } from "../components/project/NewProjectDialog";
+import { Empty, ErrorNote, Loading } from "../components/common/State";
 
 function ProjectList() {
   const { data, error, isPending, refetch } = useGetAllProjects();

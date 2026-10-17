@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateProjectInput, Project } from "shared";
+import type { CreateProjectInput, Project, UpdateProjectInput } from "shared";
 import { api } from "./http";
 
 export async function createProject(input: CreateProjectInput) {
@@ -16,6 +16,18 @@ export async function getProjects() {
 
 export async function deleteProject(id: string) {
   const { data } = await api.delete<Project>(`/projects/${id}`);
+
+  return data;
+}
+
+export async function updateProject({
+  id,
+  input,
+}: {
+  id: string;
+  input: UpdateProjectInput;
+}) {
+  const { data } = await api.patch<Project>(`/projects/${id}`, input);
 
   return data;
 }
@@ -43,6 +55,15 @@ export function useDeleteProject() {
 
   return useMutation({
     mutationFn: deleteProject,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey }),
+  });
+}
+
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateProject,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey }),
   });
 }

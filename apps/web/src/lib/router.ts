@@ -1,7 +1,7 @@
 import { createBrowserRouter } from "react-router";
-import { AppShell } from "../components/AppShell";
-import { RouteError } from "../components/RouteError";
-import { RoutePlaceholder } from "../components/RoutePlaceholder";
+import { AppShell } from "../components/common/AppShell";
+import { RouteError } from "../components/common/RouteError";
+import { RoutePlaceholder } from "../components/common/RoutePlaceholder";
 import { Settings } from "../pages/Settings";
 import { Workspaces } from "../pages/Workspaces";
 

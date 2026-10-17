@@ -42,7 +42,7 @@ export function ErrorNote({
   onRetry,
 }: {
   error: unknown;
-  onRetry?: () => void;
+  onRetry?: VoidFunction;
 }) {
   const message = error instanceof Error ? error.message : String(error);
 

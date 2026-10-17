@@ -1,8 +1,8 @@
 import { ListBox, Select } from "@heroui/react";
-import { useGetAllProjects } from "../api/projects";
-import { useCurrentProjectId } from "../lib/hooks";
-import { useProjectStore } from "../stores/project";
-import { Markdown } from "./Markdown";
+import { useGetAllProjects } from "../../api/projects";
+import { useCurrentProjectId } from "../../lib/hooks";
+import { useProjectStore } from "../../stores/project";
+import { Markdown } from "../common/Markdown";
 
 export function ProjectSelect() {
   const { data: projects = [] } = useGetAllProjects();
