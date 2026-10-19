@@ -43,7 +43,7 @@ export async function runAttempt(
     maxTokens,
     signal,
   }: RunAttemptOptions,
-  onEvent: (event: RunEvent) => void = () => {},
+  onEvent: (event: RunEvent) => void | Promise<void> = () => {},
 ): Promise<Attempt> {
   const row = await startAttempt(db, {
     projectId,
@@ -68,11 +68,11 @@ export async function runAttempt(
     for await (const event of handle.events) {
       if (event.type === "done") {
         reason = overBudget ? "budget" : event.reason;
-        onEvent({ type: "done", reason });
+        await onEvent({ type: "done", reason });
         break;
       }
 
-      onEvent(event);
+      await onEvent(event);
 
       if (event.type === "session") {
         await setAttemptSession(db, row.id, event.sessionId);
@@ -89,7 +89,7 @@ export async function runAttempt(
       }
     }
   } catch (error) {
-    onEvent({ type: "error", message: String(error) });
+    await onEvent({ type: "error", message: String(error) });
     reason = "error";
   } finally {
     signal?.removeEventListener("abort", abort);

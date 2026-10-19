@@ -158,3 +158,12 @@ describe("goalReady", () => {
     ).toBeNull();
   });
 });
+
+it("a claimed hypothesis is work in progress", () => {
+  const h = node("hypothesis", { status: "claimed", claimedByRole: "prover" });
+
+  expect(cardStatus(h, { nodes: [h], edges: [] })).toEqual({
+    tone: "work",
+    label: "Prover working",
+  });
+});

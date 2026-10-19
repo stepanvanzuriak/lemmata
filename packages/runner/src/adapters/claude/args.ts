@@ -14,7 +14,10 @@ export function claudeArgs(options: StartOptions) {
     "--permission-mode",
     permissions.mode,
     "--allowedTools",
-    (permissions.allowedTools ?? DEFAULT_TOOLS).join(","),
+    [
+      ...(permissions.allowedTools ?? DEFAULT_TOOLS),
+      ...Object.keys(options.mcpServers ?? {}).map((name) => `mcp__${name}`),
+    ].join(","),
   ];
   const env: Record<string, string> = {};
 

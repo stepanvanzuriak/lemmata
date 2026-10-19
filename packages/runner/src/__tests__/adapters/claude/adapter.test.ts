@@ -82,6 +82,9 @@ it("isolates MCP config and loads tools up front", async () => {
   const { args, env } = claudeArgs(options);
 
   expect(args).toContain("--strict-mcp-config");
+  expect(args[args.indexOf("--allowedTools") + 1]).toBe(
+    "Read,Glob,Grep,mcp__lemmata",
+  );
   expect(args[args.indexOf("--mcp-config") + 1]).toBe(
     JSON.stringify({ mcpServers: options.mcpServers }),
   );

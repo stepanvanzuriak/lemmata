@@ -23,6 +23,24 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     nodes: r.many.canvasNode(),
     edges: r.many.canvasEdge(),
+    agents: r.many.canvasAgent(),
+    messages: r.many.chatMessage(),
+  },
+  canvasAgent: {
+    canvas: r.one.canvas({
+      from: r.canvasAgent.canvasId,
+      to: r.canvas.id,
+    }),
+  },
+  chatMessage: {
+    canvas: r.one.canvas({
+      from: r.chatMessage.canvasId,
+      to: r.canvas.id,
+    }),
+    attempt: r.one.attempt({
+      from: r.chatMessage.attemptId,
+      to: r.attempt.id,
+    }),
   },
   canvasNode: {
     canvas: r.one.canvas({

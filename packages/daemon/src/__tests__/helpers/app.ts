@@ -1,11 +1,16 @@
 import { MIGRATIONS_FOLDER, openDb } from "core";
+import type { AgentAdapter } from "runner";
 import { createApp } from "../../app.js";
 import { TOKEN_HEADER } from "../../security.js";
 
 export const TOKEN = "test-token";
 export const HOST = "127.0.0.1:4317";
 
-export async function testApp(staticDir?: string, workspaceDir = "/tmp/ws") {
+export async function testApp(
+  staticDir?: string,
+  workspaceDir = "/tmp/ws",
+  adapter?: () => AgentAdapter,
+) {
   return createApp({
     db: await openDb(":memory:", MIGRATIONS_FOLDER),
     security: { port: 4317, token: TOKEN },
@@ -17,6 +22,7 @@ export async function testApp(staticDir?: string, workspaceDir = "/tmp/ws") {
       lean: null,
     }),
     staticDir,
+    adapter,
   });
 }
 

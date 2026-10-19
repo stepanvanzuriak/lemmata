@@ -23,7 +23,11 @@ export type GoalPayload = BasePayload & {
 export type HypothesisPayload = BasePayload & {
   kind: "hypothesis";
   label: string;
-  status: "open" | "supported" | "refuted";
+  status: "open" | "claimed" | "supported" | "refuted";
+  agentId?: string;
+  claimedBy?: string;
+  claimedByRole?: "prover" | "referee";
+  settledBy?: string;
 };
 
 export type RunOutput = {

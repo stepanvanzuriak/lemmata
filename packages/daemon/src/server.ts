@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
-import { initWorkspace, MIGRATIONS_FOLDER } from "core";
+import { clearClaims, initWorkspace, MIGRATIONS_FOLDER } from "core";
 import { createApp } from "./app.js";
 import type { SecurityOptions } from "./security.js";
 import { detectToolchain, warmPython } from "./toolchain.js";
@@ -30,6 +30,8 @@ export async function startServer(
     workspaceDir,
     options.migrationsFolder ?? MIGRATIONS_FOLDER,
   );
+  await clearClaims(db);
+
   const security: SecurityOptions = {
     port: options.port ?? 4317,
     token: options.token ?? randomBytes(24).toString("base64url"),

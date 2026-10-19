@@ -59,3 +59,18 @@ export {
   type Attempt,
   type AttemptStatus,
 } from "./db/schema.js";
+export {
+  listAgents,
+  getAgent,
+  addAgent,
+  updateAgent,
+  removeAgent,
+  clearClaims,
+} from "./agents.js";
+export { addMessage, listMessages, lastSessionId } from "./chat.js";
+export {
+  AGENT_ROLES,
+  type AgentRole,
+  type CanvasAgent,
+  type ChatMessage,
+} from "./db/schema.js";

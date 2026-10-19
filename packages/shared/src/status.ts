@@ -7,9 +7,17 @@ export type CardStatus = { tone: Tone; label: string; detail?: string };
 
 export type CanvasGraph = Pick<CanvasDetail, "nodes" | "edges">;
 
-type StatusFields = { status?: string; author?: string; run?: CardRun };
+type StatusFields = {
+  status?: string;
+  author?: string;
+  run?: CardRun;
+  claimedByRole?: string;
+};
 
 const fields = (node: CanvasNode) => node.payload as StatusFields;
+
+const roleName = (role?: string) =>
+  role ? role[0]!.toUpperCase() + role.slice(1) : "Agent";
 
 const CHECK_KINDS = new Set(["python", "lean"]);
 
@@ -104,6 +112,12 @@ export function cardStatus(
     case "goal":
       return GOAL_STATUS[status ?? "open"] ?? GOAL_STATUS.open!;
     case "hypothesis":
+      if (status === "claimed") {
+        return {
+          tone: "work",
+          label: `${roleName(fields(node).claimedByRole)} working`,
+        };
+      }
       return HYPOTHESIS_STATUS[status ?? "open"] ?? HYPOTHESIS_STATUS.open!;
     case "python":
     case "lean":

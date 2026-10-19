@@ -2,7 +2,6 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { AgentAdapter, RunEvent, StartOptions } from "runner";
 import type { Canvas, Project } from "shared";
@@ -13,8 +12,7 @@ import {
   unregisterRun,
 } from "../../mcp/registry.js";
 import { authed, HOST, testApp } from "../helpers/app.js";
-
-type App = Awaited<ReturnType<typeof testApp>>;
+import { callTool, connectMcp, textOf, type App } from "../helpers/mcp.js";
 
 async function setup() {
   const app = await testApp(
@@ -42,36 +40,13 @@ async function setup() {
   return { app, canvas: canvas!, secret };
 }
 
-/** Routes MCP client requests into the in-memory app. */
-const appFetch =
-  (app: App): typeof fetch =>
-  async (url, init) => {
-    const headers = new Headers(init?.headers);
-    headers.set("host", HOST);
-    return app.request(String(url), { ...init, headers });
-  };
-
-async function connect(app: App, options: StartOptions) {
-  const { url, headers } = options.mcpServers!.lemmata!;
-  const client = new Client({ name: "test-agent", version: "0" });
-
-  await client.connect(
-    new StreamableHTTPClientTransport(new URL(url), {
-      requestInit: { headers },
-      fetch: appFetch(app),
-    }),
-  );
-  return client;
-}
-
-const textOf = (result: unknown) =>
-  (result as CallToolResult).content
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join("\n");
+const connect = (app: App, options: StartOptions) =>
+  connectMcp(() => app, options);
+const call = callTool;
 
 /** An agent that only knows its MCP config and runs a fixed tool script. */
-class ScriptedAgent implements AgentAdapter {
-  readonly name = "scripted";
+class ScriptedTools implements AgentAdapter {
+  readonly name = "scripted-tools";
 
   constructor(
     private readonly app: App,
@@ -94,9 +69,6 @@ class ScriptedAgent implements AgentAdapter {
     return { events: events(), abort: async () => {} };
   }
 }
-
-const call = (client: Client, name: string, args: Record<string, unknown>) =>
-  client.callTool({ name, arguments: args }) as Promise<CallToolResult>;
 
 it("lists tools for a live secret", async () => {
   const { app, secret } = await setup();
@@ -139,7 +111,7 @@ it("answers 401 without a secret or after the run ends", async () => {
 
 it("lets an agent create, run and settle a hypothesis, then nudges", async () => {
   const { app, secret } = await setup();
-  const agent = new ScriptedAgent(app, async (client) => [
+  const agent = new ScriptedTools(app, async (client) => [
     await call(client, "create_cards", {
       cards: [
         { kind: "hypothesis", title: "Small cases hold" },

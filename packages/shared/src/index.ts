@@ -38,3 +38,12 @@ export {
   type CardStatus,
   type Tone,
 } from "./status.js";
+export type {
+  AddAgentRequest,
+  CanvasAgent,
+  ChatConflict,
+  ChatEvent,
+  ChatMessage,
+  ChatRequest,
+  RunInfo,
+} from "./chat.js";

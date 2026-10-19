@@ -30,7 +30,9 @@ it("stores the session id and token totals", async () => {
 
   const attempt = await runAttempt(
     { db, adapter, projectId: project.id, title: "t", options, maxTokens: 1e6 },
-    (event) => events.push(event),
+    (event) => {
+      events.push(event);
+    },
   );
 
   expect(attempt).toMatchObject({

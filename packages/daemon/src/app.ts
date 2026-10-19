@@ -13,6 +13,8 @@ import { fsRoutes } from "./routes/fs.js";
 import { searchRoutes } from "./routes/search.js";
 import { canvasRoutes } from "./routes/canvases.js";
 import { mcpHandler } from "./mcp/server.js";
+import { chatRoutes } from "./routes/chat.js";
+import type { AgentAdapter } from "runner";
 
 export type AppOptions = {
   db: Db;
@@ -20,6 +22,8 @@ export type AppOptions = {
   workspaceDir: string;
   toolchain: Promise<Toolchain>;
   staticDir?: string;
+  /** Overrides the agent for every chat run (tests). */
+  adapter?: () => AgentAdapter;
 };
 
 export function createApp({
@@ -28,6 +32,7 @@ export function createApp({
   workspaceDir,
   toolchain,
   staticDir,
+  adapter,
 }: AppOptions) {
   const app = new Hono()
     .use("*", hostAndOrigin(security))
@@ -38,6 +43,16 @@ export function createApp({
     .route("/api/fs", fsRoutes())
     .route("/api/search", searchRoutes(db))
     .route("/api", canvasRoutes(db, { workspaceDir, toolchain }))
+    .route(
+      "/api",
+      chatRoutes({
+        db,
+        workspaceDir,
+        toolchain,
+        adapter,
+        port: () => security.port,
+      }),
+    )
     .route(
       "/api/workspace",
       workspaceRoutes({
