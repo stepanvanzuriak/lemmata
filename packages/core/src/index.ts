@@ -15,6 +15,24 @@ export {
   getProject,
   updateProject,
 } from "./projects.js";
+export {
+  listCanvases,
+  getCanvas,
+  createCanvas,
+  addNode,
+  updateNode,
+  updateNodePositions,
+  deleteNode,
+  addEdge,
+  deleteEdge,
+  GoalNodeError,
+  NotFoundError,
+  type CanvasDetail,
+  type NodeInput,
+  type NodePayload,
+  type NodePosition,
+} from "./canvases.js";
+export { type Canvas, type CanvasNode, type CanvasEdge } from "./db/schema.js";
 export { searchProjects } from "./search.js";
 export { ulid, isoNow } from "./ids.js";
 

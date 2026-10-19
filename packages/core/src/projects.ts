@@ -6,6 +6,7 @@ import {
   type Project,
   type UpdateProjectInput,
 } from "./db/schema.js";
+import { insertCanvasWithGoal } from "./canvases.js";
 import { isoNow } from "./ids.js";
 
 export async function createProject(
@@ -13,17 +14,21 @@ export async function createProject(
   input: CreateProjectInput,
 ): Promise<Project> {
   const now = isoNow();
-  const [row] = await db
-    .insert(project)
-    .values({
-      title: input.title,
-      statement: input.statement ?? "",
-      dir: input.dir ?? null,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
-  return row!;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(project)
+      .values({
+        title: input.title,
+        statement: input.statement ?? "",
+        dir: input.dir ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    await insertCanvasWithGoal(tx, row!.id);
+    return row!;
+  });
 }
 
 export function listProjects(db: Db): Promise<Project[]> {
