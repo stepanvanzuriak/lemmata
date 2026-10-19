@@ -113,6 +113,7 @@ export function useCanvases(projectId: string) {
   return useQuery({
     queryKey: canvasesKey(projectId),
     queryFn: () => getCanvases(projectId),
+    enabled: Boolean(projectId),
   });
 }
 

@@ -4,7 +4,11 @@ import { useCurrentProjectId } from "../../lib/hooks";
 import { useProjectStore } from "../../stores/project";
 import { Markdown } from "../common/Markdown";
 
-export function ProjectSelect() {
+export function ProjectSelect({
+  onSelect,
+}: {
+  onSelect?: (id: string) => void;
+}) {
   const { data: projects = [] } = useGetAllProjects();
   const currentId = useCurrentProjectId(projects.map(({ id }) => id));
   const setCurrentProjectId = useProjectStore(
@@ -19,7 +23,13 @@ export function ProjectSelect() {
       placeholder="No projects yet"
       isDisabled={projects.length === 0}
       value={currentId ?? null}
-      onChange={(id) => id && setCurrentProjectId(String(id))}
+      onChange={(id) => {
+        if (!id) {
+          return;
+        }
+        setCurrentProjectId(String(id));
+        onSelect?.(String(id));
+      }}
       className="min-w-0 max-w-130 flex-[1_1_280px]"
     >
       <Select.Trigger className="h-10 rounded-lg border border-lm-line px-3 text-[13px] shadow-none">

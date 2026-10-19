@@ -46,6 +46,18 @@
   --color-lm-teal-soft: #ddefec;
   --color-lm-teal-ink: #0b5a53;
   --color-lm-surface: var(--lm-surface);
+
+  --color-lm-note: #fff4c7;
+  --color-lm-note-ink: #3b3203;
+  --color-lm-note-muted: #6b5b12;
+  --color-lm-code-fg: #d7dadf;
+  --color-lm-teal-line: #9ccfc6;
+
+  --color-lm-edge-depends: #5b6068;
+  --color-lm-edge-checked: #2747c9;
+  --color-lm-edge-refuted: #8e939b;
+  --color-lm-edge-tested: #0f766e;
+  --color-lm-edge-used: #b4540a;
 }
 
 :root {
@@ -105,6 +117,17 @@
   --color-lm-teal: #2fb2a5;
   --color-lm-teal-soft: #142e2b;
   --color-lm-teal-ink: #70d4c9;
+
+  --color-lm-note: #3a3418;
+  --color-lm-note-ink: #f3e7b0;
+  --color-lm-note-muted: #c9b770;
+  --color-lm-teal-line: #1f5a54;
+
+  --color-lm-edge-depends: #959ba4;
+  --color-lm-edge-checked: #5577f0;
+  --color-lm-edge-refuted: #6f757e;
+  --color-lm-edge-tested: #2fb2a5;
+  --color-lm-edge-used: #e0954f;
 }
 
 html {
@@ -189,4 +212,20 @@ summary::-webkit-details-marker {
 
 .katex {
   text-transform: none;
+}
+
+.react-flow {
+  --xy-background-color: var(--color-lm-paper);
+  --xy-background-pattern-dots-color: var(--color-lm-line);
+  --xy-minimap-background-color: var(--color-lm-surface);
+  --xy-minimap-mask-background-color: color-mix(
+    in srgb,
+    var(--color-lm-paper) 70%,
+    transparent
+  );
+  --xy-controls-button-background-color: var(--color-lm-surface);
+  --xy-controls-button-color: var(--color-lm-ink);
+  --xy-controls-button-border-color: var(--color-lm-line);
+  --xy-edge-label-background-color: var(--color-lm-surface);
+  --xy-edge-label-color: var(--color-lm-muted);
 }

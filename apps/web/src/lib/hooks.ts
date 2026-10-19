@@ -11,6 +11,12 @@ export function useRouteTitle() {
   );
 }
 
+export function useFullBleed() {
+  return useMatches().some(
+    (match) => (match.handle as RouteHandle | undefined)?.fullBleed,
+  );
+}
+
 export function useCurrentProjectId(projectIds: string[]) {
   const stored = useProjectStore((state) => state.currentProjectId);
 

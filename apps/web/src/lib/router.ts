@@ -4,8 +4,9 @@ import { RouteError } from "../components/common/RouteError";
 import { RoutePlaceholder } from "../components/common/RoutePlaceholder";
 import { Settings } from "../pages/Settings";
 import { Workspaces } from "../pages/Workspaces";
+import { CanvasPage, CanvasRedirect } from "../pages/Canvas";
 
-export type RouteHandle = { title: string };
+export type RouteHandle = { title: string; fullBleed?: boolean };
 
 const placeholder = (path: string, title: string) => ({
   path,
@@ -26,7 +27,19 @@ export const router = createBrowserRouter([
             Component: Workspaces,
             handle: { title: "Workspace" } satisfies RouteHandle,
           },
-          placeholder("canvas", "Research canvas"),
+          {
+            path: "canvas",
+            Component: CanvasRedirect,
+            handle: { title: "Research canvas" } satisfies RouteHandle,
+          },
+          {
+            path: "canvas/:id",
+            Component: CanvasPage,
+            handle: {
+              title: "Research canvas",
+              fullBleed: true,
+            } satisfies RouteHandle,
+          },
           placeholder("sessions", "Sessions"),
           placeholder("notebook", "Notebook"),
           placeholder("literature", "Literature"),
