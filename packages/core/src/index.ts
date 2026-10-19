@@ -25,6 +25,7 @@ export {
   deleteNode,
   addEdge,
   deleteEdge,
+  parsePayload,
   GoalNodeError,
   NotFoundError,
   type CanvasDetail,
@@ -32,7 +33,13 @@ export {
   type NodePayload,
   type NodePosition,
 } from "./canvases.js";
-export { type Canvas, type CanvasNode, type CanvasEdge } from "./db/schema.js";
+export {
+  EDGE_KINDS,
+  NODE_CREATORS,
+  type Canvas,
+  type CanvasNode,
+  type CanvasEdge,
+} from "./db/schema.js";
 export { searchProjects } from "./search.js";
 export { ulid, isoNow } from "./ids.js";
 

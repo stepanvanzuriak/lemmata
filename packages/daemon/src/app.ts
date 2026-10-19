@@ -11,6 +11,7 @@ import { workspaceRoutes } from "./routes/workspace.js";
 import { serveWeb } from "./static.js";
 import { fsRoutes } from "./routes/fs.js";
 import { searchRoutes } from "./routes/search.js";
+import { canvasRoutes } from "./routes/canvases.js";
 
 export type AppOptions = {
   db: Db;
@@ -34,6 +35,7 @@ export function createApp({
     .route("/api/projects", projectRoutes(db))
     .route("/api/fs", fsRoutes())
     .route("/api/search", searchRoutes(db))
+    .route("/api", canvasRoutes(db))
     .route(
       "/api/workspace",
       workspaceRoutes({

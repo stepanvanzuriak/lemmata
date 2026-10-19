@@ -54,7 +54,7 @@ function touchCanvas(db: Executor, id: string, now: string) {
   return db.update(canvas).set({ updatedAt: now }).where(eq(canvas.id, id));
 }
 
-function parsePayload(raw: string): NodePayload {
+export function parsePayload(raw: string): NodePayload {
   try {
     const value: unknown = JSON.parse(raw);
     return value && typeof value === "object" && !Array.isArray(value)

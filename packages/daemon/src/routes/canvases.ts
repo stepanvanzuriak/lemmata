@@ -1,0 +1,200 @@
+import { Hono } from "hono";
+import { z } from "zod";
+import {
+  type Db,
+  type CanvasNode as CanvasNodeRow,
+  EDGE_KINDS,
+  NODE_CREATORS,
+  GoalNodeError,
+  NotFoundError,
+  addEdge,
+  addNode,
+  createCanvas,
+  deleteEdge,
+  deleteNode,
+  getCanvas,
+  listCanvases,
+  parsePayload,
+  updateNode,
+  updateNodePositions,
+} from "core";
+import type { CanvasDetail, CanvasNode, NodeKind } from "shared";
+import { validate } from "../validate.js";
+
+const NODE_KINDS = [
+  "goal",
+  "hypothesis",
+  "statement",
+  "note",
+  "memory",
+  "arxiv",
+  "python",
+  "lean",
+] as const satisfies readonly NodeKind[];
+
+const payload = z.record(z.string(), z.unknown());
+
+const createCanvasSchema = z.object({ title: z.string().optional() });
+
+const addNodeSchema = z.object({
+  kind: z.enum(NODE_KINDS),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().optional(),
+  h: z.number().optional(),
+  payload: payload.optional(),
+  createdBy: z.enum(NODE_CREATORS).optional(),
+});
+
+const positionsSchema = z.object({
+  nodes: z.array(
+    z.object({
+      id: z.string(),
+      x: z.number(),
+      y: z.number(),
+      w: z.number().optional(),
+      h: z.number().optional(),
+    }),
+  ),
+});
+
+const addEdgeSchema = z.object({
+  fromNode: z.string(),
+  toNode: z.string(),
+  kind: z.enum(EDGE_KINDS),
+});
+
+function toNode(row: CanvasNodeRow): CanvasNode {
+  return {
+    ...row,
+    kind: row.kind as NodeKind,
+    payload: parsePayload(row.payload) as CanvasNode["payload"],
+  };
+}
+
+export function canvasRoutes(db: Db) {
+  const canvasExists = async (id: string) =>
+    Boolean(await db.query.canvas.findFirst({ where: { id } }));
+
+  return new Hono()
+    .get("/canvases", async (c) => {
+      const projectId = c.req.query("projectId");
+
+      if (!projectId) {
+        return c.json({ error: "projectId is required" }, 400);
+      }
+
+      return c.json(await listCanvases(db, projectId), 200);
+    })
+    .get("/canvases/:id", async (c) => {
+      const detail = await getCanvas(db, c.req.param("id"));
+
+      if (!detail) {
+        return c.json({ error: "canvas not found" }, 404);
+      }
+
+      return c.json<CanvasDetail>(
+        { ...detail, nodes: detail.nodes.map(toNode) },
+        200,
+      );
+    })
+    .post(
+      "/projects/:id/canvases",
+      validate("json", createCanvasSchema),
+      async (c) => {
+        try {
+          const canvas = await createCanvas(
+            db,
+            c.req.param("id"),
+            c.req.valid("json").title,
+          );
+
+          return c.json(canvas, 201);
+        } catch (error) {
+          if (error instanceof NotFoundError) {
+            return c.json({ error: "project not found" }, 404);
+          }
+          throw error;
+        }
+      },
+    )
+    .post("/canvases/:id/nodes", validate("json", addNodeSchema), async (c) => {
+      const canvasId = c.req.param("id");
+
+      if (!(await canvasExists(canvasId))) {
+        return c.json({ error: "canvas not found" }, 404);
+      }
+
+      const node = await addNode(db, { ...c.req.valid("json"), canvasId });
+
+      return c.json(toNode(node), 201);
+    })
+    .patch(
+      "/canvases/:id/nodes",
+      validate("json", positionsSchema),
+      async (c) => {
+        const canvasId = c.req.param("id");
+
+        if (!(await canvasExists(canvasId))) {
+          return c.json({ error: "canvas not found" }, 404);
+        }
+
+        await updateNodePositions(db, canvasId, c.req.valid("json").nodes);
+
+        return c.json({ ok: true }, 200);
+      },
+    )
+    .patch("/nodes/:id", validate("json", payload), async (c) => {
+      const node = await updateNode(db, c.req.param("id"), c.req.valid("json"));
+
+      if (!node) {
+        return c.json({ error: "node not found" }, 404);
+      }
+
+      return c.json(toNode(node), 200);
+    })
+    .delete("/nodes/:id", async (c) => {
+      try {
+        const node = await deleteNode(db, c.req.param("id"));
+
+        if (!node) {
+          return c.json({ error: "node not found" }, 404);
+        }
+
+        return c.json(toNode(node), 200);
+      } catch (error) {
+        if (error instanceof GoalNodeError) {
+          return c.json({ error: "the goal node cannot be deleted" }, 409);
+        }
+        throw error;
+      }
+    })
+    .post("/canvases/:id/edges", validate("json", addEdgeSchema), async (c) => {
+      const canvasId = c.req.param("id");
+      const detail = await getCanvas(db, canvasId);
+
+      if (!detail) {
+        return c.json({ error: "canvas not found" }, 404);
+      }
+
+      const { fromNode, toNode: to } = c.req.valid("json");
+      const ids = new Set(detail.nodes.map((n) => n.id));
+
+      if (!ids.has(fromNode) || !ids.has(to)) {
+        return c.json({ error: "node not found" }, 404);
+      }
+
+      const edge = await addEdge(db, { ...c.req.valid("json"), canvasId });
+
+      return c.json(edge, 201);
+    })
+    .delete("/edges/:id", async (c) => {
+      const edge = await deleteEdge(db, c.req.param("id"));
+
+      if (!edge) {
+        return c.json({ error: "edge not found" }, 404);
+      }
+
+      return c.json(edge, 200);
+    });
+}
