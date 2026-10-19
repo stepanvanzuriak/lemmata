@@ -15,6 +15,7 @@ export {
   getProject,
   updateProject,
 } from "./projects.js";
+export { searchProjects } from "./search.js";
 export { ulid, isoNow } from "./ids.js";
 
 export const MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url)

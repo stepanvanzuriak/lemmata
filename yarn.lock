@@ -1662,10 +1662,42 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tanstack/devtools-event-client@npm:^0.5.0":
+  version: 0.5.0
+  resolution: "@tanstack/devtools-event-client@npm:0.5.0"
+  bin:
+    intent: ./bin/intent.js
+  checksum: 10c0/286ba434613c2663f2bf8bcd190d771d531464ee5f8bda87cf959f35213a1a92f7b0f29fffc4e581dd2019b2e40bd7dfa7bc70a60abb325dd0f35fc07a3cbc1a
+  languageName: node
+  linkType: hard
+
+"@tanstack/pacer@npm:0.23.1":
+  version: 0.23.1
+  resolution: "@tanstack/pacer@npm:0.23.1"
+  dependencies:
+    "@tanstack/devtools-event-client": "npm:^0.5.0"
+    "@tanstack/store": "npm:^0.11.2"
+  checksum: 10c0/3154ce0e8dea0b3ecf8e6c027f8d3b6780b49dcd727d2d157257c2cd5e47806153547a145f8eec42d8a15637a0869b01c22d6f0fe4b2976c4f0c6ddb2b3c5f57
+  languageName: node
+  linkType: hard
+
 "@tanstack/query-core@npm:5.104.2":
   version: 5.104.2
   resolution: "@tanstack/query-core@npm:5.104.2"
   checksum: 10c0/240b551de7dbc23cae1342da562f2001e748312fceb5c00284ccc238ac3e8491ebb37fcad3f54f7d8da854edc1eb81886f28305c67055a15a77bcf7d7662fc0a
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-pacer@npm:^0.24.1":
+  version: 0.24.1
+  resolution: "@tanstack/react-pacer@npm:0.24.1"
+  dependencies:
+    "@tanstack/pacer": "npm:0.23.1"
+    "@tanstack/react-store": "npm:^0.11.2"
+  peerDependencies:
+    react: ">=16.8"
+    react-dom: ">=16.8"
+  checksum: 10c0/1737663de70c28cc1f32317ca5a810c19c043cfc950b0ed869cc9f54947267a48dde726b718004c8a7b55a7b0d3da858d13bc33ab57321cc3cacc9ec76b85eef
   languageName: node
   linkType: hard
 
@@ -1677,6 +1709,26 @@ __metadata:
   peerDependencies:
     react: ^18 || ^19
   checksum: 10c0/67d3600a02b6bc216784b73c402c4b0e8bce8b7641f6b8f3597b24e02589158fab0718bb59622e860cecd3130bc5015ee7944c68b4f51dabdc563986d8b7d935
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-store@npm:^0.11.2":
+  version: 0.11.2
+  resolution: "@tanstack/react-store@npm:0.11.2"
+  dependencies:
+    "@tanstack/store": "npm:0.11.2"
+    use-sync-external-store: "npm:^1.6.0"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/a755aa369c13824709ca5b29355ab7a72ba913d3561786f993412c8c375f36c54b20c0366bd406cf21b363b12e516a251a774ee7140479571b628e895448a93d
+  languageName: node
+  linkType: hard
+
+"@tanstack/store@npm:0.11.2, @tanstack/store@npm:^0.11.2":
+  version: 0.11.2
+  resolution: "@tanstack/store@npm:0.11.2"
+  checksum: 10c0/5422149c853c16e642a0ddfb51c2b4a867a11516069d3b9647659212e9762b86d609144de6ac6ec099b0360c3b198d1243f613148d69c1028dee56382f0430cd
   languageName: node
   linkType: hard
 
@@ -2710,6 +2762,13 @@ __metadata:
     zod: "npm:^4.6.7"
   languageName: unknown
   linkType: soft
+
+"date-fns@npm:^4.4.0":
+  version: 4.4.0
+  resolution: "date-fns@npm:4.4.0"
+  checksum: 10c0/988f0a13db183f5dfc85c36bbb6847a9c135a9225888bbea4005876ec15539a8613c21a07370a4e7ea543918d5a1cafb423c528b42cdbbde5fdfddb178126b21
+  languageName: node
+  linkType: hard
 
 "debug@npm:4, debug@npm:^4.0.0, debug@npm:^4.1.0, debug@npm:^4.3.1, debug@npm:^4.3.2, debug@npm:^4.4.3":
   version: 4.4.3
@@ -6076,6 +6135,7 @@ __metadata:
     "@react-aria/utils": "npm:^3.34.1"
     "@rolldown/plugin-babel": "npm:^0.2.3"
     "@tailwindcss/vite": "npm:^4.3.3"
+    "@tanstack/react-pacer": "npm:^0.24.1"
     "@tanstack/react-query": "npm:^5.104.2"
     "@testing-library/dom": "npm:^10.4.2"
     "@testing-library/react": "npm:^16.3.3"
@@ -6088,6 +6148,7 @@ __metadata:
     axios: "npm:^1.20.0"
     babel-plugin-react-compiler: "npm:^1.0.0"
     clsx: "npm:^2.1.1"
+    date-fns: "npm:^4.4.0"
     katex: "npm:^0.19.0"
     react: "npm:^19.2.8"
     react-dom: "npm:^19.2.8"

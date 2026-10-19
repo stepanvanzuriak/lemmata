@@ -1,8 +1,10 @@
-import { Typography } from "@heroui/react";
+import { useState } from "react";
+import { Button, Typography } from "@heroui/react";
+import { Magnifier } from "@gravity-ui/icons";
 import { WorkspacesCard } from "../components/workspace/WorkspacesCard";
 import { ProjectCard } from "../components/project/ProjectCard";
-import { RecentSessions } from "../components/common/RecentSessions";
 import { useGetAllProjects } from "../api/projects";
+import { ProjectSearch } from "../components/project/ProjectSearch";
 import { NewProjectDialog } from "../components/project/NewProjectDialog";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 
@@ -31,7 +33,28 @@ function ProjectList() {
   ));
 }
 
+function SidePanel({
+  title,
+  empty,
+  description,
+}: {
+  title: string;
+  empty: string;
+  description: string;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <Typography type="h4" className="m-0 text-base font-semibold">
+        {title}
+      </Typography>
+      <Empty title={empty} description={description} />
+    </section>
+  );
+}
+
 export function Workspaces() {
+  const [searching, setSearching] = useState(false);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -42,23 +65,23 @@ export function Workspaces() {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <WorkspacesCard
           title="Tokens today"
-          description="1.84M"
-          subTitle="71% cache reads · 6 sessions"
-        />
-        <WorkspacesCard
-          title="Spend · October"
-          description="$46.20"
-          subTitle="38% of $120 monthly budget"
+          description="—"
+          subTitle="Not tracked yet"
         />
         <WorkspacesCard
           title="Running sessions"
-          description="2"
-          subTitle="1 waiting on your approval"
+          description="—"
+          subTitle="Not tracked yet"
         />
         <WorkspacesCard
-          title="Lemmas checked in Lean"
-          description="23 / 41"
-          subTitle="3 still contain sorry"
+          title="Hypotheses supported"
+          description="—"
+          subTitle="Not tracked yet"
+        />
+        <WorkspacesCard
+          title="Goals settled"
+          description="—"
+          subTitle="Not tracked yet"
         />
       </div>
       <div className="flex flex-wrap items-start gap-6">
@@ -68,11 +91,36 @@ export function Workspaces() {
               Projects
             </Typography>
             <NewProjectDialog />
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label="Search projects"
+              aria-expanded={searching}
+              onPress={() => setSearching((open) => !open)}
+            >
+              <Magnifier width={16} height={16} aria-hidden="true" />
+            </Button>
           </div>
+          {searching && <ProjectSearch />}
           <ProjectList />
         </section>
         <div className="flex min-w-0 grow basis-85 flex-col gap-6">
-          <RecentSessions />
+          <SidePanel
+            title="Recent sessions"
+            empty="No sessions yet"
+            description="Agent sessions across your canvases will show up here."
+          />
+          <SidePanel
+            title="Research memory"
+            empty="Nothing remembered yet"
+            description="Facts and decisions the agent keeps about your project."
+          />
+          <SidePanel
+            title="Literature inbox"
+            empty="Inbox is empty"
+            description="Papers collected for your projects will land here."
+          />
         </div>
       </div>
     </div>
