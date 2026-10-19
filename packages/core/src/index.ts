@@ -45,3 +45,17 @@ export { ulid, isoNow } from "./ids.js";
 
 export const MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url)
   .pathname;
+export {
+  startAttempt,
+  addAttemptUsage,
+  setAttemptSession,
+  finishAttempt,
+  listAttempts,
+  attemptTokens,
+  type AttemptUsage,
+} from "./attempts.js";
+export {
+  ATTEMPT_STATUSES,
+  type Attempt,
+  type AttemptStatus,
+} from "./db/schema.js";

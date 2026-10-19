@@ -4,6 +4,17 @@ import * as schema from "./schema.js";
 export const relations = defineRelations(schema, (r) => ({
   project: {
     canvases: r.many.canvas(),
+    attempts: r.many.attempt(),
+  },
+  attempt: {
+    project: r.one.project({
+      from: r.attempt.projectId,
+      to: r.project.id,
+    }),
+    canvas: r.one.canvas({
+      from: r.attempt.canvasId,
+      to: r.canvas.id,
+    }),
   },
   canvas: {
     project: r.one.project({
