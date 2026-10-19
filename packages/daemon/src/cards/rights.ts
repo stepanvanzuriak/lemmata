@@ -1,0 +1,21 @@
+import type { CanvasNode } from "shared";
+import { fieldsOf, type Author } from "./types.js";
+
+export type EditRight = "all" | "status" | "none";
+
+export function editRight(card: CanvasNode, author: Author): EditRight {
+  if (author.agentId && fieldsOf(card).agentId === author.agentId) {
+    return "all";
+  }
+  if (author.role === "assistant" && card.createdBy === "ai") {
+    return "all";
+  }
+  if (
+    author.role === "prover" &&
+    (card.kind === "hypothesis" || card.kind === "goal")
+  ) {
+    return "status";
+  }
+
+  return "none";
+}

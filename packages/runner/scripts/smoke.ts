@@ -11,13 +11,19 @@ async function run(options: StartOptions) {
 
   for await (const event of backend.start(options)
     .events as AsyncIterable<RunEvent>) {
-    if (event.type === "session") sessionId = event.sessionId;
-    if (event.type === "text") reply += event.text;
+    if (event.type === "session") {
+      sessionId = event.sessionId;
+    }
+    if (event.type === "text") {
+      reply += event.text;
+    }
     if (event.type === "usage") {
       const { input, output, cacheRead, cacheWrite } = event.usage;
       tokens += input + output + cacheRead + cacheWrite;
     }
-    if (event.type === "error") console.error("error:", event.message);
+    if (event.type === "error") {
+      console.error("error:", event.message);
+    }
   }
 
   console.log({ sessionId, reply, tokens });

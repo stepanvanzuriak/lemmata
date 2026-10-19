@@ -34,4 +34,5 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
   },
   prettier,
+  { rules: { curly: ["error", "all"] } },
 ]);

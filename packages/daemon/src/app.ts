@@ -12,6 +12,7 @@ import { serveWeb } from "./static.js";
 import { fsRoutes } from "./routes/fs.js";
 import { searchRoutes } from "./routes/search.js";
 import { canvasRoutes } from "./routes/canvases.js";
+import { mcpHandler } from "./mcp/server.js";
 
 export type AppOptions = {
   db: Db;
@@ -30,6 +31,7 @@ export function createApp({
 }: AppOptions) {
   const app = new Hono()
     .use("*", hostAndOrigin(security))
+    .all("/mcp", mcpHandler({ db, workspaceDir, toolchain }))
     .use("/api/*", requireToken(security))
     .get("/api/health", (c) => c.json({ ok: true }))
     .route("/api/projects", projectRoutes(db))

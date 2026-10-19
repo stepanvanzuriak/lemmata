@@ -66,8 +66,11 @@ export function runProcess(
         truncated = true;
       }
       size += text.length;
-      if (stream === "out") stdout += text;
-      else stderr += text;
+      if (stream === "out") {
+        stdout += text;
+      } else {
+        stderr += text;
+      }
     };
 
     child.stdout.on("data", collect("out"));
@@ -178,7 +181,9 @@ export function parseLeanOutput(output: string): LeanReport {
     } else if (axiomList) {
       current = null;
       for (const name of axiomList[1]!.split(",")) {
-        if (name.trim()) axioms.add(name.trim());
+        if (name.trim()) {
+          axioms.add(name.trim());
+        }
       }
     } else if (NO_AXIOMS.test(line)) {
       current = null;

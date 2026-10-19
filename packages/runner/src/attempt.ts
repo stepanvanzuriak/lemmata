@@ -60,7 +60,9 @@ export async function runAttempt(
     handle.abort().catch(() => {});
   };
   signal?.addEventListener("abort", abort, { once: true });
-  if (signal?.aborted) abort();
+  if (signal?.aborted) {
+    abort();
+  }
 
   try {
     for await (const event of handle.events) {

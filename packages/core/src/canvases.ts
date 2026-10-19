@@ -278,6 +278,8 @@ export async function deleteEdge(
     .where(eq(canvasEdge.id, id))
     .returning();
 
-  if (row) await touchCanvas(db, row.canvasId, isoNow());
+  if (row) {
+    await touchCanvas(db, row.canvasId, isoNow());
+  }
   return row;
 }

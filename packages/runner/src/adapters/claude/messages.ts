@@ -27,7 +27,9 @@ function assistantEvents(message: Json, seen: Set<string>): RunEvent[] {
   const content = Array.isArray(message.content) ? message.content : [];
 
   for (const block of content) {
-    if (!isObject(block)) continue;
+    if (!isObject(block)) {
+      continue;
+    }
     if (block.type === "text" && typeof block.text === "string") {
       events.push({ type: "text", text: block.text });
     }

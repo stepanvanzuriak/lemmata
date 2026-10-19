@@ -14,7 +14,9 @@ afterEach(() => {
 
 async function collect(handle: RunHandle) {
   const events: RunEvent[] = [];
-  for await (const event of handle.events) events.push(event);
+  for await (const event of handle.events) {
+    events.push(event);
+  }
   return events;
 }
 

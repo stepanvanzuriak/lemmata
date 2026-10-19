@@ -69,12 +69,16 @@ export function runCliProcess({
   });
 
   const emit = (event: RunEvent) => {
-    if (event.type === "done") finished = true;
+    if (event.type === "done") {
+      finished = true;
+    }
     events.push(event);
   };
 
   createInterface({ input: child.stdout }).on("line", (line) => {
-    if (aborted || !line.trim()) return;
+    if (aborted || !line.trim()) {
+      return;
+    }
     try {
       parseLine(JSON.parse(line)).forEach(emit);
     } catch {
@@ -107,7 +111,9 @@ export function runCliProcess({
   return {
     events,
     abort: async () => {
-      if (finished || aborted) return;
+      if (finished || aborted) {
+        return;
+      }
       aborted = true;
       child.kill("SIGTERM");
       const timer = setTimeout(() => child.kill("SIGKILL"), KILL_AFTER_MS);

@@ -22,7 +22,9 @@ function countTones(nodes: CanvasNode[], detail: CanvasDetail) {
 
   for (const node of nodes) {
     const status = cardStatus(node, detail);
-    if (status) counts[status.tone] += 1;
+    if (status) {
+      counts[status.tone] += 1;
+    }
   }
 
   return counts;
