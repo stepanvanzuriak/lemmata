@@ -149,12 +149,14 @@ export async function startChat(
   const run: RunInfo = {
     runKey,
     role,
-    model: agent?.model ?? null,
+    model: agent?.model ?? request.model ?? null,
     target: target?.id ?? null,
   };
   const project = canvas.project;
 
   return async (emit) => {
+    const adapter = deps.adapter?.() ?? createAdapter("claude");
+    const modelId = agent?.model ?? request.model ?? null;
     let secret: string | null = null;
     let seen = snapshot(detail);
     let reply = "";
@@ -191,7 +193,7 @@ export async function startChat(
       const attempt = await runAttempt(
         {
           db,
-          adapter: deps.adapter?.() ?? createAdapter("claude"),
+          adapter,
           projectId: project.id,
           canvasId,
           title: request.text.slice(0, 80),
@@ -208,8 +210,8 @@ export async function startChat(
                 agent?.id ?? null,
                 target?.id ?? null,
               )) ?? undefined,
-            model: agent?.model
-              ? { provider: "anthropic", id: agent.model }
+            model: modelId
+              ? { provider: adapter.name, id: modelId }
               : undefined,
             systemPromptAddendum: [
               `Project: ${project.title}\n${project.statement}`,

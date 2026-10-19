@@ -33,11 +33,15 @@ export function captureToken() {
 
 export const api = axios.create({ baseURL: "/api" });
 
-api.interceptors.request.use((config) => {
+export function authHeaders(): Record<string, string> {
   const token = sessionStorage.getItem(TOKEN_KEY);
 
-  if (token) {
-    config.headers.set("x-lemmata-token", token);
+  return token ? { "x-lemmata-token": token } : {};
+}
+
+api.interceptors.request.use((config) => {
+  for (const [name, value] of Object.entries(authHeaders())) {
+    config.headers.set(name, value);
   }
 
   return config;

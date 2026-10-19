@@ -8,6 +8,7 @@ import type {
 /** Replays a fixed script of events; records the options of every start. */
 export class FakeAdapter implements AgentAdapter {
   readonly name = "fake";
+  readonly models = [];
   readonly starts: StartOptions[] = [];
 
   constructor(private readonly script: RunEvent[]) {}

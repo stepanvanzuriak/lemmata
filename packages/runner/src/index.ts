@@ -2,6 +2,7 @@ export type {
   AgentAdapter,
   DoneReason,
   McpServer,
+  ModelOption,
   RunEvent,
   RunHandle,
   StartOptions,

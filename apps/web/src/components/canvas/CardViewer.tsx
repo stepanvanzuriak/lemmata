@@ -13,6 +13,7 @@ import { useDeleteNode, useUpdateNode } from "../../api/canvases";
 import { Markdown } from "../common/Markdown";
 import { fieldsOf, KIND_LABELS } from "./kinds";
 import { RunPanel } from "./RunPanel";
+import { AgentActions } from "./AgentActions";
 
 const STATUSES: Partial<Record<CanvasNode["kind"], string[]>> = {
   goal: ["open", "proved", "disproved"],
@@ -190,6 +191,8 @@ export function CardViewer({
       )}
 
       {isCode(node) && !editing && <RunPanel canvasId={canvasId} node={node} />}
+
+      {!editing && <AgentActions node={node} />}
 
       {node.kind !== "goal" && (
         <Button

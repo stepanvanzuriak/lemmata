@@ -18,8 +18,12 @@ import {
   type ChatDeps,
 } from "../chat.js";
 import { validate } from "../validate.js";
+import { createAdapter } from "runner";
 
-const chatSchema = z.object({ text: z.string().trim().min(1) });
+const chatSchema = z.object({
+  text: z.string().trim().min(1),
+  model: z.string().trim().min(1).nullish(),
+});
 
 const agentSchema = z.object({
   role: z.enum(AGENT_ROLES),
@@ -60,6 +64,9 @@ export function chatRoutes(deps: ChatDeps) {
     })
     .post("/canvases/:id/chat/abort", (c) =>
       c.json({ aborted: abortRuns(c.req.param("id"), c.req.query("agent")) }),
+    )
+    .get("/models", (c) =>
+      c.json((deps.adapter?.() ?? createAdapter("claude")).models),
     )
     .get("/canvases/:id/runs", (c) => c.json(activeRuns(c.req.param("id"))))
     .get("/canvases/:id/messages", async (c) =>

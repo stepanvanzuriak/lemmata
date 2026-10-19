@@ -255,3 +255,23 @@ summary::-webkit-details-marker {
     animation: none;
   }
 }
+
+@keyframes lm-new {
+  from {
+    box-shadow: 0 0 0 4px var(--color-lm-accent);
+  }
+  to {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+.react-flow__node.lm-new {
+  border-radius: 0.75rem;
+  animation: lm-new 3s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__node.lm-new {
+    animation: none;
+  }
+}

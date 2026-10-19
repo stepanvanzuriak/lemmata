@@ -32,6 +32,7 @@ import { fieldsOf, type CreatableKind } from "../components/canvas/kinds";
 import { ProgressPanel } from "../components/canvas/ProgressPanel";
 import { Toolbar } from "../components/canvas/Toolbar";
 import { useCanvasData } from "../components/canvas/useCanvasData";
+import { ChatPanel } from "../components/chat/ChatPanel";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 import { useCurrentProjectId, useTheme } from "../lib/hooks";
 import { paths } from "../lib/paths";
@@ -67,8 +68,15 @@ function newPayload(
 }
 
 function CanvasEditor({ canvasId }: { canvasId: string }) {
-  const { query, detail, nodes, edges, onNodesChange, onEdgesChange } =
-    useCanvasData(canvasId);
+  const {
+    query,
+    detail,
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    mergeLive,
+  } = useCanvasData(canvasId);
   const { resolved } = useTheme();
   const { screenToFlowPosition } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -219,6 +227,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
           onClose={() => setSelectedId(null)}
         />
       )}
+      <ChatPanel canvasId={canvasId} onCards={mergeLive} />
     </div>
   );
 }

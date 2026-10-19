@@ -47,6 +47,7 @@ const call = callTool;
 /** An agent that only knows its MCP config and runs a fixed tool script. */
 class ScriptedTools implements AgentAdapter {
   readonly name = "scripted-tools";
+  readonly models = [];
 
   constructor(
     private readonly app: App,

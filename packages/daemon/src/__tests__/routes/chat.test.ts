@@ -46,8 +46,11 @@ async function setup(step: Step) {
     await app.request(`/api/canvases?projectId=${project.id}`, json("GET"))
   ).json()) as Canvas[];
   const base = `/api/canvases/${canvas!.id}`;
-  const chat = async (text: string) => {
-    const res = await app.request(`${base}/chat`, json("POST", { text }));
+  const chat = async (text: string, model?: string) => {
+    const res = await app.request(
+      `${base}/chat`,
+      json("POST", { text, model }),
+    );
     return {
       res,
       events: res.status === 200 ? parseSse(await res.text()) : [],
@@ -135,7 +138,7 @@ it("stores the typed command, resumes per target and claims while running", asyn
   expect(prover[0]!.resumeSessionId).toBeUndefined();
   expect(prover[1]!.resumeSessionId).toBe("session-2");
   expect(prover[2]!.resumeSessionId).toBeUndefined();
-  expect(prover[0]!.model).toEqual({ provider: "anthropic", id: "haiku" });
+  expect(prover[0]!.model).toEqual({ provider: "scripted", id: "haiku" });
   expect(seen[0]).toContain("status: Prover working");
 
   const messages = (await (
@@ -204,6 +207,17 @@ it("aborts a run", async () => {
   release();
   const events = parseSse(await (await running).text());
   expect(events.at(-1)).toMatchObject({ type: "done", status: "aborted" });
+});
+
+it("uses the requested model for the Assistant and lists the adapter's models", async () => {
+  const { app, agent, chat } = await setup(async () => []);
+
+  await chat("hello", "fast");
+
+  expect(agent.starts[0]!.model).toEqual({ provider: "scripted", id: "fast" });
+  expect(await (await app.request("/api/models", json("GET"))).json()).toEqual([
+    { id: "fast", label: "Fast" },
+  ]);
 });
 
 it("manages agents", async () => {

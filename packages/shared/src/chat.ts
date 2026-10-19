@@ -3,7 +3,10 @@ import type { CanvasEdge, CanvasNode } from "./canvas.js";
 
 export type { CanvasAgent, ChatMessage };
 
-export type ChatRequest = { text: string };
+/** `model` applies to Assistant messages; agents use their own model. */
+export type ChatRequest = { text: string; model?: string | null };
+
+export type ModelOption = { id: string; label: string };
 
 export type AddAgentRequest = {
   role: CanvasAgent["role"];

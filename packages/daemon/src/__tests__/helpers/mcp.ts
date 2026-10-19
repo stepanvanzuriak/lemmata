@@ -51,6 +51,7 @@ export type Step = (
  */
 export class ScriptedAgent implements AgentAdapter {
   readonly name = "scripted";
+  readonly models = [{ id: "fast", label: "Fast" }];
   readonly starts: StartOptions[] = [];
   private sessions = 0;
 

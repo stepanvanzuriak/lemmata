@@ -11,6 +11,11 @@ export type ClaudeAdapterOptions = {
 /** Claude Code CLI (`claude -p --output-format stream-json`). */
 export class ClaudeAdapter implements AgentAdapter {
   readonly name = "claude";
+  readonly models = [
+    { id: "haiku", label: "Haiku" },
+    { id: "sonnet", label: "Sonnet" },
+    { id: "opus", label: "Opus" },
+  ];
 
   constructor(private readonly config: ClaudeAdapterOptions = {}) {}
 

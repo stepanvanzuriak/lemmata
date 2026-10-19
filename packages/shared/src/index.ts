@@ -45,5 +45,6 @@ export type {
   ChatEvent,
   ChatMessage,
   ChatRequest,
+  ModelOption,
   RunInfo,
 } from "./chat.js";

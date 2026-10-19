@@ -40,7 +40,12 @@ export type RunHandle = {
   abort(): Promise<void>;
 };
 
+/** A model the user can pick; `id` is what the adapter passes to its agent. */
+export type ModelOption = { id: string; label: string };
+
 export type AgentAdapter = {
   name: string;
+  /** Models offered in the UI; empty means the agent's own default only. */
+  models: ModelOption[];
   start(options: StartOptions): RunHandle;
 };
