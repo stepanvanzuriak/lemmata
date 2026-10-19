@@ -4,7 +4,7 @@ import { serve } from "@hono/node-server";
 import { initWorkspace, MIGRATIONS_FOLDER } from "core";
 import { createApp } from "./app.js";
 import type { SecurityOptions } from "./security.js";
-import { detectToolchain } from "./toolchain.js";
+import { detectToolchain, warmPython } from "./toolchain.js";
 
 export type ServerOptions = {
   workspace: string;
@@ -35,11 +35,14 @@ export async function startServer(
     token: options.token ?? randomBytes(24).toString("base64url"),
     allowedOrigins: options.allowedOrigins,
   };
+  const toolchain = detectToolchain();
+  toolchain.then(warmPython, () => {});
+
   const app = createApp({
     db,
     security,
     workspaceDir,
-    toolchain: detectToolchain(),
+    toolchain,
     staticDir: options.staticDir && resolve(options.staticDir),
   });
 

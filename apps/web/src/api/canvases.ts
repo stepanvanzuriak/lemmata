@@ -78,6 +78,12 @@ export async function saveNodePositions({
   await api.patch(`/canvases/${canvasId}/nodes`, { nodes });
 }
 
+export async function runNode(id: string) {
+  const { data } = await api.post<CanvasNode>(`/nodes/${id}/run`);
+
+  return data;
+}
+
 export async function deleteNode(id: string) {
   const { data } = await api.delete<CanvasNode>(`/nodes/${id}`);
 
@@ -161,6 +167,10 @@ export function useSaveNodePositions(canvasId: string) {
   return useCanvasMutation(canvasId, (nodes: NodePositionInput[]) =>
     saveNodePositions({ canvasId, nodes }),
   );
+}
+
+export function useRunNode(canvasId: string) {
+  return useCanvasMutation(canvasId, runNode);
 }
 
 export function useDeleteNode(canvasId: string) {

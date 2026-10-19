@@ -8,12 +8,15 @@ export type { FsEntry, FsListResponse, MkdirInput } from "./fs.js";
 export type { SearchResult } from "./search.js";
 export type {
   BasePayload,
+  CardRun,
   CodePayload,
   GoalPayload,
   HypothesisPayload,
+  LeanDiagnostic,
   NodeKind,
   NodePayload,
   PlainPayload,
+  RunOutput,
 } from "./cards.js";
 export type {
   AddEdgeRequest,
@@ -28,3 +31,10 @@ export type {
   UpdateNodePositionsRequest,
   UpdateNodeRequest,
 } from "./canvas.js";
+export {
+  cardStatus,
+  goalReady,
+  type CanvasGraph,
+  type CardStatus,
+  type Tone,
+} from "./status.js";

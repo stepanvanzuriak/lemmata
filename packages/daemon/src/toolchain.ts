@@ -21,3 +21,35 @@ export async function detectToolchain(): Promise<Toolchain> {
 
   return { claude, uv, python, lean };
 }
+
+export function pythonCommand(toolchain: Toolchain) {
+  if (toolchain.uv) {
+    return {
+      cmd: "uv",
+      args: [
+        "run",
+        "--no-project",
+        "--quiet",
+        "--with",
+        "numpy",
+        "--with",
+        "sympy",
+        "--with",
+        "matplotlib",
+        "--with",
+        "manim",
+        "python",
+      ],
+    };
+  }
+
+  return { cmd: "python3", args: [] };
+}
+
+export function warmPython(toolchain: Toolchain) {
+  const { cmd, args } = pythonCommand(toolchain);
+
+  execFile(cmd, [...args, "-c", "import numpy, sympy, matplotlib, manim"], {
+    timeout: 10 * 60_000,
+  });
+}

@@ -53,6 +53,11 @@
   --color-lm-code-fg: #d7dadf;
   --color-lm-teal-line: #9ccfc6;
 
+  --color-lm-tint-ok: #eef6f1;
+  --color-lm-tint-bad: #fbeeec;
+  --color-lm-tint-warn: #fdf3e8;
+  --color-lm-tint-work: #eef1fc;
+
   --color-lm-edge-depends: #5b6068;
   --color-lm-edge-checked: #2747c9;
   --color-lm-edge-refuted: #8e939b;
@@ -122,6 +127,11 @@
   --color-lm-note-ink: #f3e7b0;
   --color-lm-note-muted: #c9b770;
   --color-lm-teal-line: #1f5a54;
+
+  --color-lm-tint-ok: #16251e;
+  --color-lm-tint-bad: #2b1917;
+  --color-lm-tint-warn: #2b2117;
+  --color-lm-tint-work: #191f35;
 
   --color-lm-edge-depends: #959ba4;
   --color-lm-edge-checked: #5577f0;
@@ -228,4 +238,20 @@ summary::-webkit-details-marker {
   --xy-controls-button-border-color: var(--color-lm-line);
   --xy-edge-label-background-color: var(--color-lm-surface);
   --xy-edge-label-color: var(--color-lm-muted);
+}
+
+@keyframes lm-pulse {
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.lm-pulse {
+  animation: lm-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-pulse {
+    animation: none;
+  }
 }

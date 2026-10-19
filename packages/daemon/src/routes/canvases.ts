@@ -18,8 +18,9 @@ import {
   updateNode,
   updateNodePositions,
 } from "core";
-import type { CanvasDetail, CanvasNode, NodeKind } from "shared";
+import type { CanvasDetail, CanvasNode, NodeKind, Toolchain } from "shared";
 import { validate } from "../validate.js";
+import { RUNNABLE_KINDS, runCardNode } from "../runCard.js";
 
 const NODE_KINDS = [
   "goal",
@@ -72,7 +73,13 @@ function toNode(row: CanvasNodeRow): CanvasNode {
   };
 }
 
-export function canvasRoutes(db: Db) {
+export function canvasRoutes(
+  db: Db,
+  {
+    workspaceDir,
+    toolchain,
+  }: { workspaceDir: string; toolchain: Promise<Toolchain> },
+) {
   const canvasExists = async (id: string) =>
     Boolean(await db.query.canvas.findFirst({ where: { id } }));
 
@@ -152,6 +159,26 @@ export function canvasRoutes(db: Db) {
       }
 
       return c.json(toNode(node), 200);
+    })
+    .post("/nodes/:id/run", async (c) => {
+      const node = await db.query.canvasNode.findFirst({
+        where: { id: c.req.param("id") },
+      });
+
+      if (!node) {
+        return c.json({ error: "node not found" }, 404);
+      }
+      if (!RUNNABLE_KINDS.has(node.kind)) {
+        return c.json({ error: `${node.kind} cards cannot be run` }, 400);
+      }
+
+      const updated = await runCardNode(db, node, {
+        workspaceDir,
+        toolchain,
+        isolated: false,
+      });
+
+      return c.json(toNode(updated!), 200);
     })
     .delete("/nodes/:id", async (c) => {
       try {

@@ -1,9 +1,10 @@
-import type { BasePayload, CanvasNode, NodeKind } from "shared";
+import type { BasePayload, CanvasNode, CardRun, NodeKind } from "shared";
 
 export type CardFields = Partial<BasePayload> & {
   label?: string;
   status?: string;
   source?: string;
+  run?: CardRun;
 };
 
 export const fieldsOf = (node: CanvasNode) => node.payload as CardFields;

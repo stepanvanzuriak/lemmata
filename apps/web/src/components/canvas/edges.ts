@@ -2,7 +2,7 @@ import type { Edge } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import type { CanvasEdge, EdgeKind } from "shared";
 
-export type CardFlowEdge = Edge<{ kind: EdgeKind }>;
+export type CardFlowEdge = Edge<{ kind: EdgeKind; edge: CanvasEdge }>;
 
 export const EDGE_KINDS = [
   "depends-on",
@@ -42,6 +42,6 @@ export function toFlowEdge(edge: CanvasEdge): CardFlowEdge {
     target: edge.toNode,
     type: "kind",
     style: { strokeWidth: 1.6, ...EDGE_STYLES[edge.kind] },
-    data: { kind: edge.kind },
+    data: { kind: edge.kind, edge },
   };
 }

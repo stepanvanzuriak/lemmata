@@ -35,7 +35,7 @@ export function createApp({
     .route("/api/projects", projectRoutes(db))
     .route("/api/fs", fsRoutes())
     .route("/api/search", searchRoutes(db))
-    .route("/api", canvasRoutes(db))
+    .route("/api", canvasRoutes(db, { workspaceDir, toolchain }))
     .route(
       "/api/workspace",
       workspaceRoutes({

@@ -29,6 +29,7 @@ import { CardNode } from "../components/canvas/cards/CardNode";
 import { KindEdge } from "../components/canvas/KindEdge";
 import { EDGE_KINDS, EDGE_LABELS } from "../components/canvas/edges";
 import { fieldsOf, type CreatableKind } from "../components/canvas/kinds";
+import { ProgressPanel } from "../components/canvas/ProgressPanel";
 import { Toolbar } from "../components/canvas/Toolbar";
 import { useCanvasData } from "../components/canvas/useCanvasData";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
@@ -172,7 +173,15 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable style={{ width: 140, height: 96 }} />
+          <MiniMap
+            position="top-right"
+            pannable
+            zoomable
+            style={{ width: 140, height: 96 }}
+          />
+          <Panel position="bottom-right">
+            <ProgressPanel canvasId={canvasId} detail={detail} />
+          </Panel>
           <Panel position="top-left">
             <Toolbar onCreate={create} isPending={addNode.isPending} />
           </Panel>

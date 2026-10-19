@@ -175,10 +175,17 @@ export async function updateNode(
       return undefined;
     }
 
+    const previous = parsePayload(current.payload);
+    const payload = { ...previous, ...patch };
+
+    if ("source" in patch && patch.source !== previous.source) {
+      delete payload.run;
+    }
+
     const [row] = await tx
       .update(canvasNode)
       .set({
-        payload: JSON.stringify({ ...parsePayload(current.payload), ...patch }),
+        payload: JSON.stringify(payload),
         updatedAt: now,
       })
       .where(eq(canvasNode.id, id))

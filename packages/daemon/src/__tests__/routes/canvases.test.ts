@@ -1,3 +1,6 @@
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, it } from "vitest";
 import type { Canvas, CanvasDetail, CanvasEdge, CanvasNode } from "shared";
 import { authed, testApp } from "../helpers/app.js";
@@ -9,7 +12,10 @@ const send = (method: string, body?: unknown) => ({
 });
 
 async function setup() {
-  const app = await testApp();
+  const app = await testApp(
+    undefined,
+    await mkdtemp(join(tmpdir(), "lemmata-ws-")),
+  );
   const project = await (
     await app.request(
       "/api/projects",
@@ -160,4 +166,37 @@ it("answers 404 for missing canvases, nodes and edges", async () => {
     const res = await app.request(path, init);
     expect(res.status, `${init.method} ${path}`).toBe(404);
   }
+});
+
+it("runs a python card and clears the run when the source changes", async () => {
+  const { app, canvas } = await setup();
+  const node = (await (
+    await app.request(
+      `/api/canvases/${canvas.id}/nodes`,
+      send("POST", {
+        kind: "python",
+        payload: { title: "check", source: "print(6*7)" },
+      }),
+    )
+  ).json()) as CanvasNode;
+
+  const res = await app.request(`/api/nodes/${node.id}/run`, send("POST"));
+  expect(res.status).toBe(200);
+  expect((await res.json()).payload.run).toMatchObject({
+    ok: true,
+    output: { stdout: "42\n", exitCode: 0 },
+  });
+
+  const edited = await app.request(
+    `/api/nodes/${node.id}`,
+    send("PATCH", { source: "print(1)" }),
+  );
+  expect((await edited.json()).payload.run).toBeUndefined();
+});
+
+it("refuses to run a card that is not code", async () => {
+  const { app, goal } = await setup();
+  const res = await app.request(`/api/nodes/${goal.id}/run`, send("POST"));
+
+  expect(res.status).toBe(400);
 });
