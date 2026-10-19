@@ -9,6 +9,7 @@ import {
 import { projectRoutes } from "./routes/projects.js";
 import { workspaceRoutes } from "./routes/workspace.js";
 import { serveWeb } from "./static.js";
+import { fsRoutes } from "./routes/fs.js";
 
 export type AppOptions = {
   db: Db;
@@ -30,6 +31,7 @@ export function createApp({
     .use("/api/*", requireToken(security))
     .get("/api/health", (c) => c.json({ ok: true }))
     .route("/api/projects", projectRoutes(db))
+    .route("/api/fs", fsRoutes())
     .route(
       "/api/workspace",
       workspaceRoutes({

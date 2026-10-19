@@ -12,6 +12,7 @@ import { Plus } from "@gravity-ui/icons";
 import { useCreateProject } from "../../api/projects";
 import { useProjectStore } from "../../stores/project";
 import { ErrorNote } from "../common/State";
+import { FolderPicker } from "./FolderPicker";
 
 const FORM_ID = "new-project";
 
@@ -61,14 +62,10 @@ function NewProjectForm({ close }: { close: VoidFunction }) {
             <FieldError />
           </TextField>
 
-          <TextField name="dir">
+          <div className="flex flex-col gap-1">
             <Label>Folder</Label>
-            <Input
-              placeholder="~/research/cauchy-davenport"
-              className="font-mono"
-            />
-          </TextField>
-
+            <FolderPicker />
+          </div>
           {createProject.isError && <ErrorNote error={createProject.error} />}
         </Form>
       </Modal.Body>
