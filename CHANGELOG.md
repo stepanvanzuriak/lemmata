@@ -19,7 +19,7 @@ First public release.
 - Research memory: a `remember` tool for agents, a prompt preamble for later runs, a Memory page and a home panel.
 - First-run tour and setup check, replayable from Settings.
 - Desktop app (Tauri) for Linux, macOS and Windows that runs its own daemon.
-- Landing page on GitHub Pages.
+- Landing page on Vercel.
 
 [Unreleased]: https://github.com/stepanvanzuriak/lemmata/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/stepanvanzuriak/lemmata/releases/tag/v0.1.0

@@ -5,7 +5,7 @@
   "description": "A local research canvas where AI agents work on problems with you",
   "license": "MIT",
   "author": "Stepan Vanzuriak",
-  "homepage": "https://stepanvanzuriak.github.io/lemmata/",
+  "homepage": "https://lemmata-app.vercel.app/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/stepanvanzuriak/lemmata.git"

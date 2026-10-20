@@ -37,7 +37,7 @@ checks use [uv](https://docs.astral.sh/uv/) and Lean checks use [Lean 4](https:/
 
 **From source** (browser): see [Development](#development).
 
-Website: https://stepanvanzuriak.github.io/lemmata/
+Website: https://lemmata-app.vercel.app/
 
 ## Layout
 
@@ -49,7 +49,7 @@ Website: https://stepanvanzuriak.github.io/lemmata/
 | `packages/runner` | agent adapters (Claude Code) and token accounting               |
 | `packages/shared` | types shared by the daemon and the web app                      |
 | `apps/desktop`    | Tauri app: bundles the daemon on Node and the built web app     |
-| `apps/site`       | the landing page (plain HTML and CSS, GitHub Pages)             |
+| `apps/site`       | the landing page (plain HTML and CSS, Vercel)                   |
 
 ## Development
 
