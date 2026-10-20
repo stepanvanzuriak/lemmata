@@ -252,7 +252,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@drizzle-team/brocli@npm:^0.12.0":
+"@drizzle-team/brocli@npm:0.12.1":
   version: 0.12.1
   resolution: "@drizzle-team/brocli@npm:0.12.1"
   checksum: 10c0/6ec32c9f384e96f35e53a0383581653efd7f34110530025a88607b8a0f3271e09d3c3b86a2c96496fef3608ba36618286f847fe5572b5d8db9564c94a81d65d6
@@ -3083,7 +3083,7 @@ __metadata:
     "@libsql/client": "npm:^0.18.0"
     "@types/node": "npm:^26.6.5"
     "@typescript/native": "npm:typescript@^7.0.2"
-    drizzle-kit: "npm:1.0.0-rc.4"
+    drizzle-kit: "npm:1.0.0-rc.5-5935859"
     drizzle-orm: "npm:1.0.0-rc.4"
     tsx: "npm:^4.23.15"
     ulid: "npm:^3.0.2"
@@ -3349,18 +3349,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"drizzle-kit@npm:1.0.0-rc.4":
-  version: 1.0.0-rc.4
-  resolution: "drizzle-kit@npm:1.0.0-rc.4"
+"drizzle-kit@npm:1.0.0-rc.5-5935859":
+  version: 1.0.0-rc.5-5935859
+  resolution: "drizzle-kit@npm:1.0.0-rc.5-5935859"
   dependencies:
-    "@drizzle-team/brocli": "npm:^0.12.0"
+    "@drizzle-team/brocli": "npm:0.12.1"
     "@js-temporal/polyfill": "npm:^0.5.1"
     esbuild: "npm:^0.25.10"
     get-tsconfig: "npm:^4.13.6"
     jiti: "npm:^2.6.1"
   bin:
     drizzle-kit: bin.cjs
-  checksum: 10c0/71b5bd00ef8eb12702f0055b52fb35b1c40852ac304d56ec2dac6f9a26e9ac4361f5ffe146992867541968d59353572226d0631565ff012db3e4bdcdcd270f8e
+  checksum: 10c0/e98418e9df0c7b87775a241533e103513c29a9915e4aa970143bc6d1c20b22541816e771887462686fc5a1f56c1c46b3118c0eec6bc6cb0164e7f729e9419d9f
   languageName: node
   linkType: hard
 
