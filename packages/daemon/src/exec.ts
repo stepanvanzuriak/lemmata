@@ -34,6 +34,7 @@ export type RunOptions = {
   timeoutMs?: number;
   env?: Record<string, string>;
   isolated?: boolean;
+  outDir?: string;
 };
 
 export function runProcess(
@@ -101,7 +102,75 @@ const PYTHON_WRAPPER = `
 import runpy, sys
 outdir, card = sys.argv[1], sys.argv[2]
 sys.argv = [card]
-runpy.run_path(card, run_name="__main__")
+
+MAX_FIGURES = 8
+AZIMUTHS = (-60, 30, 120, 210)
+
+def _title(fig):
+    sup = getattr(fig, "_suptitle", None)
+    text = sup.get_text() if sup is not None else ""
+    for ax in fig.axes:
+        if text:
+            break
+        text = ax.get_title() if hasattr(ax, "get_title") else ""
+    return text or None
+
+def _views(fig, axes3d, path):
+    import io
+    from PIL import Image
+    start = [(ax, ax.azim) for ax in axes3d]
+    tiles = []
+    try:
+        for azim in AZIMUTHS:
+            for ax in axes3d:
+                ax.view_init(elev=ax.elev, azim=azim)
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=110, bbox_inches="tight", facecolor="white")
+            buf.seek(0)
+            image = Image.open(buf)
+            image.load()
+            tiles.append(image.convert("RGB"))
+    finally:
+        for ax, azim in start:
+            ax.view_init(elev=ax.elev, azim=azim)
+    width = max(1, max(t.width for t in tiles) // 2)
+    height = max(1, max(t.height for t in tiles) // 2)
+    strip = Image.new("RGB", (width * len(tiles), height), "white")
+    for i, tile in enumerate(tiles):
+        strip.paste(tile.resize((width, height)), (i * width, 0))
+    strip.save(path)
+
+def _save_figures(outdir):
+    import json, os
+    plt = sys.modules["matplotlib.pyplot"]
+    numbers = list(plt.get_fignums())
+    if len(numbers) > MAX_FIGURES:
+        print(f"only the first {MAX_FIGURES} figures were saved", file=sys.stderr)
+    figures = []
+    for n in numbers[:MAX_FIGURES]:
+        try:
+            fig = plt.figure(n)
+            name = f"fig-{n}.png"
+            fig.savefig(os.path.join(outdir, name), dpi=110, bbox_inches="tight", facecolor="white")
+            axes3d = [ax for ax in fig.axes if getattr(ax, "name", None) == "3d"]
+            views = None
+            if axes3d:
+                views = f"fig-{n}-views.png"
+                _views(fig, axes3d, os.path.join(outdir, views))
+            figures.append({"name": name, "title": _title(fig), "is3d": bool(axes3d), "views": views})
+        except Exception as error:
+            print(f"could not save figure {n}: {error}", file=sys.stderr)
+    with open(os.path.join(outdir, "figures.json"), "w") as f:
+        json.dump(figures, f)
+
+try:
+    runpy.run_path(card, run_name="__main__")
+finally:
+    if sys.modules.get("matplotlib.pyplot") is not None:
+        try:
+            _save_figures(outdir)
+        except Exception as error:
+            print(f"could not save figures: {error}", file=sys.stderr)
 `;
 
 const WRAPPER_FRAME = /^ {2}File "<(string|frozen runpy)>".*\n(?: {4}.*\n)*/gm;
@@ -119,20 +188,21 @@ export async function runPython(
 ): Promise<RunOutput> {
   const dir = await mkdtemp(join(tmpdir(), "lemmata-py-"));
   const card = join(dir, "card.py");
+  const { outDir = dir, ...processOptions } = options;
 
   try {
     await writeFile(card, source);
     const output = await runProcess(
       python.cmd,
-      [...python.args, "-u", "-c", PYTHON_WRAPPER, dir, card],
+      [...python.args, "-u", "-c", PYTHON_WRAPPER, outDir, card],
       {
         timeoutMs: 60_000,
-        ...options,
+        ...processOptions,
         env: {
           PYTHONDONTWRITEBYTECODE: "1",
           MPLBACKEND: "Agg",
           PYTHONWARNINGS: "ignore::SyntaxWarning",
-          ...options.env,
+          ...processOptions.env,
         },
       },
     );

@@ -59,6 +59,10 @@ export function abortRuns(canvasId: string, runKey?: string): number {
   return count;
 }
 
+/** A resumed session remembers the canvas as it was; other runs have changed it since. */
+const staleNotice = (canvas: string) =>
+  `This session continues an earlier run, and the canvas has changed since. What you remember of it may be out of date: cards were added and hypotheses settled. This is the canvas now; trust it over your memory.\n\n${canvas}`;
+
 export class CanvasNotFound extends Error {}
 
 function snapshot(detail: CanvasDetail) {
@@ -105,7 +109,7 @@ export async function startChat(
     agent = (await listAgents(db, canvasId)).find(
       (a) => a.role === command.role,
     );
-    target = findTarget(detail, command.ref);
+    target = findTarget(detail, command);
 
     if (!agent) {
       throw new ConflictError(
@@ -187,6 +191,17 @@ export async function startChat(
         target: target?.id,
         focus,
       };
+      const resumeSessionId =
+        (await lastSessionId(
+          db,
+          canvasId,
+          agent?.id ?? null,
+          target?.id ?? null,
+        )) ?? undefined;
+      const prompt =
+        command && target
+          ? expandCommand(command, target, detail)
+          : request.text;
       let memoryReported = 0;
       secret = registerRun(runContext);
 
@@ -204,15 +219,10 @@ export async function startChat(
           },
           options: {
             cwd: await projectDir(db, canvasId, deps.workspaceDir),
-            prompt:
-              command && target ? expandCommand(command, target) : request.text,
-            resumeSessionId:
-              (await lastSessionId(
-                db,
-                canvasId,
-                agent?.id ?? null,
-                target?.id ?? null,
-              )) ?? undefined,
+            prompt: resumeSessionId
+              ? `${staleNotice(describeCanvas(detail, author, focus))}\n\n${prompt}`
+              : prompt,
+            resumeSessionId,
             model: modelId
               ? { provider: adapter.name, id: modelId }
               : undefined,

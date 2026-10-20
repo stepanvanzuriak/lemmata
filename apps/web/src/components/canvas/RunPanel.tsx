@@ -1,6 +1,8 @@
-import { Button } from "@heroui/react";
-import type { CanvasNode } from "shared";
+import { useState } from "react";
+import { Button, Modal, ToggleButton, ToggleButtonGroup } from "@heroui/react";
+import type { CanvasNode, CardFigure } from "shared";
 import { useRunNode } from "../../api/canvases";
+import { Figure } from "./Figure";
 import { fieldsOf } from "./kinds";
 
 function Output({ label, text }: { label: string; text: string }) {
@@ -17,6 +19,81 @@ function Output({ label, text }: { label: string; text: string }) {
         {text}
       </pre>
     </div>
+  );
+}
+
+type Mode = "view" | "angles";
+
+function FigureItem({
+  nodeId,
+  runAt,
+  figure,
+}: {
+  nodeId: string;
+  runAt: string;
+  figure: CardFigure;
+}) {
+  const [mode, setMode] = useState<Mode>("view");
+  const [open, setOpen] = useState(false);
+  const name = mode === "angles" && figure.views ? figure.views : figure.name;
+  const alt = figure.title ?? "Figure";
+
+  return (
+    <figure className="m-0 flex flex-col gap-1.5">
+      {figure.is3d && figure.views && (
+        <ToggleButtonGroup
+          aria-label="3D view"
+          size="sm"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={[mode]}
+          onSelectionChange={(keys) => {
+            const [key] = keys;
+            if (key) {
+              setMode(key as Mode);
+            }
+          }}
+        >
+          <ToggleButton id="view">View</ToggleButton>
+          <ToggleButton id="angles">4 angles</ToggleButton>
+        </ToggleButtonGroup>
+      )}
+      <button
+        type="button"
+        aria-label={`Open ${alt} full size`}
+        className="cursor-zoom-in overflow-hidden rounded-lg border border-lm-line p-0"
+        onClick={() => setOpen(true)}
+      >
+        <Figure
+          nodeId={nodeId}
+          name={name}
+          runAt={runAt}
+          alt={alt}
+          className="max-h-72 w-full"
+        />
+      </button>
+      {figure.title && (
+        <figcaption className="text-xs text-lm-muted">
+          {figure.title}
+        </figcaption>
+      )}
+      <Modal.Backdrop isOpen={open} onOpenChange={setOpen}>
+        <Modal.Container size="cover">
+          <Modal.Dialog aria-label={alt}>
+            <Modal.CloseTrigger />
+            <Modal.Body className="flex items-center justify-center bg-white">
+              <Figure
+                nodeId={nodeId}
+                name={name}
+                runAt={runAt}
+                alt={alt}
+                className="max-h-full max-w-full"
+              />
+            </Modal.Body>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </figure>
   );
 }
 
@@ -73,6 +150,21 @@ export function RunPanel({
           {run.axioms && run.axioms.length > 0 && (
             <div className="text-xs text-lm-muted">
               Axioms: <span className="font-mono">{run.axioms.join(", ")}</span>
+            </div>
+          )}
+          {run.figures && run.figures.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-semibold tracking-[0.06em] text-lm-muted uppercase">
+                Figures
+              </span>
+              {run.figures.map((figure) => (
+                <FigureItem
+                  key={figure.name}
+                  nodeId={node.id}
+                  runAt={run.runAt}
+                  figure={figure}
+                />
+              ))}
             </div>
           )}
           <Output label="stdout" text={run.output.stdout} />

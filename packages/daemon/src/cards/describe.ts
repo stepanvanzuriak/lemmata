@@ -19,7 +19,11 @@ const nameOf = (card: CanvasNode) =>
 function runLines(card: CanvasNode, max: number): string[] {
   const run = (
     card.payload as {
-      run?: { badge: string; output: { stdout: string; stderr: string } };
+      run?: {
+        badge: string;
+        output: { stdout: string; stderr: string };
+        figures?: unknown[];
+      };
     }
   ).run;
 
@@ -29,7 +33,12 @@ function runLines(card: CanvasNode, max: number): string[] {
       : [];
   }
 
-  const lines = [`  run: ${run.badge}`];
+  const count = run.figures?.length ?? 0;
+  const figures =
+    count > 0 && !run.badge.includes("figure")
+      ? ` · ${count} figure${count > 1 ? "s" : ""}`
+      : "";
+  const lines = [`  run: ${run.badge}${figures}`];
   const output = [run.output.stdout, run.output.stderr]
     .filter((s) => s.trim())
     .join("\n");

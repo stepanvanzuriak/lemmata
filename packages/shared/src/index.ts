@@ -8,6 +8,7 @@ export type { FsEntry, FsListResponse, MkdirInput } from "./fs.js";
 export type { SearchResult } from "./search.js";
 export type {
   BasePayload,
+  CardFigure,
   CardRun,
   CodePayload,
   GoalPayload,

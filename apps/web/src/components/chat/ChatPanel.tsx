@@ -320,7 +320,7 @@ export function ChatPanel({
         <TextField aria-label="Message" value={draft} onChange={setDraft}>
           <TextArea
             rows={3}
-            placeholder="Message, /prover H1 or /referee goal"
+            placeholder="Message, /prover H1, /prover open or /referee settled"
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();

@@ -26,10 +26,50 @@ export function parseCommand(text: string): Command | null {
   };
 }
 
+/** Batch refs: `/prover open` works through the open hypotheses, `/referee settled` reviews the settled ones. */
+const BATCH: Record<AgentRole, { ref: string; statuses: string[] }> = {
+  prover: { ref: "open", statuses: ["open"] },
+  referee: { ref: "settled", statuses: ["supported", "refuted"] },
+};
+const MAX_BATCH = 3;
+
+export const isBatch = (command: Command) =>
+  command.ref.toLowerCase() === BATCH[command.role].ref;
+
+function batchTargets(command: Command, detail: CanvasDetail) {
+  const { statuses } = BATCH[command.role];
+
+  return detail.nodes
+    .filter(
+      (n) =>
+        n.kind === "hypothesis" &&
+        statuses.includes(fieldsOf(n).status ?? "open"),
+    )
+    .map((n) => fieldsOf(n).label ?? n.id)
+    .slice(0, MAX_BATCH);
+}
+
 const describeTarget = (card: CanvasNode) => {
   const { label, title } = fieldsOf(card);
   return `${card.kind}${label ? ` ${label}` : ""} "${title ?? card.id}" (id ${card.id})`;
 };
+
+function batchTask(command: Command, detail: CanvasDetail) {
+  const labels = batchTargets(command, detail);
+
+  if (labels.length === 0) {
+    return command.role === "prover"
+      ? "There are no open hypotheses. Say so and add nothing."
+      : "There are no supported or refuted hypotheses to review. Say so and add nothing.";
+  }
+
+  const list = labels.join(", ");
+
+  if (command.role === "referee") {
+    return `Referee these hypotheses one at a time, in order: ${list}. For each, re-run its checks when the result matters and report gaps as notes. Finish with one line per hypothesis: holds, or what is wrong.`;
+  }
+  return `Work through these open hypotheses one at a time, in order: ${list}. For each, prefer a computation that could settle or sharpen it over restating an approach that already failed on the canvas. Stop after these ${labels.length}, then say in one line per hypothesis what changed.`;
+}
 
 function taskFor(command: Command, target: CanvasNode) {
   if (command.role === "referee") {
@@ -42,8 +82,15 @@ function taskFor(command: Command, target: CanvasNode) {
 }
 
 /** The prompt sent to the model. The chat history keeps what the user typed. */
-export function expandCommand(command: Command, target: CanvasNode): string {
-  const task = taskFor(command, target);
+export function expandCommand(
+  command: Command,
+  target: CanvasNode,
+  detail?: CanvasDetail,
+): string {
+  const task =
+    detail && isBatch(command)
+      ? batchTask(command, detail)
+      : taskFor(command, target);
 
   if (!command.instructions) {
     return task;
@@ -51,8 +98,9 @@ export function expandCommand(command: Command, target: CanvasNode): string {
   return `${task}\n\nUser instructions: ${command.instructions}`;
 }
 
-export function findTarget(detail: CanvasDetail, ref: string) {
-  return findCard(detail, ref);
+/** A batch ref targets the goal, so the run has the whole canvas in focus. */
+export function findTarget(detail: CanvasDetail, command: Command) {
+  return findCard(detail, isBatch(command) ? "goal" : command.ref);
 }
 
 export class ConflictError extends Error {

@@ -12,6 +12,7 @@ import {
   unregisterRun,
 } from "../../mcp/registry.js";
 import { authed, HOST, testApp } from "../helpers/app.js";
+import { STUB_PYPLOT } from "../helpers/matplotlib.js";
 import { callTool, connectMcp, textOf, type App } from "../helpers/mcp.js";
 
 async function setup() {
@@ -175,4 +176,38 @@ it("returns invalid arguments as isError text", async () => {
   expect(textOf(bad)).toMatch(/cards/);
   expect(unknown.isError).toBe(true);
   expect(textOf(unknown)).toContain('No card matches "H9"');
+});
+
+it("returns figures from run_card as images, 3D ones from four angles", async () => {
+  const { app, secret } = await setup();
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+
+  await call(client, "create_cards", {
+    cards: [
+      {
+        kind: "python",
+        title: "plots",
+        source: `${STUB_PYPLOT}\nplt._plot(1, title="Curve")\nplt._plot(2, "3d", "Saddle")`,
+      },
+    ],
+  });
+  const result = await call(client, "run_card", { id: "plots" });
+  const [message, ...images] = result.content;
+
+  expect(result.isError).toBeFalsy();
+  expect(message).toMatchObject({ type: "text" });
+  expect(textOf(result)).toContain('fig-1.png "Curve"');
+  expect(textOf(result)).toContain(
+    'fig-2.png "Saddle" (3D, 4 angles attached)',
+  );
+  expect(images).toHaveLength(2);
+  expect(
+    images.every((i) => i.type === "image" && i.mimeType === "image/png"),
+  ).toBe(true);
+  // the 3D figure's strip is a re-encoded PNG, unlike the stub's own bytes
+  expect(images[1]).not.toEqual(images[0]);
 });

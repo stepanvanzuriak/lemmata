@@ -1,7 +1,9 @@
+import { readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { addEdge, addMemory, EDGE_KINDS, MEMORY_KINDS, type Db } from "core";
-import type { CanvasNode, CardRun, Toolchain } from "shared";
+import type { CanvasNode, CardFigure, CardRun, Toolchain } from "shared";
 import { z } from "zod";
 import {
   CREATABLE_KINDS,
@@ -14,7 +16,7 @@ import { findCard } from "../cards/find.js";
 import { goalNudge } from "../cards/goal.js";
 import { loadDetail, toCanvasNode } from "../cards/load.js";
 import { fieldsOf, ToolRefusal, type RunContext } from "../cards/types.js";
-import { RUNNABLE_KINDS, runCardNode } from "../runCard.js";
+import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../runCard.js";
 
 export type ToolDeps = {
   db: Db;
@@ -26,9 +28,11 @@ const text = (value: string): CallToolResult => ({
   content: [{ type: "text", text: value }],
 });
 
-async function guard(work: () => Promise<string>): Promise<CallToolResult> {
+async function guardResult(
+  work: () => Promise<CallToolResult>,
+): Promise<CallToolResult> {
   try {
-    return text(await work());
+    return await work();
   } catch (error) {
     const message =
       error instanceof ToolRefusal || error instanceof Error
@@ -37,6 +41,9 @@ async function guard(work: () => Promise<string>): Promise<CallToolResult> {
     return { ...text(message), isError: true };
   }
 }
+
+const guard = (work: () => Promise<string>) =>
+  guardResult(async () => text(await work()));
 
 const cardRef = z
   .string()
@@ -68,12 +75,34 @@ const newCard = z.object({
   edgeKind: z.enum(EDGE_KINDS).optional(),
 });
 
-function describeRun(card: CanvasNode) {
+const MAX_IMAGES = 4;
+const MAX_IMAGE_BYTES = 1024 * 1024;
+
+type Picture = { figure: CardFigure; file: string };
+
+function picturesOf(figures: CardFigure[]): Picture[] {
+  return figures.slice(0, MAX_IMAGES).map((figure) => ({
+    figure,
+    file: figure.is3d && figure.views ? figure.views : figure.name,
+  }));
+}
+
+function describeRun(card: CanvasNode, attached: Set<string>, notes: string[]) {
   const run = (card.payload as { run?: CardRun }).run;
 
   if (!run) {
     return "No result.";
   }
+
+  const figures = (run.figures ?? []).map(({ name, title, is3d, views }) => {
+    const label = title ? `${name} "${title}"` : name;
+    const strip = is3d && views && attached.has(views);
+
+    if (strip) {
+      return `${label} (3D, 4 angles attached)`;
+    }
+    return is3d ? `${label} (3D)` : label;
+  });
 
   return [
     `Result: ${run.badge} (${run.ok ? "passed" : "not passed"})`,
@@ -82,9 +111,50 @@ function describeRun(card: CanvasNode) {
     run.diagnostics?.length &&
       `diagnostics:\n${run.diagnostics.map((d) => `${d.line}:${d.column} ${d.severity}: ${d.message}`).join("\n")}`,
     run.axioms?.length && `axioms: ${run.axioms.join(", ")}`,
+    figures.length && `figures:\n${figures.join("\n")}`,
+    notes.length && notes.join("\n"),
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+async function runResult(
+  card: CanvasNode,
+  dir: string,
+): Promise<CallToolResult> {
+  const run = (card.payload as { run?: CardRun }).run;
+  const images: CallToolResult["content"] = [];
+  const attached = new Set<string>();
+  const notes: string[] = [];
+
+  for (const { file } of picturesOf(run?.figures ?? [])) {
+    const path = join(dir, file);
+    const size = await stat(path)
+      .then((s) => s.size)
+      .catch(() => null);
+
+    if (size === null) {
+      continue;
+    }
+    if (size > MAX_IMAGE_BYTES) {
+      notes.push(`${file} is over 1 MB and was not attached.`);
+      continue;
+    }
+
+    images.push({
+      type: "image",
+      data: (await readFile(path)).toString("base64"),
+      mimeType: "image/png",
+    });
+    attached.add(file);
+  }
+
+  return {
+    content: [
+      { type: "text", text: describeRun(card, attached, notes) },
+      ...images,
+    ],
+  };
 }
 
 export const MAX_MEMORY_ENTRIES = 3;
@@ -195,6 +265,10 @@ export function registerTools(
         const source = (await find(from)).card;
         const target = (await find(to)).card;
 
+        if (source.id === target.id) {
+          throw new ToolRefusal("A card cannot link to itself.");
+        }
+
         await addEdge(db, {
           canvasId: run.canvasId,
           fromNode: source.id,
@@ -213,7 +287,7 @@ export function registerTools(
       inputSchema: { id: cardRef },
     },
     ({ id }) =>
-      guard(async () => {
+      guardResult(async () => {
         const { card } = await find(id);
 
         if (!RUNNABLE_KINDS.has(card.kind)) {
@@ -229,7 +303,14 @@ export function registerTools(
           isolated: true,
         });
 
-        return describeRun(toCanvasNode(updated!));
+        if (!updated) {
+          throw new ToolRefusal("The card was deleted while it ran.");
+        }
+
+        return runResult(
+          toCanvasNode(updated),
+          figuresDir(workspaceDir, card.id),
+        );
       }),
   );
 

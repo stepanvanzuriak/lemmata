@@ -95,6 +95,10 @@ export async function createCards(
       // New hypotheses start open; they are settled with update_card so gating applies.
       status: isHypothesis ? "open" : undefined,
       agentId: run.author.agentId,
+      // The progress panel and card status count notes whose author is "Referee".
+      author:
+        fields.author ??
+        run.author.role[0]!.toUpperCase() + run.author.role.slice(1),
     });
     const row = await addNode(db, {
       canvasId: run.canvasId,

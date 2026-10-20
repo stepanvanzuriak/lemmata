@@ -12,7 +12,14 @@ import {
   parsePayload,
 } from "core";
 import { expect, it } from "vitest";
-import { claim, ConflictError, parseCommand, release } from "../agents.js";
+import {
+  claim,
+  ConflictError,
+  expandCommand,
+  findTarget,
+  parseCommand,
+  release,
+} from "../agents.js";
 import { loadDetail } from "../cards/load.js";
 import { startServer } from "../server.js";
 
@@ -103,4 +110,39 @@ it("clears claims when the daemon starts", async () => {
     label: "H1",
     status: "open",
   });
+});
+
+it("expands /prover open into a batch over the open hypotheses, on the goal", async () => {
+  const { db, canvasId } = await setup();
+  await addNode(db, {
+    canvasId,
+    kind: "hypothesis",
+    payload: { title: "Done", label: "H2", status: "supported" },
+  });
+  const detail = await loadDetail(db, canvasId);
+  const command = parseCommand("/prover open")!;
+  const target = findTarget(detail, command)!;
+  const prompt = expandCommand(command, target, detail);
+
+  expect(target.kind).toBe("goal");
+  expect(prompt).toContain("H1");
+  expect(prompt).not.toContain("H2");
+});
+
+it("expands /referee settled over supported hypotheses and says when none exist", async () => {
+  const { db, canvasId } = await setup();
+  const none = await loadDetail(db, canvasId);
+  const command = parseCommand("/referee settled")!;
+  const target = findTarget(none, command)!;
+
+  expect(expandCommand(command, target, none)).toContain("no supported");
+
+  await addNode(db, {
+    canvasId,
+    kind: "hypothesis",
+    payload: { title: "Done", label: "H2", status: "supported" },
+  });
+  const detail = await loadDetail(db, canvasId);
+
+  expect(expandCommand(command, target, detail)).toContain("H2");
 });

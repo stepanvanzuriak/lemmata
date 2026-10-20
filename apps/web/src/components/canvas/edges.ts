@@ -2,7 +2,14 @@ import type { Edge } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import type { CanvasEdge, EdgeKind } from "shared";
 
-export type CardFlowEdge = Edge<{ kind: EdgeKind; edge: CanvasEdge }>;
+export type CardFlowEdge = Edge<{
+  kind: EdgeKind;
+  edge: CanvasEdge;
+  /** Touches the selected card: its label is shown. */
+  active?: boolean;
+  /** Another card is selected and this edge is not connected to it. */
+  dim?: boolean;
+}>;
 
 export const EDGE_KINDS = [
   "depends-on",

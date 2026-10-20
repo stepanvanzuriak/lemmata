@@ -14,6 +14,7 @@ import { searchRoutes } from "./routes/search.js";
 import { canvasRoutes } from "./routes/canvases.js";
 import { mcpHandler } from "./mcp/server.js";
 import { chatRoutes } from "./routes/chat.js";
+import { figureRoutes } from "./routes/figures.js";
 import { memoryRoutes } from "./routes/memory.js";
 import { settingsRoutes } from "./routes/settings.js";
 import type { AgentAdapter } from "runner";
@@ -24,7 +25,6 @@ export type AppOptions = {
   workspaceDir: string;
   toolchain: Promise<Toolchain>;
   staticDir?: string;
-  /** Overrides the agent for every chat run (tests). */
   adapter?: () => AgentAdapter;
 };
 
@@ -46,6 +46,7 @@ export function createApp({
     .route("/api/settings", settingsRoutes(workspaceDir))
     .route("/api/search", searchRoutes(db))
     .route("/api", canvasRoutes(db, { workspaceDir, toolchain }))
+    .route("/api", figureRoutes({ db, workspaceDir }))
     .route("/api", memoryRoutes(db))
     .route(
       "/api",

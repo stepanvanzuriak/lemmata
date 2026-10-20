@@ -45,6 +45,13 @@ export type LeanDiagnostic = {
   message: string;
 };
 
+export type CardFigure = {
+  name: string;
+  title: string | null;
+  is3d: boolean;
+  views: string | null;
+};
+
 export type CardRun = {
   ok: boolean;
   output: RunOutput;
@@ -54,6 +61,7 @@ export type CardRun = {
   axioms?: string[];
   hasSorry?: boolean;
   extraAxioms?: string[];
+  figures?: CardFigure[];
 };
 
 export type CodePayload = BasePayload & {

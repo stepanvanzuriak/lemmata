@@ -4,6 +4,7 @@ import { Chip } from "@heroui/react";
 import type { CanvasNode, CardStatus } from "shared";
 import { TONES } from "../../../lib/status";
 import { Markdown } from "../../common/Markdown";
+import { Figure } from "../Figure";
 import { fieldsOf, KIND_LABELS } from "../kinds";
 
 const card = "box-border flex flex-col gap-2 rounded-xl border";
@@ -77,6 +78,7 @@ function CodeCard({
     .split("\n")
     .at(-1);
   const isPython = node.kind === "python";
+  const figures = p.run?.figures ?? [];
 
   return (
     <article
@@ -102,6 +104,22 @@ function CodeCard({
       <pre className="m-0 max-h-40 overflow-hidden bg-lm-code px-3.5 py-2.5 font-mono text-[11.5px] leading-[1.6] whitespace-pre-wrap text-lm-code-fg">
         {p.source || " "}
       </pre>
+      {figures.length > 0 && (
+        <div className="flex flex-col border-t border-lm-hair">
+          <Figure
+            nodeId={node.id}
+            name={figures[0]!.name}
+            runAt={p.run!.runAt}
+            alt={figures[0]!.title ?? "Figure"}
+            className="max-h-40 w-full"
+          />
+          {figures.length > 1 && (
+            <span className="px-3.5 py-1 text-[11px] text-lm-muted">
+              +{figures.length - 1} more
+            </span>
+          )}
+        </div>
+      )}
       <div className="flex min-w-0 items-center gap-2 px-3.5 py-2">
         <StatusChip status={status} />
         {lastLine && (

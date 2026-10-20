@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { mkdtemp } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { mkdtemp, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -10,6 +11,7 @@ import {
   runProcess,
   runPython,
 } from "../exec.js";
+import { STUB_PYPLOT } from "./helpers/matplotlib.js";
 
 const python = { cmd: "python3", args: [] };
 const hasLean = (() => {
@@ -135,3 +137,97 @@ it.skipIf(!hasLean)(
   },
   60_000,
 );
+
+it("saves open figures into outDir even when the card raises", async () => {
+  const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));
+  const result = await runPython(
+    `${STUB_PYPLOT}\nplt._plot(1, title="Saddle")\nplt._plot(2)\nraise ValueError("boom")`,
+    python,
+    { outDir },
+  );
+  const figures = JSON.parse(
+    await readFile(join(outDir, "figures.json"), "utf8"),
+  );
+
+  expect(result.exitCode).toBe(1);
+  expect(result.stderr).toContain("ValueError: boom");
+  expect(await readdir(outDir)).toEqual(
+    expect.arrayContaining(["fig-1.png", "fig-2.png"]),
+  );
+  expect(figures).toEqual([
+    { name: "fig-1.png", title: "Saddle", is3d: false, views: null },
+    { name: "fig-2.png", title: null, is3d: false, views: null },
+  ]);
+});
+
+it("writes nothing when matplotlib was never imported", async () => {
+  const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));
+
+  await runPython("print(1)", python, { outDir });
+
+  expect(await readdir(outDir)).toEqual([]);
+});
+
+it("renders a 3D figure from four angles", async () => {
+  const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));
+
+  await runPython(`${STUB_PYPLOT}\nplt._plot(1, "3d")`, python, { outDir });
+  const figures = JSON.parse(
+    await readFile(join(outDir, "figures.json"), "utf8"),
+  );
+
+  expect(figures[0]).toMatchObject({ is3d: true, views: "fig-1-views.png" });
+  expect(await readdir(outDir)).toContain("fig-1-views.png");
+});
+
+it("keeps the first 8 figures and says so", async () => {
+  const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));
+  const result = await runPython(
+    `${STUB_PYPLOT}\nfor n in range(1, 11): plt._plot(n)`,
+    python,
+    { outDir },
+  );
+  const figures = JSON.parse(
+    await readFile(join(outDir, "figures.json"), "utf8"),
+  );
+
+  expect(figures).toHaveLength(8);
+  expect(result.stderr).toContain("only the first 8 figures were saved");
+});
+
+const hasMatplotlib = (() => {
+  try {
+    execFileSync("python3", ["-c", "import matplotlib, PIL"], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+it.skipIf(!hasMatplotlib)("draws a real 3D surface", async () => {
+  const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));
+  const result = await runPython(
+    [
+      "import numpy as np, matplotlib.pyplot as plt",
+      "x, y = np.meshgrid(np.linspace(-1, 1, 20), np.linspace(-1, 1, 20))",
+      'ax = plt.figure().add_subplot(projection="3d")',
+      "ax.plot_surface(x, y, x**2 - y**2)",
+    ].join("\n"),
+    python,
+    { outDir },
+  );
+  const { width, height } = await new Promise<{
+    width: number;
+    height: number;
+  }>((done) => {
+    const png = readFileSync(join(outDir, "fig-1-views.png"));
+    done({ width: png.readUInt32BE(16), height: png.readUInt32BE(20) });
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(width / height).toBeGreaterThan(3.6);
+  expect(width / height).toBeLessThan(4.4);
+  expect(readFileSync(join(outDir, "fig-1.png")).length).toBeGreaterThan(0);
+});

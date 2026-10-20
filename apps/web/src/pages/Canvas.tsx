@@ -1,5 +1,5 @@
 import "@xyflow/react/dist/style.css";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router";
 import {
   Background,
@@ -35,6 +35,7 @@ import { useCanvasData } from "../components/canvas/useCanvasData";
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 import { useCurrentProjectId, useTheme } from "../lib/hooks";
+import { tidyLayout } from "../lib/layout";
 import { paths } from "../lib/paths";
 
 const nodeTypes = { card: CardNode };
@@ -78,7 +79,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
     mergeLive,
   } = useCanvasData(canvasId);
   const { resolved } = useTheme();
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState<Connection | null>(null);
@@ -87,6 +88,22 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
   const deleteNode = useDeleteNode(canvasId);
   const deleteEdge = useDeleteEdge(canvasId);
   const savePositions = useSaveNodePositions(canvasId);
+
+  const shownEdges = useMemo(
+    () =>
+      selectedId
+        ? edges.map((edge) => {
+            const active =
+              edge.source === selectedId || edge.target === selectedId;
+
+            return {
+              ...edge,
+              data: { ...edge.data!, active, dim: !active },
+            };
+          })
+        : edges,
+    [edges, selectedId],
+  );
 
   if (query.isPending) {
     return <Loading label="Loading canvas…" />;
@@ -129,6 +146,29 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
     );
   };
 
+  const tidy = () => {
+    const positions = tidyLayout(
+      nodes.map(({ id, measured, width, height }) => ({
+        id,
+        width: measured?.width ?? width ?? 300,
+        height: measured?.height ?? height ?? 160,
+      })),
+      edges.map(({ source, target }) => ({ from: source, to: target })),
+    );
+
+    onNodesChange(
+      [...positions].map(([id, position]) => ({
+        type: "position" as const,
+        id,
+        position,
+      })),
+    );
+    savePositions.mutate(
+      [...positions].map(([id, position]) => ({ id, ...position })),
+    );
+    requestAnimationFrame(() => fitView({ maxZoom: 1, duration: 300 }));
+  };
+
   const connect = (kind: EdgeKind) => {
     if (pending?.source && pending.target) {
       addEdge.mutate({
@@ -145,13 +185,14 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
       <div ref={wrapper} className="relative min-w-0 flex-1">
         <ReactFlow
           nodes={nodes}
-          edges={edges}
+          edges={shownEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={setPending}
           onNodeClick={(_, node) => setSelectedId(node.id)}
+          onPaneClick={() => setSelectedId(null)}
           onNodeDragStop={(_, __, moved) =>
             savePositions.mutate(
               moved.map(({ id, position }) => ({ id, ...position })),
@@ -191,7 +232,11 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
             <ProgressPanel canvasId={canvasId} detail={detail} />
           </Panel>
           <Panel position="top-left">
-            <Toolbar onCreate={create} isPending={addNode.isPending} />
+            <Toolbar
+              onCreate={create}
+              onTidy={tidy}
+              isPending={addNode.isPending}
+            />
           </Panel>
           {pending && (
             <Panel position="top-center">

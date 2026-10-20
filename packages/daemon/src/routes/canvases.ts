@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import { Hono } from "hono";
 import { z } from "zod";
 import {
@@ -20,7 +21,7 @@ import {
 } from "core";
 import type { CanvasDetail, CanvasNode, NodeKind, Toolchain } from "shared";
 import { validate } from "../validate.js";
-import { RUNNABLE_KINDS, runCardNode } from "../runCard.js";
+import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../runCard.js";
 
 const NODE_KINDS = [
   "goal",
@@ -187,6 +188,11 @@ export function canvasRoutes(
         if (!node) {
           return c.json({ error: "node not found" }, 404);
         }
+
+        await rm(figuresDir(workspaceDir, node.id), {
+          recursive: true,
+          force: true,
+        });
 
         return c.json(toNode(node), 200);
       } catch (error) {

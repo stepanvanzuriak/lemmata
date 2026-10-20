@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { clearClaims, initWorkspace, MIGRATIONS_FOLDER } from "core";
 import { createApp } from "./app.js";
+import { pruneFigures } from "./runCard.js";
 import type { SecurityOptions } from "./security.js";
 import { detectToolchain, warmPython } from "./toolchain.js";
 
@@ -31,6 +32,7 @@ export async function startServer(
     options.migrationsFolder ?? MIGRATIONS_FOLDER,
   );
   await clearClaims(db);
+  await pruneFigures(db, workspaceDir);
 
   const security: SecurityOptions = {
     port: options.port ?? 4317,
