@@ -10,6 +10,17 @@ export function editRight(card: CanvasNode, author: Author): EditRight {
   if (author.role === "assistant" && card.createdBy === "ai") {
     return "all";
   }
+  if (author.role === "literature" && card.kind === "literature") {
+    return "all";
+  }
+  if (
+    (author.role === "curator" || author.role === "reset") &&
+    card.createdBy === "ai" &&
+    card.kind !== "goal" &&
+    card.kind !== "hypothesis"
+  ) {
+    return "all";
+  }
   if (
     author.role === "prover" &&
     (card.kind === "hypothesis" || card.kind === "goal")

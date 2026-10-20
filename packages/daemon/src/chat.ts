@@ -1,5 +1,6 @@
 import {
   addMessage,
+  archiveMessages,
   lastSessionId,
   listAgents,
   type CanvasAgent,
@@ -21,13 +22,17 @@ import {
   release,
 } from "./agents.js";
 import { describeCanvas } from "./cards/describe.js";
+import { findCard } from "./cards/find.js";
 import { loadDetail } from "./cards/load.js";
-import type { Author, RunContext } from "./cards/types.js";
+import { archiveNodes } from "./cards/archive.js";
+import { literatureCardFor } from "./cards/literature.js";
+import { isArchived, type Author, type RunContext } from "./cards/types.js";
 import { memoryPreamble } from "./memory.js";
 import { mcpConfigFor, registerRun, unregisterRun } from "./mcp/registry.js";
 import type { ToolDeps } from "./mcp/tools.js";
 import { ROLE_PROMPTS } from "./roles.js";
 import { projectDir } from "./runCard.js";
+import { parseTask, taskPrompt } from "./tasks.js";
 
 export const DEFAULT_MAX_TOKENS = 1_000_000;
 
@@ -38,10 +43,12 @@ export type ChatDeps = ToolDeps & {
 
 export type Emit = (event: ChatEvent) => Promise<void>;
 
-const active = new Map<string, Map<string, AbortController>>();
+type ActiveRun = { controller: AbortController; info: RunInfo };
 
-export function activeRuns(canvasId: string): string[] {
-  return [...(active.get(canvasId)?.keys() ?? [])];
+const active = new Map<string, Map<string, ActiveRun>>();
+
+export function activeRuns(canvasId: string): RunInfo[] {
+  return [...(active.get(canvasId)?.values() ?? [])].map(({ info }) => info);
 }
 
 export function abortRuns(canvasId: string, runKey?: string): number {
@@ -50,16 +57,19 @@ export function abortRuns(canvasId: string, runKey?: string): number {
   let count = 0;
 
   for (const key of keys) {
-    const controller = runs?.get(key);
-    if (controller) {
-      controller.abort();
+    const run = runs?.get(key);
+    if (run) {
+      run.controller.abort();
       count += 1;
     }
   }
   return count;
 }
 
-/** A resumed session remembers the canvas as it was; other runs have changed it since. */
+/** Sent once, in the same session, when a prover run ends without touching the canvas. */
+export const STUCK_NUDGE =
+  "You changed nothing on the canvas. Do not stop here: follow the rule for when you cannot settle the target, and leave at least one new card (a sub-lemma, a special case, or a check) that a later run can pick up. Then reply in two sentences.";
+
 const staleNotice = (canvas: string) =>
   `This session continues an earlier run, and the canvas has changed since. What you remember of it may be out of date: cards were added and hypotheses settled. This is the canvas now; trust it over your memory.\n\n${canvas}`;
 
@@ -102,6 +112,7 @@ export async function startChat(
 
   const detail = await loadDetail(db, canvasId);
   const command = parseCommand(request.text);
+  const task = command ? null : parseTask(request.text);
   let agent: CanvasAgent | undefined;
   let target: CanvasDetail["nodes"][number] | undefined;
 
@@ -125,8 +136,24 @@ export async function startChat(
     }
   }
 
-  const runKey = agent?.id ?? "assistant";
-  const runs = active.get(canvasId) ?? new Map<string, AbortController>();
+  if (task) {
+    target = findCard(detail, task.ref);
+
+    if (target?.kind === "literature") {
+      const about = (target.payload as { target?: string }).target;
+      target = detail.nodes.find((n) => n.id === about) ?? target;
+    }
+
+    if (!target) {
+      throw new ConflictError(
+        "no_target",
+        `No card matches "${task.ref}". Use goal, a label such as H2, or a card id.`,
+      );
+    }
+  }
+
+  const runKey = agent?.id ?? task?.role ?? "assistant";
+  const runs = active.get(canvasId) ?? new Map<string, ActiveRun>();
 
   if (runs.has(runKey)) {
     throw new ConflictError(
@@ -135,20 +162,19 @@ export async function startChat(
     );
   }
 
-  const controller = new AbortController();
-  runs.set(runKey, controller);
-  active.set(canvasId, runs);
-
-  const role = agent?.role ?? "assistant";
+  const role = agent?.role ?? task?.role ?? "assistant";
   const author: Author = agent
     ? { role: agent.role, agentId: agent.id }
-    : { role: "assistant" };
+    : { role };
   const run: RunInfo = {
     runKey,
     role,
     model: agent?.model ?? request.model ?? null,
     target: target?.id ?? null,
   };
+  const controller = new AbortController();
+  runs.set(runKey, { controller, info: run });
+  active.set(canvasId, runs);
   const project = canvas.project;
 
   return async (emit) => {
@@ -158,15 +184,47 @@ export async function startChat(
     let seen = snapshot(detail);
     let reply = "";
     let tokens = 0;
+    /** Cards the current attempt added or changed. */
+    let touched = 0;
 
     const emitChanges = async () => {
       const current = await loadDetail(db, canvasId);
       const changed = changes(seen, current);
       seen = snapshot(current);
+      touched += changed.nodes.length;
 
       if (changed.nodes.length > 0 || changed.edges.length > 0) {
         await emit({ type: "cards", ...changed });
       }
+    };
+
+    /** Archives what was on the canvas before the run, once the run has written its key points. */
+    const finishReset = async (
+      attempt: { id: string; status: string },
+      command: ChatMessage,
+    ) => {
+      const before = new Set(detail.nodes.map((n) => n.id));
+      const current = await loadDetail(db, canvasId);
+      const added = current.nodes.filter((n) => !before.has(n.id));
+      const replaced = current.nodes.filter(
+        (n) => before.has(n.id) && n.kind !== "goal" && !isArchived(n),
+      );
+
+      if (attempt.status !== "done" || added.length === 0) {
+        await emit({
+          type: "warning",
+          message: "The reset wrote no key points, so nothing was archived.",
+        });
+        return;
+      }
+
+      await archiveNodes(
+        db,
+        replaced.map((n) => n.id),
+        { by: attempt.id, reason: "reset to key points" },
+      );
+      // The conversation before the reset is about cards that are gone; the /reset exchange stays.
+      await archiveMessages(db, canvasId, command.id, attempt.id);
     };
 
     try {
@@ -184,85 +242,131 @@ export async function startChat(
         await emitChanges();
       }
 
-      const focus = target ? [target.id] : [];
+      const literature =
+        task?.role === "literature" && target
+          ? await literatureCardFor(db, detail, target)
+          : undefined;
+
+      if (literature) {
+        await emitChanges();
+      }
+
+      const focus = [target?.id, literature?.card.id].filter(
+        (id): id is string => Boolean(id),
+      );
       const runContext: RunContext = {
         canvasId,
         author,
         target: target?.id,
         focus,
       };
-      const resumeSessionId =
-        (await lastSessionId(
-          db,
-          canvasId,
-          agent?.id ?? null,
-          target?.id ?? null,
-        )) ?? undefined;
-      const prompt =
-        command && target
-          ? expandCommand(command, target, detail)
-          : request.text;
+
+      const resumeSessionId = task
+        ? undefined
+        : ((await lastSessionId(
+            db,
+            canvasId,
+            agent?.id ?? null,
+            target?.id ?? null,
+          )) ?? undefined);
+      const promptFor = () => {
+        if (command && target) {
+          return expandCommand(command, target, detail);
+        }
+        if (task && target) {
+          return taskPrompt(task, target, literature?.card);
+        }
+        return request.text;
+      };
+      const prompt = promptFor();
+      const firstPrompt = resumeSessionId
+        ? `${staleNotice(describeCanvas(detail, author, focus))}\n\n${prompt}`
+        : prompt;
       let memoryReported = 0;
       secret = registerRun(runContext);
 
-      const attempt = await runAttempt(
-        {
-          db,
-          adapter,
-          projectId: project.id,
-          canvasId,
-          title: request.text.slice(0, 80),
-          maxTokens: agent?.tokenCap ?? DEFAULT_MAX_TOKENS,
-          signal: controller.signal,
-          onStart: (started) => {
-            runContext.attemptId = started.id;
+      const cwd = await projectDir(db, canvasId, deps.workspaceDir);
+      const systemPromptAddendum = [
+        `Project: ${project.title}\n${project.statement}`,
+        await memoryPreamble(db, project.id),
+        ROLE_PROMPTS[role],
+        `Canvas at the start of this run:\n${describeCanvas(await loadDetail(db, canvasId), author, focus)}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      const mcpServers = mcpConfigFor(secret, deps.port());
+      const attemptOnce = (nudge?: { prompt: string; sessionId: string }) =>
+        runAttempt(
+          {
+            db,
+            adapter,
+            projectId: project.id,
+            canvasId,
+            title: request.text.slice(0, 80),
+            maxTokens: agent?.tokenCap ?? DEFAULT_MAX_TOKENS,
+            signal: controller.signal,
+            onStart: (started) => {
+              runContext.attemptId = started.id;
+            },
+            options: {
+              cwd,
+              prompt: nudge?.prompt ?? firstPrompt,
+              resumeSessionId: nudge?.sessionId ?? resumeSessionId,
+              model: modelId
+                ? { provider: adapter.name, id: modelId }
+                : undefined,
+              systemPromptAddendum,
+              mcpServers,
+            },
           },
-          options: {
-            cwd: await projectDir(db, canvasId, deps.workspaceDir),
-            prompt: resumeSessionId
-              ? `${staleNotice(describeCanvas(detail, author, focus))}\n\n${prompt}`
-              : prompt,
-            resumeSessionId,
-            model: modelId
-              ? { provider: adapter.name, id: modelId }
-              : undefined,
-            systemPromptAddendum: [
-              `Project: ${project.title}\n${project.statement}`,
-              await memoryPreamble(db, project.id),
-              ROLE_PROMPTS[role],
-              `Canvas at the start of this run:\n${describeCanvas(detail, author, focus)}`,
-            ]
-              .filter(Boolean)
-              .join("\n\n"),
-            mcpServers: mcpConfigFor(secret, deps.port()),
-          },
-        },
-        async (event) => {
-          if (event.type === "text") {
-            reply += event.text;
-            await emit({ type: "text", text: event.text });
-          }
-          if (event.type === "tool_use") {
-            await emit({ type: "tool_use", name: event.name });
-          }
-          if (event.type === "tool_result") {
-            await emitChanges();
-
-            const saved = (runContext.memorySaved ?? 0) - memoryReported;
-            if (saved > 0) {
-              memoryReported += saved;
-              await emit({ type: "memory", saved });
+          async (event) => {
+            if (event.type === "text") {
+              reply += event.text;
+              await emit({ type: "text", text: event.text });
             }
-          }
-          if (event.type === "usage") {
-            tokens += usageTokens(event);
-            await emit({ type: "usage", tokens });
-          }
-          if (event.type === "error") {
-            await emit({ type: "error", message: event.message });
-          }
-        },
-      );
+            if (event.type === "tool_use") {
+              await emit({ type: "tool_use", name: event.name });
+            }
+            if (event.type === "tool_result") {
+              await emitChanges();
+
+              const saved = (runContext.memorySaved ?? 0) - memoryReported;
+              if (saved > 0) {
+                memoryReported += saved;
+                await emit({ type: "memory", saved });
+              }
+            }
+            if (event.type === "usage") {
+              tokens += usageTokens(event);
+              await emit({ type: "usage", tokens });
+            }
+            if (event.type === "error") {
+              await emit({ type: "error", message: event.message });
+            }
+          },
+        );
+
+      touched = 0;
+      let attempt = await attemptOnce();
+
+      // A prover that gave up without leaving anything gets one more turn to make the target smaller.
+      if (
+        role === "prover" &&
+        attempt.status === "done" &&
+        touched === 0 &&
+        attempt.sessionId
+      ) {
+        reply += "\n\n";
+        await emit({ type: "text", text: "\n\n" });
+        attempt = await attemptOnce({
+          prompt: STUCK_NUDGE,
+          sessionId: attempt.sessionId,
+        });
+      }
+
+      if (task?.role === "reset") {
+        await finishReset(attempt, userMessage);
+      }
 
       if (attempt.status === "stopped_budget") {
         await emit({

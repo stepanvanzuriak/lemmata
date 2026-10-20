@@ -31,19 +31,19 @@ const hostTuple = execFileSync("rustc", ["--print", "host-tuple"], {
   encoding: "utf8",
 }).trim();
 
-console.log("Cleaning…");
+console.log("Cleaning...");
 rmSync(resources, { recursive: true, force: true });
 rmSync(join(tauri, "binaries"), { recursive: true, force: true });
 mkdirSync(join(daemon, "dist"), { recursive: true });
 mkdirSync(join(tauri, "binaries"), { recursive: true });
 
-console.log("Building the web app…");
+console.log("Building the web app...");
 run("yarn", ["workspace", "web", "build"], { shell: windows });
 cpSync(join(root, "apps/web/dist"), join(resources, "web"), {
   recursive: true,
 });
 
-console.log("Bundling the daemon…");
+console.log("Bundling the daemon...");
 const bundle = await rolldown({
   input: join(root, "packages/daemon/src/cli.ts"),
   platform: "node",
@@ -80,7 +80,7 @@ function fitsHost(name, { os, cpu }) {
   );
 }
 
-console.log("Copying the native database driver…");
+console.log("Copying the native database driver...");
 const copied = new Set();
 
 function copyPackage(name) {
@@ -106,7 +106,7 @@ function copyPackage(name) {
 }
 NATIVE.forEach(copyPackage);
 
-console.log("Copying Node…");
+console.log("Copying Node...");
 const node = join(
   tauri,
   "binaries",

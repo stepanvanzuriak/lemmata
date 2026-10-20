@@ -6,6 +6,7 @@ import type {
   ChatMessage,
   ChatRequest,
   ModelOption,
+  RunInfo,
 } from "shared";
 import { api, ApiError, authHeaders } from "./http";
 
@@ -80,6 +81,18 @@ export function useAgents(canvasId: string) {
     queryKey: agentsKey(canvasId),
     queryFn: async () =>
       (await api.get<CanvasAgent[]>(`/canvases/${canvasId}/agents`)).data,
+  });
+}
+
+export const runsKey = (canvasId: string) =>
+  ["canvas", canvasId, "runs"] as const;
+
+export function useServerRuns(canvasId: string) {
+  return useQuery({
+    queryKey: runsKey(canvasId),
+    queryFn: async () =>
+      (await api.get<RunInfo[]>(`/canvases/${canvasId}/runs`)).data,
+    refetchInterval: (query) => (query.state.data?.length ? 3_000 : false),
   });
 }
 

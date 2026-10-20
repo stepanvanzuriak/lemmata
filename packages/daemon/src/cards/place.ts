@@ -7,11 +7,16 @@ const WIDTH: Record<NodeKind, number> = {
   note: 250,
   memory: 320,
   arxiv: 290,
+  literature: 320,
   python: 290,
   lean: 290,
 };
 
-const HEIGHT: Partial<Record<NodeKind, number>> = { python: 200, lean: 200 };
+const HEIGHT: Partial<Record<NodeKind, number>> = {
+  python: 200,
+  lean: 200,
+  literature: 200,
+};
 const DEFAULT_HEIGHT = 150;
 const GAP = 60;
 
@@ -29,7 +34,6 @@ function overlaps(a: Box, b: Box) {
   );
 }
 
-/** Right of the parent, stepping down past cards it would overlap (heights are estimates). */
 export function freeSpot(
   nodes: Box[],
   parent: Box | undefined,

@@ -2,7 +2,7 @@ import ReactMarkdown, { type Options } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
-import { normalizeMath } from "../../lib/math";
+import { normalizeMath, wrapBareMath } from "../../lib/math";
 
 const remarkPlugins: Options["remarkPlugins"] = [remarkMath];
 const rehypePlugins: Options["rehypePlugins"] = [
@@ -25,7 +25,8 @@ export function Markdown({
       disallowedElements={inline ? ["p"] : undefined}
       unwrapDisallowed
     >
-      {normalizeMath(children)}
+      {/* Titles and other one-liners often carry math without $...$ */}
+      {inline ? wrapBareMath(normalizeMath(children)) : normalizeMath(children)}
     </ReactMarkdown>
   );
 

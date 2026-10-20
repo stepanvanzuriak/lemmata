@@ -7,6 +7,7 @@ import { freeSpot } from "./place.js";
 import { editRight } from "./rights.js";
 import {
   fieldsOf,
+  isArchived,
   ToolRefusal,
   type CardFields,
   type RunContext,
@@ -25,7 +26,6 @@ export const CREATABLE_KINDS = [
 
 export type NewCard = Omit<CardFields, "agentId"> & {
   kind: (typeof CREATABLE_KINDS)[number];
-  /** Card the new one hangs off: id, "goal", label or exact title (also of a card earlier in this call). */
   connectFrom?: string;
   edgeKind?: EdgeKind;
 };
@@ -92,10 +92,8 @@ export async function createCards(
     const payload = withoutEmpty({
       ...fields,
       label: isHypothesis ? (fields.label ?? nextLabel(nodes)) : fields.label,
-      // New hypotheses start open; they are settled with update_card so gating applies.
       status: isHypothesis ? "open" : undefined,
       agentId: run.author.agentId,
-      // The progress panel and card status count notes whose author is "Referee".
       author:
         fields.author ??
         run.author.role[0]!.toUpperCase() + run.author.role.slice(1),
@@ -103,7 +101,11 @@ export async function createCards(
     const row = await addNode(db, {
       canvasId: run.canvasId,
       kind,
-      ...freeSpot(nodes, parent, kind),
+      ...freeSpot(
+        nodes.filter((n) => !isArchived(n)),
+        parent,
+        kind,
+      ),
       payload,
       createdBy: "ai",
     });

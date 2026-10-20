@@ -32,7 +32,7 @@ export function ProjectSearch() {
         <Input
           autoFocus
           className="h-10 w-full min-w-0"
-          placeholder="Search projects…"
+          placeholder="Search projects..."
         />
       </ComboBox.InputGroup>
       <ComboBox.Popover>

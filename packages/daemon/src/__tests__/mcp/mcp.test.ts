@@ -83,12 +83,15 @@ it("lists tools for a live secret", async () => {
 
   expect(client.getInstructions()).toContain("run_card");
   expect(tools.map((t) => t.name).sort()).toEqual([
+    "archive_cards",
     "connect_cards",
     "create_cards",
     "get_card",
     "read_canvas",
+    "record_literature",
     "remember",
     "run_card",
+    "search_literature",
     "update_card",
   ]);
 });
@@ -153,7 +156,9 @@ it("lets an agent create, run and settle a hypothesis, then nudges", async () =>
   });
   expect(settled).toMatchObject({
     type: "text",
-    text: expect.stringContaining("Set the goal's status to proved"),
+    text: expect.stringContaining(
+      'update_card({ id: "goal", status: "proved" })',
+    ),
   });
   expect(canvas).toMatchObject({
     type: "text",

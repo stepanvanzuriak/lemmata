@@ -15,6 +15,16 @@ import {
 
 const ALL = "all";
 
+function sortEntries<T extends { pinned: boolean; createdAt: string }>(
+  entries: T[],
+) {
+  return [...entries].sort(
+    (a, b) =>
+      Number(b.pinned) - Number(a.pinned) ||
+      b.createdAt.localeCompare(a.createdAt),
+  );
+}
+
 function Filter({
   label,
   value,
@@ -119,7 +129,7 @@ export function MemoryPage() {
       </div>
 
       {memory.isPending ? (
-        <Loading label="Loading memory…" />
+        <Loading label="Loading memory..." />
       ) : memory.error ? (
         <ErrorNote error={memory.error} onRetry={() => memory.refetch()} />
       ) : memory.data.length === 0 ? (
@@ -150,16 +160,5 @@ export function MemoryPage() {
         onOpenChange={setAdding}
       />
     </div>
-  );
-}
-
-/** Pinned first, then newest. */
-function sortEntries<T extends { pinned: boolean; createdAt: string }>(
-  entries: T[],
-) {
-  return [...entries].sort(
-    (a, b) =>
-      Number(b.pinned) - Number(a.pinned) ||
-      b.createdAt.localeCompare(a.createdAt),
   );
 }

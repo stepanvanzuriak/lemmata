@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { createCards, updateCard } from "../../cards/apply.js";
 import { loadDetail } from "../../cards/load.js";
-import { goalNudge } from "../../cards/goal.js";
+import { settleNudge } from "../../cards/goal.js";
 import { freeSpot } from "../../cards/place.js";
 import { canvasSetup } from "./helpers.js";
 
@@ -60,11 +60,11 @@ it("nudges once the last depends-on hypothesis is supported", async () => {
   ]);
 
   await updateCard(db, run, "H1", { status: "supported" });
-  expect(goalNudge(await loadDetail(db, run.canvasId))).toBeNull();
+  expect(settleNudge(await loadDetail(db, run.canvasId))).toBeNull();
 
   await updateCard(db, run, "H2", { status: "supported" });
-  expect(goalNudge(await loadDetail(db, run.canvasId))).toContain(
-    "Set the goal's status to proved",
+  expect(settleNudge(await loadDetail(db, run.canvasId))).toContain(
+    'update_card({ id: "goal", status: "proved" })',
   );
 });
 
@@ -94,4 +94,18 @@ it("rejects an unknown parent and an empty batch", async () => {
     createCards(db, run, [{ kind: "note", title: "x", connectFrom: "H9" }]),
   ).rejects.toThrow('No card matches connectFrom "H9"');
   await expect(createCards(db, run, [])).rejects.toThrow("between 1 and 8");
+});
+
+it("nudges to settle a hypothesis once its sub-lemma is supported", async () => {
+  const { db, run } = await canvasSetup();
+  await createCards(db, run, [
+    { kind: "hypothesis", title: "Main claim" },
+    { kind: "hypothesis", title: "Key lemma", connectFrom: "H1" },
+  ]);
+
+  await updateCard(db, run, "H2", { status: "supported" });
+  const nudge = settleNudge(await loadDetail(db, run.canvasId));
+
+  expect(nudge).toContain('update_card({ id: "H1", status: "supported" })');
+  expect(nudge).not.toContain('id: "goal"');
 });

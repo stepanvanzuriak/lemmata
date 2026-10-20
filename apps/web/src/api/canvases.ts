@@ -105,6 +105,23 @@ export async function addEdge({
   return data;
 }
 
+export async function restoreNodes({
+  canvasId,
+  ids,
+  by,
+}: {
+  canvasId: string;
+  ids?: string[];
+  by?: string;
+}) {
+  const { data } = await api.post<{ restored: CanvasNode[] }>(
+    `/canvases/${canvasId}/restore`,
+    { ids, by },
+  );
+
+  return data;
+}
+
 export async function deleteEdge(id: string) {
   const { data } = await api.delete<CanvasEdge>(`/edges/${id}`);
 
@@ -185,4 +202,12 @@ export function useAddEdge(canvasId: string) {
 
 export function useDeleteEdge(canvasId: string) {
   return useCanvasMutation(canvasId, deleteEdge);
+}
+
+export function useRestoreNodes(canvasId: string) {
+  return useCanvasMutation(
+    canvasId,
+    (filter: { ids?: string[]; by?: string } = {}) =>
+      restoreNodes({ canvasId, ...filter }),
+  );
 }

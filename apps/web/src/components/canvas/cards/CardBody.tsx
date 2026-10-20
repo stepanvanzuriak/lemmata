@@ -5,7 +5,7 @@ import type { CanvasNode, CardStatus } from "shared";
 import { TONES } from "../../../lib/status";
 import { Markdown } from "../../common/Markdown";
 import { Figure } from "../Figure";
-import { fieldsOf, KIND_LABELS } from "../kinds";
+import { fieldsOf, KIND_LABELS, literatureOf } from "../kinds";
 
 const card = "box-border flex flex-col gap-2 rounded-xl border";
 
@@ -132,6 +132,64 @@ function CodeCard({
   );
 }
 
+const SHOWN_PAPERS = 3;
+
+function LiteratureCard({
+  node,
+  status,
+}: {
+  node: CanvasNode;
+  status?: CardStatus | null;
+}) {
+  const p = literatureOf(node);
+  const papers = (p.papers ?? []).filter((paper) => !paper.dismissed);
+
+  return (
+    <article
+      className={clsx(
+        card,
+        tintOf(status),
+        "w-80 gap-1.5 border-lm-line px-3.5 py-3",
+      )}
+    >
+      <Header
+        className="text-lm-warn-ink"
+        meta={p.checkedAt && `checked ${p.checkedAt.slice(0, 10)}`}
+      >
+        {KIND_LABELS.literature}
+      </Header>
+      <div className="text-[13px] leading-[1.4] font-medium">
+        <Markdown inline>{p.title || "Literature check"}</Markdown>
+      </div>
+      {papers.length > 0 && (
+        <ul className="m-0 flex list-none flex-col gap-1 p-0">
+          {papers.slice(0, SHOWN_PAPERS).map((paper) => (
+            <li
+              key={paper.id}
+              className="truncate text-xs leading-normal text-lm-ink2"
+              title={paper.title}
+            >
+              <span className="font-mono text-[11px] text-lm-muted">
+                {paper.published.slice(0, 4)}
+              </span>{" "}
+              <Markdown inline>{paper.title}</Markdown>
+            </li>
+          ))}
+          {papers.length > SHOWN_PAPERS && (
+            <li className="text-[11px] text-lm-muted">
+              +{papers.length - SHOWN_PAPERS} more
+            </li>
+          )}
+        </ul>
+      )}
+      {!p.checkedAt && (
+        <span className="text-xs text-lm-muted">Not checked yet</span>
+      )}
+      <StatusChip status={status} />
+    </article>
+  );
+}
+
 export function CardBody({
   node,
   status,
@@ -189,6 +247,8 @@ export function CardBody({
     case "python":
     case "lean":
       return <CodeCard node={node} status={status} />;
+    case "literature":
+      return <LiteratureCard node={node} status={status} />;
     case "note":
       return (
         <div className="box-border flex w-62.5 rotate-[-1.5deg] flex-col gap-2 rounded bg-lm-note px-4 py-3.5 shadow-[0_2px_6px_rgba(20,22,26,0.08)]">

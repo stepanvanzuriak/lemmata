@@ -10,6 +10,7 @@ import type {
   Project,
 } from "shared";
 import { expect, it } from "vitest";
+import { STUCK_NUDGE } from "../../chat.js";
 import { authed, testApp } from "../helpers/app.js";
 import {
   callTool,
@@ -132,7 +133,10 @@ it("stores the typed command, resumes per target and claims while running", asyn
   await chat("/prover H1");
   await chat("/prover H2");
 
-  const prover = agent.starts.slice(1);
+  // Runs that change nothing get a follow-up turn; this test is about the first turns.
+  const prover = agent.starts
+    .slice(1)
+    .filter((start) => start.prompt !== STUCK_NUDGE);
   expect(prover[0]!.prompt).toContain('Work on hypothesis H1 "Small orbits"');
   expect(prover[0]!.prompt).toContain("User instructions: try induction");
   expect(prover[0]!.resumeSessionId).toBeUndefined();
@@ -181,7 +185,7 @@ it("answers 409 without an agent, for an unknown target and while busy", async (
   expect(busy.status).toBe(409);
   expect(await busy.json()).toMatchObject({ code: "busy" });
   expect(await (await app.request(`${base}/runs`, json("GET"))).json()).toEqual(
-    ["assistant"],
+    [{ runKey: "assistant", role: "assistant", model: null, target: null }],
   );
 
   release();

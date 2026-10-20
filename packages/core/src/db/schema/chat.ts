@@ -47,6 +47,8 @@ export const chatMessage = sqliteTable(
       onDelete: "set null",
     }),
     target: text(),
+    /** The reset that hid this message from the chat; null while shown. */
+    archivedBy: text("archived_by"),
     createdAt: text("created_at").notNull().$defaultFn(isoNow),
   },
   (table) => [

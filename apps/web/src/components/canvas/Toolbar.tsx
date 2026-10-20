@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import { Button, Toolbar as ToolbarRoot, Tooltip } from "@heroui/react";
-import { LayoutCellsLarge, Sticker } from "@gravity-ui/icons";
+import clsx from "clsx";
+import {
+  BookOpen,
+  ArrowRotateLeft,
+  BroomMotion,
+  LayoutCellsLarge,
+  Sticker,
+} from "@gravity-ui/icons";
 import type { CreatableKind } from "./kinds";
 
 const TOOLS: { kind: CreatableKind; label: string; icon: ReactNode }[] = [
@@ -31,13 +38,51 @@ const TOOLS: { kind: CreatableKind; label: string; icon: ReactNode }[] = [
   },
 ];
 
+function ActionButton({
+  label,
+  hint,
+  onPress,
+  isDisabled,
+  className,
+  children,
+}: {
+  label: string;
+  hint: string;
+  onPress: VoidFunction;
+  isDisabled?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip delay={300}>
+      <Button
+        isIconOnly
+        aria-label={label}
+        variant="ghost"
+        isDisabled={isDisabled}
+        className={clsx("size-11 rounded-lg text-lm-ink2", className)}
+        onPress={onPress}
+      >
+        {children}
+      </Button>
+      <Tooltip.Content placement="right">{hint}</Tooltip.Content>
+    </Tooltip>
+  );
+}
+
 export function Toolbar({
   onCreate,
   onTidy,
+  onCleanup,
+  onReset,
+  onLiterature,
   isPending,
 }: {
   onCreate: (kind: CreatableKind) => void;
   onTidy: VoidFunction;
+  onCleanup?: VoidFunction;
+  onReset?: VoidFunction;
+  onLiterature?: VoidFunction;
   isPending?: boolean;
 }) {
   return (
@@ -61,20 +106,38 @@ export function Toolbar({
           <Tooltip.Content placement="right">{label}</Tooltip.Content>
         </Tooltip>
       ))}
-      <Tooltip delay={300}>
-        <Button
-          isIconOnly
-          aria-label="Tidy layout"
-          variant="ghost"
-          className="mt-0.5 size-11 rounded-lg border-t border-lm-hair text-lm-ink2"
-          onPress={onTidy}
-        >
-          <LayoutCellsLarge width={18} height={18} aria-hidden="true" />
-        </Button>
-        <Tooltip.Content placement="right">
-          Tidy layout (arranges every card)
-        </Tooltip.Content>
-      </Tooltip>
+      <ActionButton
+        label="Tidy layout"
+        hint="Tidy layout (arranges every card)"
+        className="mt-0.5 border-t border-lm-hair"
+        onPress={onTidy}
+      >
+        <LayoutCellsLarge width={18} height={18} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Clean up canvas"
+        hint="Clean up: summarize notes per hypothesis and archive dead ends (/tidy)"
+        isDisabled={!onCleanup}
+        onPress={() => onCleanup?.()}
+      >
+        <BroomMotion width={18} height={18} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Reset canvas"
+        hint="Reset: keep only a few key points and archive everything else (/reset)"
+        isDisabled={!onReset}
+        onPress={() => onReset?.()}
+      >
+        <ArrowRotateLeft width={18} height={18} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Check literature"
+        hint="Check arXiv for the selected card, or the goal (/literature)"
+        isDisabled={!onLiterature}
+        onPress={() => onLiterature?.()}
+      >
+        <BookOpen width={18} height={18} aria-hidden="true" />
+      </ActionButton>
     </ToolbarRoot>
   );
 }

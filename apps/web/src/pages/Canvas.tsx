@@ -13,7 +13,7 @@ import {
   type Connection,
 } from "@xyflow/react";
 import { Button } from "@heroui/react";
-import type { AddNodeRequest, EdgeKind } from "shared";
+import type { AddNodeRequest, CanvasNode, EdgeKind } from "shared";
 import {
   useAddEdge,
   useAddNode,
@@ -28,13 +28,18 @@ import { CardViewer } from "../components/canvas/CardViewer";
 import { CardNode } from "../components/canvas/cards/CardNode";
 import { KindEdge } from "../components/canvas/KindEdge";
 import { EDGE_KINDS, EDGE_LABELS } from "../components/canvas/edges";
-import { fieldsOf, type CreatableKind } from "../components/canvas/kinds";
+import {
+  fieldsOf,
+  isArchived,
+  type CreatableKind,
+} from "../components/canvas/kinds";
 import { ProgressPanel } from "../components/canvas/ProgressPanel";
 import { Toolbar } from "../components/canvas/Toolbar";
 import { useCanvasData } from "../components/canvas/useCanvasData";
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 import { useCurrentProjectId, useTheme } from "../lib/hooks";
+import { useChatStore } from "../stores/chat";
 import { tidyLayout } from "../lib/layout";
 import { paths } from "../lib/paths";
 
@@ -68,6 +73,23 @@ function newPayload(
   }
 }
 
+const LITERATURE_KINDS = new Set<CanvasNode["kind"]>([
+  "hypothesis",
+  "statement",
+  "goal",
+]);
+
+/** What `/literature` checks from the toolbar: the selected card when it can be checked, else the goal. */
+function literatureRef(selected?: CanvasNode) {
+  if (!selected || !LITERATURE_KINDS.has(selected.kind)) {
+    return "goal";
+  }
+  if (selected.kind === "goal") {
+    return "goal";
+  }
+  return fieldsOf(selected).label ?? selected.id;
+}
+
 function CanvasEditor({ canvasId }: { canvasId: string }) {
   const {
     query,
@@ -88,25 +110,49 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
   const deleteNode = useDeleteNode(canvasId);
   const deleteEdge = useDeleteEdge(canvasId);
   const savePositions = useSaveNodePositions(canvasId);
+  const send = (text: string) => useChatStore.getState().send?.(text);
+  const showArchived = useChatStore((state) => state.showArchived);
 
-  const shownEdges = useMemo(
+  const archivedIds = useMemo(
     () =>
-      selectedId
-        ? edges.map((edge) => {
-            const active =
-              edge.source === selectedId || edge.target === selectedId;
-
-            return {
-              ...edge,
-              data: { ...edge.data!, active, dim: !active },
-            };
-          })
-        : edges,
-    [edges, selectedId],
+      new Set(
+        nodes.filter(({ data }) => isArchived(data.node)).map(({ id }) => id),
+      ),
+    [nodes],
   );
 
+  const shownNodes = useMemo(() => {
+    if (showArchived) {
+      return nodes.map((node) =>
+        archivedIds.has(node.id) ? { ...node, className: "opacity-45" } : node,
+      );
+    }
+    return nodes.filter(({ id }) => !archivedIds.has(id));
+  }, [nodes, archivedIds, showArchived]);
+
+  const shownEdges = useMemo(() => {
+    const visible = showArchived
+      ? edges
+      : edges.filter(
+          ({ source, target }) =>
+            !archivedIds.has(source) && !archivedIds.has(target),
+        );
+
+    if (!selectedId) {
+      return visible;
+    }
+    return visible.map((edge) => {
+      const active = edge.source === selectedId || edge.target === selectedId;
+
+      return {
+        ...edge,
+        data: { ...edge.data!, active, dim: !active },
+      };
+    });
+  }, [edges, selectedId, archivedIds, showArchived]);
+
   if (query.isPending) {
-    return <Loading label="Loading canvas…" />;
+    return <Loading label="Loading canvas..." />;
   }
 
   if (query.isError || !detail) {
@@ -118,6 +164,14 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
   }
 
   const selected = detail.nodes.find(({ id }) => id === selectedId);
+  const visibleDetail = {
+    ...detail,
+    nodes: detail.nodes.filter((node) => !isArchived(node)),
+    edges: detail.edges.filter(
+      ({ fromNode, toNode }) =>
+        !archivedIds.has(fromNode) && !archivedIds.has(toNode),
+    ),
+  };
 
   const create = (kind: CreatableKind) => {
     const rect = wrapper.current!.getBoundingClientRect();
@@ -146,14 +200,14 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
     );
   };
 
-  const tidy = () => {
-    const positions = tidyLayout(
-      nodes.map(({ id, measured, width, height }) => ({
+  const tidy = async () => {
+    const positions = await tidyLayout(
+      shownNodes.map(({ id, measured, width, height }) => ({
         id,
         width: measured?.width ?? width ?? 300,
         height: measured?.height ?? height ?? 160,
       })),
-      edges.map(({ source, target }) => ({ from: source, to: target })),
+      shownEdges.map(({ source, target }) => ({ from: source, to: target })),
     );
 
     onNodesChange(
@@ -184,7 +238,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
     <div className="flex min-h-0 min-w-0 flex-1">
       <div ref={wrapper} className="relative min-w-0 flex-1">
         <ReactFlow
-          nodes={nodes}
+          nodes={shownNodes}
           edges={shownEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -229,12 +283,20 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
             style={{ width: 140, height: 96 }}
           />
           <Panel position="bottom-right">
-            <ProgressPanel canvasId={canvasId} detail={detail} />
+            <ProgressPanel canvasId={canvasId} detail={visibleDetail} />
           </Panel>
-          <Panel position="top-left">
+          <Panel
+            position="top-left"
+            className="flex flex-col items-start gap-2"
+          >
             <Toolbar
               onCreate={create}
               onTidy={tidy}
+              onCleanup={() => send("/tidy")}
+              onReset={() => send("/reset")}
+              onLiterature={() =>
+                send(`/literature ${literatureRef(selected)}`)
+              }
               isPending={addNode.isPending}
             />
           </Panel>

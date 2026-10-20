@@ -17,7 +17,7 @@ function ProjectList() {
   const { data, error, isPending, refetch } = useGetAllProjects();
 
   if (isPending) {
-    return <Loading label="Loading projects…" />;
+    return <Loading label="Loading projects..." />;
   }
 
   if (error) {
@@ -76,7 +76,7 @@ function MemoryPanel() {
         </Link>
       </div>
       {isPending ? (
-        <Loading label="Loading memory…" />
+        <Loading label="Loading memory..." />
       ) : error ? (
         <ErrorNote error={error} onRetry={() => refetch()} />
       ) : newest && newest.length > 0 ? (

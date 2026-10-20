@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt } from "drizzle-orm";
 import type { Db } from "./db/index.js";
 import { attempt, chatMessage, type ChatMessage } from "./db/schema.js";
 import { isoNow } from "./ids.js";
@@ -23,9 +23,49 @@ export async function addMessage(
 
 export function listMessages(db: Db, canvasId: string): Promise<ChatMessage[]> {
   return db.query.chatMessage.findMany({
-    where: { canvasId },
+    where: { canvasId, archivedBy: { isNull: true } },
     orderBy: { createdAt: "asc" },
   });
+}
+
+/** Hides the chat before `before` (a message id), so a reset starts a fresh conversation. */
+export async function archiveMessages(
+  db: Db,
+  canvasId: string,
+  before: string,
+  by: string,
+): Promise<number> {
+  const rows = await db
+    .update(chatMessage)
+    .set({ archivedBy: by })
+    .where(
+      and(
+        eq(chatMessage.canvasId, canvasId),
+        isNull(chatMessage.archivedBy),
+        lt(chatMessage.id, before),
+      ),
+    )
+    .returning({ id: chatMessage.id });
+  return rows.length;
+}
+
+/** Brings back the chat a reset hid; `by` limits it to one reset. */
+export async function restoreMessages(
+  db: Db,
+  canvasId: string,
+  by?: string,
+): Promise<number> {
+  const rows = await db
+    .update(chatMessage)
+    .set({ archivedBy: null })
+    .where(
+      and(
+        eq(chatMessage.canvasId, canvasId),
+        by ? eq(chatMessage.archivedBy, by) : isNotNull(chatMessage.archivedBy),
+      ),
+    )
+    .returning({ id: chatMessage.id });
+  return rows.length;
 }
 
 /** Session to resume: one per (agent, target card); the Assistant passes nulls. */
@@ -47,6 +87,8 @@ export async function lastSessionId(
           : isNull(chatMessage.agentId),
         target ? eq(chatMessage.target, target) : isNull(chatMessage.target),
         isNotNull(attempt.sessionId),
+        // Sessions from before a reset remember a canvas that is gone.
+        isNull(chatMessage.archivedBy),
       ),
     )
     .orderBy(desc(chatMessage.createdAt))

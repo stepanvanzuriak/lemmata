@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { capitalize } from "lodash";
 import {
   Button,
   CloseButton,
@@ -8,45 +9,84 @@ import {
 } from "@heroui/react";
 import clsx from "clsx";
 import { ChevronsLeft, ChevronsRight, Comments } from "@gravity-ui/icons";
-import type { CanvasAgent, CanvasEdge, CanvasNode, ChatMessage } from "shared";
+import type {
+  CanvasAgent,
+  CanvasEdge,
+  CanvasNode,
+  ChatMessage,
+  RunInfo,
+} from "shared";
 import {
   useAbortRun,
   useAgents,
   useMessages,
   useRemoveAgent,
 } from "../../api/chat";
+import { useCanvas } from "../../api/canvases";
 import { useChatStore } from "../../stores/chat";
 import { Markdown } from "../common/Markdown";
 import { AgentDialog } from "./AgentDialog";
+import { archivedByRun } from "../canvas/kinds";
+import { CleanupNotice } from "./CleanupNotice";
+import { NextSteps } from "./NextSteps";
 import { ModelSelect } from "./ModelSelect";
 import { useChatRuns, type LiveRun } from "./useChatRuns";
 
 const ROLES = ["prover", "referee"] as const;
 const STICK_DISTANCE = 48;
 
-const roleName = (role: string) => role[0]!.toUpperCase() + role.slice(1);
+const TASK_SPEAKERS: [RegExp, string][] = [
+  [/^\/literature\b/, "Literature"],
+  [/^\/tidy\b/, "Curator"],
+  [/^\/reset\b/, "Curator"],
+];
 
-function speaker(message: ChatMessage, agents: CanvasAgent[]) {
+function askedBy(messages: ChatMessage[], index: number) {
+  const reply = messages[index]!;
+
+  return messages
+    .slice(0, index)
+    .findLast(
+      (m) =>
+        m.role === "user" &&
+        m.agentId === reply.agentId &&
+        m.target === reply.target,
+    );
+}
+
+function speaker(
+  message: ChatMessage,
+  agents: CanvasAgent[],
+  asked?: ChatMessage,
+) {
   if (message.role === "user") {
     return "You";
   }
   const agent = agents.find((a) => a.id === message.agentId);
-  return agent ? roleName(agent.role) : "Assistant";
+  if (agent) {
+    return capitalize(agent.role);
+  }
+  const task = TASK_SPEAKERS.find(([command]) =>
+    command.test(asked?.text.trim() ?? ""),
+  );
+  return task?.[1] ?? "Assistant";
 }
 
 function MessageBubble({
   message,
   agents,
+  asked,
 }: {
   message: ChatMessage;
   agents: CanvasAgent[];
+  asked?: ChatMessage;
 }) {
   const mine = message.role === "user";
 
   return (
     <div className={clsx("flex flex-col gap-1", mine && "items-end")}>
       <span className="text-[11px] text-lm-muted">
-        {speaker(message, agents)}
+        {speaker(message, agents, asked)}
       </span>
       <div
         className={clsx(
@@ -72,7 +112,7 @@ function LiveRunBubble({ run, onStop }: { run: LiveRun; onStop: () => void }) {
       <div className="flex items-center gap-2 text-[11px] text-lm-muted">
         <Spinner size="sm" />
         <span className="font-semibold text-lm-accent-ink">
-          {roleName(run.info.role)}
+          {capitalize(run.info.role)}
         </span>
         {run.info.model && <span className="font-mono">{run.info.model}</span>}
         <span className="font-mono">{run.tokens.toLocaleString()} tok</span>
@@ -96,6 +136,32 @@ function LiveRunBubble({ run, onStop }: { run: LiveRun; onStop: () => void }) {
           {note}
         </span>
       ))}
+    </div>
+  );
+}
+
+function OrphanRunBubble({
+  run,
+  onStop,
+}: {
+  run: RunInfo;
+  onStop: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-lm-accent/40 bg-lm-tint-work px-3 py-2 text-[11px] text-lm-muted">
+      <Spinner size="sm" />
+      <span className="font-semibold text-lm-accent-ink">
+        {capitalize(run.role)}
+      </span>
+      <span>still running; its reply appears when it finishes</span>
+      <Button
+        size="sm"
+        variant="danger-soft"
+        className="ml-auto"
+        onPress={onStop}
+      >
+        Stop
+      </Button>
     </div>
   );
 }
@@ -125,7 +191,7 @@ function AgentBar({
         >
           <button
             type="button"
-            aria-label={`${roleName(agent.role)} settings`}
+            aria-label={`${capitalize(agent.role)} settings`}
             className="flex cursor-pointer items-center gap-1 rounded-full border-0 bg-transparent px-1.5 py-0.5 text-xs text-lm-ink hover:bg-lm-chip"
             onClick={() => setDialog({ role: agent.role, agent })}
           >
@@ -138,7 +204,7 @@ function AgentBar({
                   : "bg-lm-muted/50",
               )}
             />
-            {roleName(agent.role)}
+            {capitalize(agent.role)}
             <span className="font-mono text-lm-muted">
               {agent.model ?? "default"}
             </span>
@@ -157,7 +223,7 @@ function AgentBar({
           variant="tertiary"
           onPress={() => setDialog({ role })}
         >
-          + {roleName(role)}
+          + {capitalize(role)}
         </Button>
       ))}
       {dialog && (
@@ -182,9 +248,16 @@ export function ChatPanel({
   onCards: (nodes: CanvasNode[], edges: CanvasEdge[]) => void;
 }) {
   const { data: messages = [] } = useMessages(canvasId);
+  const { data: detail } = useCanvas(canvasId);
+  const archived = archivedByRun(detail?.nodes ?? []);
+  const attempts = new Set(messages.map((m) => m.attemptId));
+  // Archived by hand, or by a run whose reply is no longer in the chat.
+  const unclaimed = [...archived]
+    .filter(([by]) => !by || !attempts.has(by))
+    .reduce((sum, [, count]) => sum + count, 0);
   const { data: agents = [] } = useAgents(canvasId);
   const abortRun = useAbortRun(canvasId);
-  const { runs, error, send } = useChatRuns(canvasId, onCards);
+  const { runs, orphans, error, send } = useChatRuns(canvasId, onCards);
   const setSend = useChatStore((state) => state.setSend);
   const collapsed = useChatStore((state) => state.collapsed);
   const assistantModel = useChatStore((state) => state.assistantModel);
@@ -193,7 +266,10 @@ export function ChatPanel({
   const [draft, setDraft] = useState("");
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
-  const running = new Set(runs.map((run) => run.info.runKey));
+  const running = new Set([
+    ...runs.map((run) => run.info.runKey),
+    ...orphans.map((run) => run.runKey),
+  ]);
   const liveText = runs.map((run) => run.text.length + run.notes.length).join();
 
   useEffect(() => {
@@ -242,12 +318,12 @@ export function ChatPanel({
           aria-hidden="true"
           className="text-lm-muted"
         />
-        {runs.length > 0 && (
+        {running.size > 0 && (
           <span
-            title={`${runs.length} running`}
+            title={`${running.size} running`}
             className="lm-pulse flex size-5 items-center justify-center rounded-full bg-lm-accent text-[10px] font-semibold text-white"
           >
-            {runs.length}
+            {running.size}
           </span>
         )}
       </aside>
@@ -287,14 +363,52 @@ export function ChatPanel({
             el.scrollHeight - el.scrollTop - el.clientHeight < STICK_DISTANCE;
         }}
       >
-        {messages.length === 0 && runs.length === 0 && (
+        {messages.length === 0 && running.size === 0 && (
           <p className="m-0 text-xs text-lm-muted">
             Ask the Assistant anything, or add a Prover and send{" "}
             <code>/prover goal</code>.
           </p>
         )}
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} agents={agents} />
+        {unclaimed > 0 && (
+          <CleanupNotice canvasId={canvasId} count={unclaimed} />
+        )}
+        {messages.map((message, index) => {
+          const count = message.attemptId && archived.get(message.attemptId);
+
+          return (
+            <div key={message.id} className="flex flex-col gap-2">
+              <MessageBubble
+                message={message}
+                agents={agents}
+                asked={askedBy(messages, index)}
+              />
+              {count && (
+                <CleanupNotice
+                  canvasId={canvasId}
+                  count={count}
+                  by={message.attemptId!}
+                />
+              )}
+            </div>
+          );
+        })}
+        {detail && running.size === 0 && messages.length > 0 && (
+          <NextSteps
+            canvasId={canvasId}
+            detail={detail}
+            messages={messages}
+            onSend={(text) => {
+              stick.current = true;
+              send(text, assistantModel);
+            }}
+          />
+        )}
+        {orphans.map((run) => (
+          <OrphanRunBubble
+            key={run.runKey}
+            run={run}
+            onStop={() => abortRun.mutate(run.runKey)}
+          />
         ))}
         {runs.map((run) => (
           <LiveRunBubble
@@ -320,7 +434,7 @@ export function ChatPanel({
         <TextField aria-label="Message" value={draft} onChange={setDraft}>
           <TextArea
             rows={3}
-            placeholder="Message, /prover H1, /prover open or /referee settled"
+            placeholder="Message, /prover H1, /referee settled, /literature H1, /tidy or /reset"
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();

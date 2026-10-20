@@ -1,6 +1,11 @@
-import { cardStatus, type CanvasDetail, type CanvasNode } from "shared";
+import {
+  cardStatus,
+  type CanvasDetail,
+  type CanvasNode,
+  type LiteraturePayload,
+} from "shared";
 import { editRight } from "./rights.js";
-import { fieldsOf, type Author } from "./types.js";
+import { fieldsOf, isArchived, type Author } from "./types.js";
 
 const FULL_CHARS = 8_000;
 const DETAIL_CHARS = 1_500;
@@ -10,7 +15,7 @@ type Level = "full" | "detail" | "brief" | "title";
 
 const clip = (text: string, max: number) =>
   text.length > max
-    ? `${text.slice(0, max)}… [${text.length - max} more chars]`
+    ? `${text.slice(0, max)}... [${text.length - max} more chars]`
     : text;
 
 const nameOf = (card: CanvasNode) =>
@@ -45,6 +50,36 @@ function runLines(card: CanvasNode, max: number): string[] {
 
   if (output && max > BRIEF_CHARS) {
     lines.push(`  output:\n${clip(output, max)}`);
+  }
+  return lines;
+}
+
+function literatureLines(card: CanvasNode, level: Level): string[] {
+  if (card.kind !== "literature") {
+    return [];
+  }
+
+  const p = card.payload as Partial<LiteraturePayload>;
+  const papers = (p.papers ?? []).filter((paper) => !paper.dismissed);
+
+  if (!p.checkedAt) {
+    return ["  literature: not checked yet"];
+  }
+
+  const lines = [
+    `  checked: ${p.checkedAt.slice(0, 10)} · ${papers.length} papers`,
+  ];
+
+  if (level === "brief") {
+    return lines;
+  }
+  for (const paper of papers) {
+    lines.push(
+      `  - arXiv:${paper.id} "${paper.title}" (${paper.authors.slice(0, 3).join(", ")}${paper.authors.length > 3 ? " et al." : ""}, ${paper.published.slice(0, 4)}): ${paper.relevance ?? ""}`,
+    );
+  }
+  if (p.suggestions?.length) {
+    lines.push("  suggestions:", ...p.suggestions.map((s) => `  - ${s}`));
   }
   return lines;
 }
@@ -86,6 +121,7 @@ function describeCard(
     lines.push(`  source:\n${clip(p.source, max)}`);
   }
   lines.push(...runLines(card, max));
+  lines.push(...literatureLines(card, level));
 
   return lines.join("\n");
 }
@@ -100,13 +136,27 @@ function describeLinks(detail: CanvasDetail): string[] {
   });
 }
 
+/** The canvas without archived cards and their links. */
+export function visibleDetail(detail: CanvasDetail): CanvasDetail {
+  const nodes = detail.nodes.filter((n) => !isArchived(n));
+  const ids = new Set(nodes.map((n) => n.id));
+
+  return {
+    ...detail,
+    nodes,
+    edges: detail.edges.filter((e) => ids.has(e.fromNode) && ids.has(e.toNode)),
+  };
+}
+
 /** Focus cards in full, their neighbours in detail, others brief, titles only past the budget. */
 export function describeCanvas(
-  detail: CanvasDetail,
+  full: CanvasDetail,
   author: Author,
   focus: string[] = [],
   budget = 60_000,
 ): string {
+  const detail = visibleDetail(full);
+  const hidden = full.nodes.length - detail.nodes.length;
   const focusIds = new Set(focus);
   const neighbours = new Set(
     detail.edges.flatMap((e) => {
@@ -130,7 +180,14 @@ export function describeCanvas(
   };
 
   const links = describeLinks(detail);
-  const header = `Canvas "${detail.canvas.title}": ${detail.nodes.length} cards, ${links.length} links. Name cards by id, "goal", label (H2) or exact title.`;
+  const header = [
+    `Canvas "${detail.canvas.title}": ${detail.nodes.length} cards, ${links.length} links.`,
+    hidden > 0 &&
+      `${hidden} archived card${hidden > 1 ? "s are" : " is"} hidden; get_card still reads them by id.`,
+    `Name cards by id, "goal", label (H2) or exact title.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
   let used = header.length + links.join("\n").length;
   const cards = detail.nodes.map((card) => {
     const text = describeCard(
@@ -166,9 +223,15 @@ export function describeOne(
     ),
   });
 
+  const archived = fieldsOf(card).archived;
+
   return [
     describeCard(card, detail, author, "full"),
+    archived &&
+      `  archived${archived.reason ? `: ${archived.reason}` : ""} (hidden from the canvas)`,
     "Links:",
     ...(links.length ? links : ["- none"]),
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

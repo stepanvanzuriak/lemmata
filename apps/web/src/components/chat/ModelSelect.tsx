@@ -3,7 +3,6 @@ import { useModels } from "../../api/chat";
 
 const DEFAULT = "default";
 
-/** Picks a model from the agent adapter's list; null means the agent's own default. */
 export function ModelSelect({
   value,
   onChange,

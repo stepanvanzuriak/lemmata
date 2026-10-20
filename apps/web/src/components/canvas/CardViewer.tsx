@@ -9,18 +9,27 @@ import {
   TextField,
 } from "@heroui/react";
 import type { CanvasNode, UpdateNodeRequest } from "shared";
-import { useDeleteNode, useUpdateNode } from "../../api/canvases";
+import {
+  useDeleteNode,
+  useRestoreNodes,
+  useUpdateNode,
+} from "../../api/canvases";
 import { Markdown } from "../common/Markdown";
 import { fieldsOf, KIND_LABELS } from "./kinds";
 import { RunPanel } from "./RunPanel";
 import { AgentActions } from "./AgentActions";
+import { LiteraturePanel } from "./LiteraturePanel";
 
 const STATUSES: Partial<Record<CanvasNode["kind"], string[]>> = {
   goal: ["open", "proved", "disproved"],
   hypothesis: ["open", "supported", "refuted"],
 };
 
-const READ_ONLY = new Set<CanvasNode["kind"]>(["memory", "arxiv"]);
+const READ_ONLY = new Set<CanvasNode["kind"]>([
+  "memory",
+  "arxiv",
+  "literature",
+]);
 
 const isCode = (node: CanvasNode) =>
   node.kind === "python" || node.kind === "lean";
@@ -34,7 +43,7 @@ function ReadView({ node }: { node: CanvasNode }) {
         <Markdown inline>{p.title || "Untitled"}</Markdown>
       </h2>
       {p.text && <Markdown className="text-sm text-lm-ink2">{p.text}</Markdown>}
-      {p.markdown && (
+      {p.markdown && node.kind !== "literature" && (
         <Markdown className="text-sm text-lm-ink2">{p.markdown}</Markdown>
       )}
       {isCode(node) && (
@@ -123,6 +132,7 @@ export function CardViewer({
   const [editing, setEditing] = useState(false);
   const updateNode = useUpdateNode(canvasId);
   const deleteNode = useDeleteNode(canvasId);
+  const restore = useRestoreNodes(canvasId);
   const p = fieldsOf(node);
   const statuses = STATUSES[node.kind];
 
@@ -149,6 +159,23 @@ export function CardViewer({
           <CloseButton aria-label="Close viewer" onPress={onClose} />
         </div>
       </div>
+
+      {p.archived && (
+        <div className="flex items-center gap-2 rounded-lg border border-lm-line bg-lm-chip px-3 py-2 text-xs text-lm-muted">
+          <span className="min-w-0 flex-1">
+            Archived{p.archived.reason ? `: ${p.archived.reason}` : ""}. Hidden
+            from the canvas.
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            isPending={restore.isPending}
+            onPress={() => restore.mutate({ ids: [node.id] })}
+          >
+            Restore
+          </Button>
+        </div>
+      )}
 
       {editing ? (
         <EditForm
@@ -191,6 +218,10 @@ export function CardViewer({
       )}
 
       {isCode(node) && !editing && <RunPanel canvasId={canvasId} node={node} />}
+
+      {node.kind === "literature" && (
+        <LiteraturePanel canvasId={canvasId} node={node} />
+      )}
 
       {!editing && <AgentActions node={node} />}
 

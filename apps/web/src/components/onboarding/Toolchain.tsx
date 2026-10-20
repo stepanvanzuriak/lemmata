@@ -46,12 +46,11 @@ const TOOLS: Tool[] = [
 const shortVersion = (version: string) =>
   version.match(/\d+(\.\d+)+/)?.[0] ?? version;
 
-/** What Lemmata found on this machine, with an install command for what is missing. */
 export function Toolchain() {
   const { data, error, isPending, refetch } = useWorkspace();
 
   if (isPending) {
-    return <Loading label="Looking for tools…" />;
+    return <Loading label="Looking for tools..." />;
   }
 
   if (error) {

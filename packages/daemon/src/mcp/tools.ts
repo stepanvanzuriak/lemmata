@@ -3,8 +3,17 @@ import { join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { addEdge, addMemory, EDGE_KINDS, MEMORY_KINDS, type Db } from "core";
-import type { CanvasNode, CardFigure, CardRun, Toolchain } from "shared";
+import {
+  LITERATURE_VERDICTS,
+  type CanvasNode,
+  type CardFigure,
+  type CardRun,
+  type Paper,
+  type Toolchain,
+} from "shared";
 import { z } from "zod";
+import { ArxivError, MAX_RESULTS, type ArxivClient } from "../arxiv.js";
+import { archiveCards, MAX_ARCHIVE } from "../cards/archive.js";
 import {
   CREATABLE_KINDS,
   createCards,
@@ -13,7 +22,12 @@ import {
 } from "../cards/apply.js";
 import { describeCanvas, describeOne } from "../cards/describe.js";
 import { findCard } from "../cards/find.js";
-import { goalNudge } from "../cards/goal.js";
+import { settleNudge } from "../cards/goal.js";
+import {
+  MAX_PAPERS,
+  MAX_SUGGESTIONS,
+  recordLiterature,
+} from "../cards/literature.js";
 import { loadDetail, toCanvasNode } from "../cards/load.js";
 import { fieldsOf, ToolRefusal, type RunContext } from "../cards/types.js";
 import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../runCard.js";
@@ -22,6 +36,7 @@ export type ToolDeps = {
   db: Db;
   workspaceDir: string;
   toolchain: Promise<Toolchain>;
+  arxiv: ArxivClient;
 };
 
 const text = (value: string): CallToolResult => ({
@@ -35,7 +50,9 @@ async function guardResult(
     return await work();
   } catch (error) {
     const message =
-      error instanceof ToolRefusal || error instanceof Error
+      error instanceof ToolRefusal ||
+      error instanceof ArxivError ||
+      error instanceof Error
         ? error.message
         : String(error);
     return { ...text(message), isError: true };
@@ -52,7 +69,10 @@ const cardRef = z
   );
 
 const cardFields = {
-  title: z.string().optional(),
+  title: z
+    .string()
+    .optional()
+    .describe("Short; math in $...$ as everywhere, e.g. $f_k(n) = o(n^2)$"),
   text: z
     .string()
     .optional()
@@ -157,13 +177,28 @@ async function runResult(
   };
 }
 
+const ABSTRACT_CHARS = 700;
+
+function describePaper(paper: Paper) {
+  const authors = `${paper.authors.slice(0, 4).join(", ")}${paper.authors.length > 4 ? " et al." : ""}`;
+  const abstract =
+    paper.abstract.length > ABSTRACT_CHARS
+      ? `${paper.abstract.slice(0, ABSTRACT_CHARS)}...`
+      : paper.abstract;
+
+  return `- arXiv:${paper.id} "${paper.title}" — ${authors} (${paper.published})\n  ${abstract}`;
+}
+
+/** Roles that may hide cards; agents doing research must not tidy their own trail away. */
+const ARCHIVERS = new Set(["curator", "assistant"]);
+
 export const MAX_MEMORY_ENTRIES = 3;
 export const MAX_MEMORY_CHARS = 300;
 
 export function registerTools(
   server: McpServer,
   run: RunContext,
-  { db, workspaceDir, toolchain }: ToolDeps,
+  { db, workspaceDir, toolchain, arxiv }: ToolDeps,
 ) {
   const detail = () => loadDetail(db, run.canvasId);
   const find = async (ref: string) => {
@@ -245,7 +280,7 @@ export function registerTools(
     ({ id, ...fields }) =>
       guard(async () => {
         const card = await updateCard(db, run, id, fields);
-        const nudge = goalNudge(await detail());
+        const nudge = settleNudge(await detail());
 
         return [`Updated [${card.id}] "${fieldsOf(card).title}".`, nudge]
           .filter(Boolean)
@@ -341,7 +376,7 @@ export function registerTools(
         );
         if (tooLong) {
           throw new ToolRefusal(
-            `Keep each entry to one sentence of at most ${MAX_MEMORY_CHARS} characters ("${tooLong.text.trim().slice(0, 40)}…" is ${tooLong.text.trim().length}).`,
+            `Keep each entry to one sentence of at most ${MAX_MEMORY_CHARS} characters ("${tooLong.text.trim().slice(0, 40)}..." is ${tooLong.text.trim().length}).`,
           );
         }
 
@@ -355,6 +390,96 @@ export function registerTools(
 
         run.memorySaved = (run.memorySaved ?? 0) + saved.length;
         return `Saved ${saved.length} new of ${entries.length} entries.`;
+      }),
+  );
+
+  server.registerTool(
+    "search_literature",
+    {
+      description: [
+        `Search arXiv; returns up to ${MAX_RESULTS} papers (id, title, authors, date, abstract), most relevant first.`,
+        'Plain words are all required; quote phrases ("rich lines"). arXiv syntax also works: ti:, abs:, au:, cat:math.CO, AND, OR, ANDNOT.',
+        "Requests are spaced 3 seconds apart, so prefer a few precise queries.",
+      ].join(" "),
+      inputSchema: {
+        query: z.string().min(1),
+        max: z.number().int().min(1).max(MAX_RESULTS).optional(),
+      },
+    },
+    ({ query, max }) =>
+      guard(async () => {
+        const papers = await arxiv.search(query, max ?? 10);
+        run.papers ??= new Map();
+
+        for (const paper of papers) {
+          run.papers.set(paper.id, paper);
+        }
+        if (papers.length === 0) {
+          return `No papers match "${query}". Try fewer or broader words.`;
+        }
+        return [
+          `${papers.length} papers for "${query}":`,
+          ...papers.map(describePaper),
+        ].join("\n");
+      }),
+  );
+
+  server.registerTool(
+    "record_literature",
+    {
+      description: [
+        "Write the result of a literature check on a literature card: verdict, a short markdown summary, suggestions, and the papers that matter with one sentence each on why.",
+        `verdicts: ${LITERATURE_VERDICTS.join(", ")}. At most ${MAX_PAPERS} papers and ${MAX_SUGGESTIONS} suggestions. Paper ids are arXiv ids from search_literature. Calling it again replaces the earlier result.`,
+      ].join(" "),
+      inputSchema: {
+        card: cardRef,
+        verdict: z.enum(LITERATURE_VERDICTS),
+        summary: z.string().min(1),
+        suggestions: z.array(z.string()).optional(),
+        papers: z.array(
+          z.object({ id: z.string(), relevance: z.string().min(1) }),
+        ),
+        queries: z.array(z.string()).optional(),
+      },
+    },
+    (record) =>
+      guard(async () => {
+        const card = await recordLiterature(db, arxiv, run, record);
+        return `Recorded ${record.verdict} with ${record.papers.length} papers on [${card.id}] "${fieldsOf(card).title}".`;
+      }),
+  );
+
+  server.registerTool(
+    "archive_cards",
+    {
+      description: [
+        `Hide up to ${MAX_ARCHIVE} cards from the canvas (the user can restore them): dead ends, notes merged into a summary, superseded checks.`,
+        "Refused for the goal, open or supported hypotheses, user cards, and cards linked to a supported hypothesis.",
+      ].join(" "),
+      inputSchema: {
+        ids: z.array(cardRef).min(1).max(MAX_ARCHIVE),
+        reason: z
+          .string()
+          .min(1)
+          .describe('Short, such as "merged into H2 summary"'),
+      },
+    },
+    ({ ids, reason }) =>
+      guard(async () => {
+        if (!ARCHIVERS.has(run.author.role)) {
+          throw new ToolRefusal(
+            "Only a tidy run archives cards. Leave them and say what should go.",
+          );
+        }
+
+        const { archived, refused } = await archiveCards(db, run, ids, reason);
+
+        return [
+          `Archived ${archived.length} card${archived.length === 1 ? "" : "s"}.`,
+          refused.length > 0 && `Kept: ${refused.join("; ")}.`,
+        ]
+          .filter(Boolean)
+          .join(" ");
       }),
   );
 }

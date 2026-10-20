@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CanvasEdge, CanvasNode, ChatMessage, RunInfo } from "shared";
 import { canvasKey } from "../../api/canvases";
 import { memoryKey } from "../../api/memory";
-import { messagesKey, streamChat } from "../../api/chat";
+import {
+  messagesKey,
+  runsKey,
+  streamChat,
+  useServerRuns,
+} from "../../api/chat";
 
 export type LiveRun = {
   info: RunInfo;
@@ -13,7 +18,9 @@ export type LiveRun = {
   notes: string[];
 };
 
-/** Sends chat messages and tracks every run streaming on this canvas. */
+const DROPPED =
+  "Lost the connection to the daemon (did it restart?). If the run survived, its reply appears here when it finishes.";
+
 export function useChatRuns(
   canvasId: string,
   onCards: (nodes: CanvasNode[], edges: CanvasEdge[]) => void,
@@ -21,11 +28,27 @@ export function useChatRuns(
   const queryClient = useQueryClient();
   const [runs, setRuns] = useState<Record<string, LiveRun>>({});
   const [error, setError] = useState<string | null>(null);
+  const server = useServerRuns(canvasId);
+  const orphans = (server.data ?? []).filter((run) => !runs[run.runKey]);
+  const orphanKeys = orphans.map((run) => run.runKey).join();
+  const lastOrphans = useRef(orphanKeys);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: messagesKey(canvasId) });
+    queryClient.invalidateQueries({ queryKey: canvasKey(canvasId) });
+  };
 
   const update = (key: string, change: (run: LiveRun) => LiveRun) =>
     setRuns((current) =>
       current[key] ? { ...current, [key]: change(current[key]) } : current,
     );
+
+  const finish = (key: string) => {
+    setRuns(({ [key]: _finished, ...rest }) => rest);
+    queryClient.setQueryData<RunInfo[]>(runsKey(canvasId), (list) =>
+      list?.filter((run) => run.runKey !== key),
+    );
+  };
 
   const addMessage = (message: ChatMessage) =>
     queryClient.setQueryData<ChatMessage[]>(messagesKey(canvasId), (list) => [
@@ -35,6 +58,7 @@ export function useChatRuns(
 
   const send = async (text: string, model: string | null = null) => {
     let key = "";
+    let done = false;
     let lastProblem = "The run failed.";
     setError(null);
 
@@ -86,24 +110,46 @@ export function useChatRuns(
             }));
             break;
           case "done":
+            done = true;
             if (event.message) {
               addMessage(event.message);
             }
             if (event.status === "error") {
               setError(lastProblem);
             }
-            setRuns(({ [key]: _finished, ...rest }) => rest);
+            finish(key);
             queryClient.invalidateQueries({ queryKey: canvasKey(canvasId) });
             break;
         }
       });
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
-      if (key) {
-        setRuns(({ [key]: _failed, ...rest }) => rest);
+
+      if (key && !done) {
+        setError(DROPPED);
+        finish(key);
+        refresh();
+        queryClient.invalidateQueries({ queryKey: runsKey(canvasId) });
       }
+    } catch (failure) {
+      if (!key) {
+        setError(failure instanceof Error ? failure.message : String(failure));
+        return;
+      }
+      setError(DROPPED);
+      finish(key);
+      refresh();
+      queryClient.invalidateQueries({ queryKey: runsKey(canvasId) });
     }
   };
 
-  return { runs: Object.values(runs), error, send };
+  useEffect(() => {
+    const before = lastOrphans.current.split(",").filter(Boolean);
+    lastOrphans.current = orphanKeys;
+
+    if (before.some((key) => !orphanKeys.split(",").includes(key))) {
+      queryClient.invalidateQueries({ queryKey: messagesKey(canvasId) });
+      queryClient.invalidateQueries({ queryKey: canvasKey(canvasId) });
+    }
+  }, [orphanKeys, canvasId, queryClient]);
+
+  return { runs: Object.values(runs), orphans, error, send };
 }

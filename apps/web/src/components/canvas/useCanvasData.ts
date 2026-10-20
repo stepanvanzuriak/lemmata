@@ -7,6 +7,7 @@ import {
 } from "@xyflow/react";
 import {
   cardStatus,
+  settleReady,
   type CanvasEdge,
   type CanvasGraph,
   type CanvasNode,
@@ -25,16 +26,18 @@ function toFlowNode(
   prev?: CardFlowNode,
 ): CardFlowNode {
   const status = cardStatus(node, graph);
+  const ready = settleReady(node, graph);
   const unchanged =
     prev &&
     prev.data.node.updatedAt === node.updatedAt &&
+    prev.data.ready === ready &&
     sameStatus(prev.data.status, status);
 
   return {
     id: node.id,
     type: "card",
     position: { x: node.x, y: node.y },
-    data: unchanged ? prev.data : { node, status },
+    data: unchanged ? prev.data : { node, status, ready },
     selected: prev?.selected,
     deletable: node.kind !== "goal",
   };

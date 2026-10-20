@@ -1,6 +1,7 @@
 import { MIGRATIONS_FOLDER, openDb } from "core";
 import type { AgentAdapter } from "runner";
 import { createApp } from "../../app.js";
+import type { ArxivClient } from "../../arxiv.js";
 import { TOKEN_HEADER } from "../../security.js";
 
 export const TOKEN = "test-token";
@@ -10,6 +11,7 @@ export async function testApp(
   staticDir?: string,
   workspaceDir = "/tmp/ws",
   adapter?: () => AgentAdapter,
+  arxiv: ArxivClient = offlineArxiv,
 ) {
   return createApp({
     db: await openDb(":memory:", MIGRATIONS_FOLDER),
@@ -23,8 +25,15 @@ export async function testApp(
     }),
     staticDir,
     adapter,
+    arxiv,
   });
 }
+
+/** Tests never reach arXiv; pass a stub to `testApp` to return papers. */
+export const offlineArxiv: ArxivClient = {
+  search: async () => [],
+  byIds: async () => [],
+};
 
 export const authed = (headers: Record<string, string> = {}) => ({
   host: HOST,

@@ -6,7 +6,7 @@ checks every request:
 - the `Host` header must be `127.0.0.1:<port>` or `localhost:<port>` (blocks DNS rebinding);
 - the `Origin` header, when present, must be the daemon's own or one passed with `--origin`;
 - `/api/*` requires the `x-lemmata-token` header. The token is random per launch and reaches the browser in the URL
-  fragment (`/#token=…`), which the web app moves to `sessionStorage`.
+  fragment (`/#token=...`), which the web app moves to `sessionStorage`.
 
 ## Command line
 

@@ -6,7 +6,9 @@ export type {
 export type { Toolchain, WorkspaceInfo } from "./workspace.js";
 export type { FsEntry, FsListResponse, MkdirInput } from "./fs.js";
 export type { SearchResult } from "./search.js";
+export { LITERATURE_VERDICTS } from "./cards.js";
 export type {
+  Archived,
   BasePayload,
   CardFigure,
   CardRun,
@@ -14,8 +16,11 @@ export type {
   GoalPayload,
   HypothesisPayload,
   LeanDiagnostic,
+  LiteraturePayload,
+  LiteratureVerdict,
   NodeKind,
   NodePayload,
+  Paper,
   PlainPayload,
   RunOutput,
 } from "./cards.js";
@@ -35,6 +40,7 @@ export type {
 export {
   cardStatus,
   goalReady,
+  settleReady,
   type CanvasGraph,
   type CardStatus,
   type Tone,
@@ -48,6 +54,7 @@ export type {
   ChatRequest,
   ModelOption,
   RunInfo,
+  RunRole,
 } from "./chat.js";
 export type {
   AddMemoryRequest,

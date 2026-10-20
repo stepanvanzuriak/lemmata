@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CanvasEdge, CanvasNode, CardRun, EdgeKind } from "../index.js";
-import { cardStatus, goalReady } from "../status.js";
+import { cardStatus, goalReady, settleReady } from "../status.js";
 
 let ids = 0;
 
@@ -165,5 +165,45 @@ it("a claimed hypothesis is work in progress", () => {
   expect(cardStatus(h, { nodes: [h], edges: [] })).toEqual({
     tone: "work",
     label: "Prover working",
+  });
+});
+
+describe("settleReady for hypotheses", () => {
+  it("a hypothesis whose sub-lemmas all hold is ready, and says so on the card", () => {
+    const h1 = node("hypothesis", { status: "open" });
+    const lemma = node("hypothesis", { status: "supported" });
+    const graph = {
+      nodes: [h1, lemma],
+      edges: [edge(h1, lemma, "depends-on")],
+    };
+
+    expect(settleReady(h1, graph)).toBe("supported");
+    expect(cardStatus(h1, graph)).toEqual({
+      tone: "warn",
+      label: "Ready to settle",
+      detail: "supported",
+    });
+  });
+
+  it("a supported counterexample makes it ready to refute; archived links do not count", () => {
+    const h1 = node("hypothesis", { status: "claimed" });
+    const counter = node("hypothesis", { status: "supported" });
+    const gone = node("hypothesis", {
+      status: "supported",
+      archived: { at: "" },
+    });
+
+    expect(
+      settleReady(h1, {
+        nodes: [h1, counter],
+        edges: [edge(h1, counter, "refuted-by")],
+      }),
+    ).toBe("refuted");
+    expect(
+      settleReady(h1, {
+        nodes: [h1, gone],
+        edges: [edge(h1, gone, "refuted-by")],
+      }),
+    ).toBeNull();
   });
 });

@@ -69,7 +69,13 @@ export {
   removeAgent,
   clearClaims,
 } from "./agents.js";
-export { addMessage, listMessages, lastSessionId } from "./chat.js";
+export {
+  addMessage,
+  archiveMessages,
+  listMessages,
+  lastSessionId,
+  restoreMessages,
+} from "./chat.js";
 export {
   AGENT_ROLES,
   type AgentRole,

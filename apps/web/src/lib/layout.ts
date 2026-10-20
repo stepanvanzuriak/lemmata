@@ -1,84 +1,60 @@
+import type { ElkNode, LayoutOptions } from "elkjs/lib/elk-api";
+
 export type LayoutNode = { id: string; width: number; height: number };
 export type LayoutEdge = { from: string; to: string };
-
-const COLUMN_GAP = 120;
-const ROW_GAP = 48;
-
-/** Longest path from a source, so every edge points to a later column. Cycles are cut by the pass limit. */
-function layersOf(nodes: LayoutNode[], edges: LayoutEdge[]) {
-  const layer = new Map(nodes.map(({ id }) => [id, 0]));
-
-  for (let pass = 0; pass < nodes.length; pass++) {
-    let changed = false;
-
-    for (const { from, to } of edges) {
-      const next = layer.get(from)! + 1;
-
-      if (layer.has(to) && next > layer.get(to)! && next < nodes.length) {
-        layer.set(to, next);
-        changed = true;
-      }
-    }
-    if (!changed) {
-      break;
-    }
-  }
-
-  return layer;
-}
+export type Positions = Map<string, { x: number; y: number }>;
 
 /**
- * Layered left-to-right layout: columns by dependency depth, rows ordered by the average
- * row of each card's parents so edges cross less. Returns top-left positions.
+ * ELK's layered algorithm (the one React Flow's docs recommend for directed graphs):
+ * left to right by dependency, real card sizes, fewer crossings, creation order kept
+ * where it costs nothing so repeated layouts stay stable.
  */
-export function tidyLayout(
+const OPTIONS: LayoutOptions = {
+  "elk.algorithm": "layered",
+  "elk.direction": "RIGHT",
+  "elk.spacing.nodeNode": "40",
+  "elk.layered.spacing.nodeNodeBetweenLayers": "120",
+  "elk.spacing.componentComponent": "80",
+  "elk.layered.cycleBreaking.strategy": "GREEDY",
+  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+  "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+};
+
+type Elk = { layout: (graph: ElkNode) => Promise<ElkNode> };
+
+let elk: Promise<Elk> | null = null;
+
+/** ELK is ~1.4 MB; it loads the first time someone lays out a canvas. */
+function loadElk() {
+  elk ??= import("elkjs/lib/elk.bundled.js").then(
+    ({ default: ELK }) => new ELK(),
+  );
+  return elk;
+}
+
+/** Top-left positions for every node; edges to unknown nodes and self-loops are ignored. */
+export async function tidyLayout(
   nodes: LayoutNode[],
   edges: LayoutEdge[],
-): Map<string, { x: number; y: number }> {
+): Promise<Positions> {
   const known = new Set(nodes.map(({ id }) => id));
-  const usable = edges.filter(
-    ({ from, to }) => from !== to && known.has(from) && known.has(to),
+  const graph: ElkNode = {
+    id: "root",
+    layoutOptions: OPTIONS,
+    children: nodes.map(({ id, width, height }) => ({ id, width, height })),
+    edges: edges
+      .filter(({ from, to }) => from !== to && known.has(from) && known.has(to))
+      .map(({ from, to }, index) => ({
+        id: `e${index}`,
+        sources: [from],
+        targets: [to],
+      })),
+  };
+
+  const result = await (await loadElk()).layout(graph);
+
+  return new Map(
+    (result.children ?? []).map(({ id, x = 0, y = 0 }) => [id, { x, y }]),
   );
-  const layer = layersOf(nodes, usable);
-  const columns: LayoutNode[][] = [];
-
-  for (const node of nodes) {
-    (columns[layer.get(node.id)!] ??= []).push(node);
-  }
-
-  const parents = new Map<string, string[]>();
-
-  for (const { from, to } of usable) {
-    parents.set(to, [...(parents.get(to) ?? []), from]);
-  }
-
-  const center = new Map<string, number>();
-  const positions = new Map<string, { x: number; y: number }>();
-  let x = 0;
-
-  for (const column of columns) {
-    if (!column?.length) {
-      continue;
-    }
-
-    const rank = (node: LayoutNode) => {
-      const ys = (parents.get(node.id) ?? [])
-        .map((id) => center.get(id))
-        .filter((y): y is number => y !== undefined);
-
-      return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : Infinity;
-    };
-    const ordered = [...column].sort((a, b) => rank(a) - rank(b));
-    let y = 0;
-
-    for (const node of ordered) {
-      positions.set(node.id, { x, y });
-      center.set(node.id, y + node.height / 2);
-      y += node.height + ROW_GAP;
-    }
-
-    x += Math.max(...column.map(({ width }) => width)) + COLUMN_GAP;
-  }
-
-  return positions;
 }

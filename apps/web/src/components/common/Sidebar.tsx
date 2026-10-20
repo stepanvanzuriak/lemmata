@@ -1,8 +1,10 @@
 import type { ComponentType, SVGProps } from "react";
 import { NavLink } from "react-router";
-import { Chip, Typography } from "@heroui/react";
+import { Button, Chip, Typography } from "@heroui/react";
 import {
   BookOpen,
+  ChevronsLeft,
+  ChevronsRight,
   ChartColumn,
   Comment,
   FileText,
@@ -15,6 +17,7 @@ import {
 import { paths } from "../../lib/paths";
 import { DaemonStatus } from "./DaemonStatus";
 import { LemmataMark } from "../icons/LemmataMark";
+import { useLayoutStore } from "../../stores/layout";
 
 type NavItem = {
   to: string;
@@ -41,7 +44,66 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-lm-nav-active font-medium text-white" : "text-lm-nav-text"
   }`;
 
+/** Collapsed: an icon rail; labels move to tooltips and the daemon card to a dot. */
+function Rail({ onExpand }: { onExpand: VoidFunction }) {
+  return (
+    <nav
+      aria-label="Primary"
+      className="box-border flex w-16 shrink-0 flex-col items-center gap-5 bg-lm-nav py-5 text-lm-nav-text"
+    >
+      <div
+        aria-hidden="true"
+        className="flex size-7.5 items-center justify-center rounded-[7px] bg-lm-accent text-white"
+      >
+        <LemmataMark width={24} height={24} />
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        {nav.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === paths.workspace}
+            aria-label={label}
+            title={label}
+            className={navLinkClass}
+          >
+            <Icon width={18} height={18} aria-hidden="true" />
+          </NavLink>
+        ))}
+      </div>
+
+      <NavLink
+        to={paths.settings}
+        aria-label="Settings"
+        title="Settings"
+        className={(state) => `mt-auto ${navLinkClass(state)}`}
+      >
+        <Gear width={18} height={18} aria-hidden="true" />
+      </NavLink>
+      <DaemonStatus compact />
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        aria-label="Expand sidebar"
+        className="text-lm-nav-muted hover:text-white"
+        onPress={onExpand}
+      >
+        <ChevronsRight width={16} height={16} aria-hidden="true" />
+      </Button>
+    </nav>
+  );
+}
+
 export function Sidebar() {
+  const collapsed = useLayoutStore((state) => state.navCollapsed);
+  const setCollapsed = useLayoutStore((state) => state.setNavCollapsed);
+
+  if (collapsed) {
+    return <Rail onExpand={() => setCollapsed(false)} />;
+  }
+
   return (
     <nav
       aria-label="Primary"
@@ -67,6 +129,16 @@ export function Sidebar() {
         >
           v0.1
         </Chip>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label="Collapse sidebar"
+          className="-mr-1 text-lm-nav-muted hover:text-white"
+          onPress={() => setCollapsed(true)}
+        >
+          <ChevronsLeft width={16} height={16} aria-hidden="true" />
+        </Button>
       </div>
 
       <div className="flex flex-col gap-0.5">

@@ -16,6 +16,7 @@ import {
   getCanvas,
   listCanvases,
   parsePayload,
+  restoreMessages,
   updateNode,
   updateNodePositions,
 } from "core";
@@ -30,6 +31,7 @@ const NODE_KINDS = [
   "note",
   "memory",
   "arxiv",
+  "literature",
   "python",
   "lean",
 ] as const satisfies readonly NodeKind[];
@@ -58,6 +60,11 @@ const positionsSchema = z.object({
       h: z.number().optional(),
     }),
   ),
+});
+
+const restoreSchema = z.object({
+  ids: z.array(z.string()).optional(),
+  by: z.string().optional(),
 });
 
 const addEdgeSchema = z.object({
@@ -150,6 +157,44 @@ export function canvasRoutes(
         await updateNodePositions(db, canvasId, c.req.valid("json").nodes);
 
         return c.json({ ok: true }, 200);
+      },
+    )
+    .post(
+      "/canvases/:id/restore",
+      validate("json", restoreSchema),
+      async (c) => {
+        const detail = await getCanvas(db, c.req.param("id"));
+
+        if (!detail) {
+          return c.json({ error: "canvas not found" }, 404);
+        }
+
+        const { ids, by } = c.req.valid("json");
+        const wanted = ids && new Set(ids);
+        const restored: CanvasNode[] = [];
+
+        for (const row of detail.nodes) {
+          const archived = parsePayload(row.payload).archived as
+            { by?: string } | null | undefined;
+
+          if (
+            !archived ||
+            (wanted && !wanted.has(row.id)) ||
+            (by && archived.by !== by)
+          ) {
+            continue;
+          }
+
+          const node = await updateNode(db, row.id, { archived: null });
+          restored.push(toNode(node!));
+        }
+
+        // Undoing a reset brings back the chat it hid too.
+        const messages = ids
+          ? 0
+          : await restoreMessages(db, detail.canvas.id, by);
+
+        return c.json({ restored, messages }, 200);
       },
     )
     .patch("/nodes/:id", validate("json", payload), async (c) => {

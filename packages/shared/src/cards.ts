@@ -5,14 +5,22 @@ export type NodeKind =
   | "note"
   | "memory"
   | "arxiv"
+  | "literature"
   | "python"
   | "lean";
+
+export type Archived = {
+  at: string;
+  by?: string;
+  reason?: string;
+};
 
 export type BasePayload = {
   title: string;
   text?: string;
   markdown?: string;
   author?: string;
+  archived?: Archived | null;
 };
 
 export type GoalPayload = BasePayload & {
@@ -74,5 +82,40 @@ export type PlainPayload = BasePayload & {
   kind: "statement" | "note" | "memory" | "arxiv";
 };
 
+export type Paper = {
+  id: string;
+  title: string;
+  authors: string[];
+  published: string;
+  abstract: string;
+  url: string;
+  relevance?: string;
+  dismissed?: boolean;
+};
+
+export const LITERATURE_VERDICTS = [
+  "known",
+  "refuted",
+  "partial",
+  "related",
+  "novel",
+] as const;
+
+export type LiteratureVerdict = (typeof LITERATURE_VERDICTS)[number];
+
+export type LiteraturePayload = BasePayload & {
+  kind: "literature";
+  target?: string;
+  queries?: string[];
+  verdict?: LiteratureVerdict;
+  papers?: Paper[];
+  suggestions?: string[];
+  checkedAt?: string;
+};
+
 export type NodePayload =
-  GoalPayload | HypothesisPayload | CodePayload | PlainPayload;
+  | GoalPayload
+  | HypothesisPayload
+  | CodePayload
+  | PlainPayload
+  | LiteraturePayload;

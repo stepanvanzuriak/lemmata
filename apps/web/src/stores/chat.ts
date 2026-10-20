@@ -10,6 +10,9 @@ type ChatState = {
   /** Model for Assistant messages; null is the agent's default. */
   assistantModel: string | null;
   setAssistantModel: (model: string | null) => void;
+  /** Archived cards are drawn faded on the canvas; toggled from the cleanup notices in the chat. */
+  showArchived: boolean;
+  setShowArchived: (shown: boolean) => void;
 };
 
 export const useChatStore = create<ChatState>()(
@@ -20,6 +23,8 @@ export const useChatStore = create<ChatState>()(
       collapsed: false,
       setCollapsed: (collapsed) => set({ collapsed }),
       assistantModel: null,
+      showArchived: false,
+      setShowArchived: (showArchived) => set({ showArchived }),
       setAssistantModel: (assistantModel) => set({ assistantModel }),
     }),
     {

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { LeanDiagnostic, RunOutput } from "shared";
 
 export const MAX_OUTPUT = 200 * 1024;
-const TRUNCATED = "\n… [output truncated]";
+const TRUNCATED = "\n... [output truncated]";
 
 const ENV_ALLOW = new Set([
   "PATH",

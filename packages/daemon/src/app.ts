@@ -18,6 +18,7 @@ import { figureRoutes } from "./routes/figures.js";
 import { memoryRoutes } from "./routes/memory.js";
 import { settingsRoutes } from "./routes/settings.js";
 import type { AgentAdapter } from "runner";
+import { createArxivClient, type ArxivClient } from "./arxiv.js";
 
 export type AppOptions = {
   db: Db;
@@ -26,6 +27,7 @@ export type AppOptions = {
   toolchain: Promise<Toolchain>;
   staticDir?: string;
   adapter?: () => AgentAdapter;
+  arxiv?: ArxivClient;
 };
 
 export function createApp({
@@ -35,10 +37,11 @@ export function createApp({
   toolchain,
   staticDir,
   adapter,
+  arxiv = createArxivClient(),
 }: AppOptions) {
   const app = new Hono()
     .use("*", hostAndOrigin(security))
-    .all("/mcp", mcpHandler({ db, workspaceDir, toolchain }))
+    .all("/mcp", mcpHandler({ db, workspaceDir, toolchain, arxiv }))
     .use("/api/*", requireToken(security))
     .get("/api/health", (c) => c.json({ ok: true }))
     .route("/api/projects", projectRoutes(db))
@@ -54,6 +57,7 @@ export function createApp({
         db,
         workspaceDir,
         toolchain,
+        arxiv,
         adapter,
         port: () => security.port,
       }),

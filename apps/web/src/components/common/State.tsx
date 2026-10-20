@@ -2,11 +2,14 @@ import type { ReactNode } from "react";
 import { Button, EmptyState, Spinner, Typography } from "@heroui/react";
 import { CircleExclamation } from "@gravity-ui/icons";
 
-export function Loading({ label = "Loading…" }: { label?: string }) {
+export function Loading({ label = "Loading..." }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center gap-2 py-6 text-lm-muted">
-      <Spinner size="sm" />
-      <Typography type="body-sm" color="muted">
+    <div
+      role="status"
+      className="flex items-center gap-2 py-6 text-lm-muted w-full justify-center"
+    >
+      <Spinner size="md" />
+      <Typography type="h4" color="muted">
         {label}
       </Typography>
     </div>
