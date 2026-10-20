@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CanvasEdge, CanvasNode, ChatMessage, RunInfo } from "shared";
 import { canvasKey } from "../../api/canvases";
+import { memoryKey } from "../../api/memory";
 import { messagesKey, streamChat } from "../../api/chat";
 
 export type LiveRun = {
@@ -65,6 +66,16 @@ export function useChatRuns(
             break;
           case "cards":
             onCards(event.nodes, event.edges);
+            break;
+          case "memory":
+            queryClient.invalidateQueries({ queryKey: memoryKey });
+            update(key, (run) => ({
+              ...run,
+              notes: [
+                ...run.notes,
+                `Saved ${event.saved} ${event.saved === 1 ? "note" : "notes"} to research memory.`,
+              ],
+            }));
             break;
           case "warning":
           case "error":

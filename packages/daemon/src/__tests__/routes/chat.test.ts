@@ -249,3 +249,58 @@ it("manages agents", async () => {
     await (await app.request(`${base}/agents`, json("GET"))).json(),
   ).toEqual([]);
 });
+
+it("saves what the agent remembers and shows it to the next run", async () => {
+  const { chat, agent } = await setup(async (client, options) => {
+    if (options.prompt !== "remember") {
+      return [{ type: "text", text: "Looked at it." }];
+    }
+    const tooLong = await callTool(client, "remember", {
+      entries: [{ kind: "fact", text: "x".repeat(301) }],
+    });
+    const ok = await callTool(client, "remember", {
+      entries: [
+        { kind: "dead-end", text: "Induction on K loses a factor of K." },
+        { kind: "dead-end", text: " induction on k loses a factor of k. " },
+      ],
+    });
+    const again = await callTool(client, "remember", {
+      entries: [
+        { kind: "dead-end", text: "Induction on K loses a factor of K." },
+      ],
+    });
+    const many = await callTool(client, "remember", {
+      entries: Array.from({ length: 4 }, (_, i) => ({
+        kind: "idea" as const,
+        text: `idea ${i}`,
+      })),
+    });
+
+    expect(tooLong.isError).toBe(true);
+    expect(many.isError).toBe(true);
+    expect(textOf(ok)).toBe("Saved 1 new of 2 entries.");
+    expect(textOf(again)).toBe("Saved 0 new of 1 entries.");
+
+    return [
+      { type: "tool_use", id: "t1", name: "remember", input: {} },
+      { type: "tool_result", id: "t1", output: textOf(tooLong), isError: true },
+      { type: "tool_use", id: "t2", name: "remember", input: {} },
+      { type: "tool_result", id: "t2", output: textOf(ok), isError: false },
+      { type: "tool_use", id: "t3", name: "remember", input: {} },
+      { type: "tool_result", id: "t3", output: textOf(again), isError: false },
+    ] satisfies RunEvent[];
+  });
+
+  const { events } = await chat("remember");
+  expect(events.filter((e) => e.type === "memory")).toEqual([
+    { type: "memory", saved: 1 },
+  ]);
+  expect(agent.starts[0]!.systemPromptAddendum).not.toContain(
+    "Research memory",
+  );
+
+  await chat("again");
+  expect(agent.starts[1]!.systemPromptAddendum).toContain(
+    "Research memory for this project:\n- [dead-end] Induction on K loses a factor of K.",
+  );
+});

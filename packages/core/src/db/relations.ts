@@ -5,6 +5,7 @@ export const relations = defineRelations(schema, (r) => ({
   project: {
     canvases: r.many.canvas(),
     attempts: r.many.attempt(),
+    memory: r.many.memoryEntry(),
   },
   attempt: {
     project: r.one.project({
@@ -60,6 +61,12 @@ export const relations = defineRelations(schema, (r) => ({
     target: r.one.canvasNode({
       from: r.canvasEdge.toNode,
       to: r.canvasNode.id,
+    }),
+  },
+  memoryEntry: {
+    project: r.one.project({
+      from: r.memoryEntry.projectId,
+      to: r.project.id,
     }),
   },
 }));

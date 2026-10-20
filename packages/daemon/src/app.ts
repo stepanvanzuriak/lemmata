@@ -14,6 +14,8 @@ import { searchRoutes } from "./routes/search.js";
 import { canvasRoutes } from "./routes/canvases.js";
 import { mcpHandler } from "./mcp/server.js";
 import { chatRoutes } from "./routes/chat.js";
+import { memoryRoutes } from "./routes/memory.js";
+import { settingsRoutes } from "./routes/settings.js";
 import type { AgentAdapter } from "runner";
 
 export type AppOptions = {
@@ -41,8 +43,10 @@ export function createApp({
     .get("/api/health", (c) => c.json({ ok: true }))
     .route("/api/projects", projectRoutes(db))
     .route("/api/fs", fsRoutes())
+    .route("/api/settings", settingsRoutes(workspaceDir))
     .route("/api/search", searchRoutes(db))
     .route("/api", canvasRoutes(db, { workspaceDir, toolchain }))
+    .route("/api", memoryRoutes(db))
     .route(
       "/api",
       chatRoutes({

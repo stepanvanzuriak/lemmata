@@ -1,0 +1,9 @@
+{
+  "name": "site",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The Lemmata landing page: plain HTML and CSS, deployed to GitHub Pages or Vercel.",
+  "scripts": {
+    "preview": "python3 -m http.server 4400"
+  }
+}

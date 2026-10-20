@@ -86,6 +86,7 @@ it("lists tools for a live secret", async () => {
     "create_cards",
     "get_card",
     "read_canvas",
+    "remember",
     "run_card",
     "update_card",
   ]);

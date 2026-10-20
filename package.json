@@ -1,6 +1,21 @@
 {
   "name": "lemmata",
+  "version": "0.1.0",
   "private": true,
+  "description": "A local research canvas where AI agents work on problems with you",
+  "license": "MIT",
+  "author": "Stepan Vanzuriak",
+  "homepage": "https://stepanvanzuriak.github.io/lemmata/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stepanvanzuriak/lemmata.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stepanvanzuriak/lemmata/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -33,7 +48,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "yarn format:check && yarn lint && yarn typecheck",
-    "prepare": "husky"
+    "prepare": "husky",
+    "desktop:build": "yarn workspace desktop build",
+    "version:check": "node scripts/version.mjs check"
   },
   "type": "module",
   "lint-staged": {

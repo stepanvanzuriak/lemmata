@@ -1,11 +1,16 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { Button, Typography } from "@heroui/react";
 import { Magnifier } from "@gravity-ui/icons";
 import { WorkspacesCard } from "../components/workspace/WorkspacesCard";
 import { ProjectCard } from "../components/project/ProjectCard";
+import { useMemory } from "../api/memory";
 import { useGetAllProjects } from "../api/projects";
+import { paths } from "../lib/paths";
+import { KindChip } from "../components/memory/MemoryRow";
 import { ProjectSearch } from "../components/project/ProjectSearch";
 import { NewProjectDialog } from "../components/project/NewProjectDialog";
+import { Markdown } from "../components/common/Markdown";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 
 function ProjectList() {
@@ -48,6 +53,50 @@ function SidePanel({
         {title}
       </Typography>
       <Empty title={empty} description={description} />
+    </section>
+  );
+}
+
+const HOME_MEMORY_COUNT = 5;
+
+function MemoryPanel() {
+  const { data, error, isPending, refetch } = useMemory();
+  const newest = data
+    ?.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, HOME_MEMORY_COUNT);
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <Typography type="h4" className="m-0 text-base font-semibold">
+          Research memory
+        </Typography>
+        <Link to={paths.memory} className="ml-auto text-sm">
+          View all
+        </Link>
+      </div>
+      {isPending ? (
+        <Loading label="Loading memory…" />
+      ) : error ? (
+        <ErrorNote error={error} onRetry={() => refetch()} />
+      ) : newest && newest.length > 0 ? (
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {newest.map((entry) => (
+            <li
+              key={entry.id}
+              className="flex items-start gap-2 rounded-xl border border-lm-line px-3 py-2"
+            >
+              <KindChip kind={entry.kind} />
+              <Markdown className="min-w-0 text-sm">{entry.text}</Markdown>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Empty
+          title="Nothing remembered yet"
+          description="Facts and decisions the agent keeps about your project."
+        />
+      )}
     </section>
   );
 }
@@ -111,11 +160,7 @@ export function Workspaces() {
             empty="No sessions yet"
             description="Agent sessions across your canvases will show up here."
           />
-          <SidePanel
-            title="Research memory"
-            empty="Nothing remembered yet"
-            description="Facts and decisions the agent keeps about your project."
-          />
+          <MemoryPanel />
           <SidePanel
             title="Literature inbox"
             empty="Inbox is empty"

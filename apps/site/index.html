@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lemmata: a research canvas for you and AI agents</title>
+    <meta
+      name="description"
+      content="Lemmata is a local, open source research canvas. A Prover agent splits your goal into hypotheses and proves or refutes them, a Referee checks the proofs, and Python and Lean cards run real checks."
+    />
+    <meta name="theme-color" content="#2747c9" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Lemmata: a research canvas for you and AI agents"
+    />
+    <meta
+      property="og:description"
+      content="A local, open source canvas where a Prover and a Referee work on your problem, with Python and Lean checks."
+    />
+    <meta
+      property="og:image"
+      content="https://stepanvanzuriak.github.io/lemmata/images/og.png"
+    />
+    <meta
+      property="og:url"
+      content="https://stepanvanzuriak.github.io/lemmata/"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link
+      rel="preload"
+      href="fonts/ibm-plex-sans-400-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <a class="brand" href="./"><img src="favicon.svg" alt="" />Lemmata</a>
+        <nav class="top" aria-label="Primary">
+          <a href="#how">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#install">Install</a>
+          <a href="#faq">FAQ</a>
+          <a class="keep" href="https://github.com/stepanvanzuriak/lemmata"
+            >GitHub</a
+          >
+        </nav>
+      </header>
+
+      <main>
+        <div class="hero">
+          <span class="eyebrow">Open source · MIT · early release</span>
+          <h1>A research canvas where AI agents work with you</h1>
+          <p class="lede">
+            Write a goal. A Prover agent splits it into hypotheses and proves or
+            refutes them, a Referee checks the proofs, and Python and Lean cards
+            run real checks. Everything lands on one canvas, on your machine.
+          </p>
+          <div class="actions">
+            <a
+              class="button primary"
+              href="https://github.com/stepanvanzuriak/lemmata/releases/latest"
+              >Download the desktop app</a
+            >
+            <a class="button" href="https://github.com/stepanvanzuriak/lemmata"
+              >View on GitHub</a
+            >
+          </div>
+          <p class="note">
+            Linux, macOS and Windows. Needs the free
+            <a href="https://docs.claude.com/en/docs/claude-code"
+              >Claude Code</a
+            >
+            CLI for the agents.
+          </p>
+
+          <figure class="shot">
+            <picture>
+              <source
+                media="(prefers-color-scheme: dark)"
+                srcset="images/canvas-dark.webp"
+              />
+              <img
+                src="images/canvas-light.webp"
+                width="1800"
+                height="1080"
+                alt="A Lemmata canvas for Fermat's two-squares theorem: the Prover has split the goal into three hypotheses, proved the first with Wilson's theorem and a passing Python check, and the Referee has accepted the proof in the chat panel."
+              />
+            </picture>
+            <figcaption>
+              A Prover and a Referee working on Fermat's two-squares theorem.
+            </figcaption>
+          </figure>
+        </div>
+
+        <section id="how">
+          <h2>How it works</h2>
+          <p class="sub">
+            A project is a problem. The canvas is where the work shows up, one
+            card at a time.
+          </p>
+          <ol class="steps">
+            <li>
+              <strong>Write the goal</strong>
+              <span
+                >State what should be proved or refuted. Markdown and LaTeX work
+                everywhere.</span
+              >
+            </li>
+            <li>
+              <strong>Prover splits it</strong>
+              <span
+                >The agent proposes hypotheses and works on each, adding proofs
+                and counterexamples.</span
+              >
+            </li>
+            <li>
+              <strong>Checks run</strong>
+              <span
+                >Python and Lean cards execute locally, and their output stays
+                on the card.</span
+              >
+            </li>
+            <li>
+              <strong>Referee reviews</strong>
+              <span
+                >A second agent reads the proofs and flags gaps before a
+                hypothesis counts as settled.</span
+              >
+            </li>
+          </ol>
+        </section>
+
+        <section id="features">
+          <h2>Built for real research work</h2>
+          <p class="sub">
+            Small, local and inspectable. You can read every card an agent
+            wrote.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <h3>Typed canvas</h3>
+              <p>
+                Goal, hypothesis, statement, note, Python and Lean cards linked
+                by edges such as depends on, tested by and refuted by.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Two agent roles</h3>
+              <p>
+                Add a Prover or a Referee per canvas, pick the model, and send
+                <code>/prover goal</code> or <code>/referee H1</code>.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Research memory</h3>
+              <p>
+                Agents record dead ends and facts per project and read them at
+                the start of every run, so they do not repeat failed approaches.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Progress at a glance</h3>
+              <p>
+                Hypothesis and goal statuses, passed checks and referee issues,
+                counted for you.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Local and private</h3>
+              <p>
+                The daemon listens on 127.0.0.1 only and every request needs a
+                per-launch token. Your data is a folder with a SQLite file.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Token budgets</h3>
+              <p>
+                Each agent has a token cap, and a run stops when it passes it.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="install">
+          <h2>Install</h2>
+          <p class="sub">
+            Use the desktop app, or run it from source in your browser.
+          </p>
+          <div class="install">
+            <div>
+              <h3>Desktop app</h3>
+              <p>
+                Download the installer for your system from the
+                <a
+                  href="https://github.com/stepanvanzuriak/lemmata/releases/latest"
+                  >latest release</a
+                >. It starts its own daemon and stores projects in
+                <code>~/Lemmata</code>.
+              </p>
+              <p>
+                The first launch walks you through a short tour and checks that
+                Claude Code, Python and Lean are found.
+              </p>
+            </div>
+            <div>
+              <h3>From source</h3>
+              <p>Needs Node 22 or newer.</p>
+              <pre><code>git clone https://github.com/stepanvanzuriak/lemmata
+cd lemmata
+yarn install
+yarn dev</code></pre>
+              <p>Then open <code>http://localhost:5173</code>.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="faq">
+          <h2>Questions</h2>
+          <details>
+            <summary>Does it send my work anywhere?</summary>
+            <p>
+              Lemmata has no server and no telemetry. Agent runs go through the
+              Claude Code CLI on your machine, so the usual Claude Code terms
+              and data handling apply to what the agents read and write.
+            </p>
+          </details>
+          <details>
+            <summary>Do I need to pay for anything?</summary>
+            <p>
+              Lemmata is free and MIT licensed. Agent runs use your own Claude
+              Code account, so its usage limits and costs apply.
+            </p>
+          </details>
+          <details>
+            <summary>Can I use another AI agent?</summary>
+            <p>
+              Claude Code is the first adapter. The runner is agent-agnostic by
+              design, and more adapters are planned.
+            </p>
+          </details>
+          <details>
+            <summary>Is it ready for serious use?</summary>
+            <p>
+              It is an early release. The canvas, checks, agents and memory work
+              today; plots, animations, exports and more toolkits are still to
+              come. Expect rough edges and please report them.
+            </p>
+          </details>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <span>MIT licensed · © 2026 Stepan Vanzuriak</span>
+        <a href="https://github.com/stepanvanzuriak/lemmata">Source</a>
+        <a href="https://github.com/stepanvanzuriak/lemmata/releases"
+          >Releases</a
+        >
+        <a href="https://github.com/stepanvanzuriak/lemmata/issues">Issues</a>
+      </div>
+    </footer>
+  </body>
+</html>

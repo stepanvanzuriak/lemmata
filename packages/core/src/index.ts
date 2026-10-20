@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 export { openDb, schema, type Db } from "./db/index.js";
 export {
   projectSchema,
@@ -43,8 +44,9 @@ export {
 export { searchProjects } from "./search.js";
 export { ulid, isoNow } from "./ids.js";
 
-export const MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url)
-  .pathname;
+export const MIGRATIONS_FOLDER = fileURLToPath(
+  new URL("../migrations", import.meta.url),
+);
 export {
   startAttempt,
   addAttemptUsage,
@@ -73,4 +75,18 @@ export {
   type AgentRole,
   type CanvasAgent,
   type ChatMessage,
+} from "./db/schema.js";
+export {
+  addMemory,
+  listMemory,
+  getMemory,
+  updateMemory,
+  deleteMemory,
+  type MemoryInput,
+  type MemorySource,
+} from "./memory.js";
+export {
+  MEMORY_KINDS,
+  type MemoryEntry,
+  type MemoryKind,
 } from "./db/schema.js";

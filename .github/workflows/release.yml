@@ -1,0 +1,100 @@
+name: Release
+
+# Push a tag such as v0.2.0 (see docs/releasing.md). The workflow builds the desktop app on
+# every platform and attaches the installers to a draft GitHub release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build, for example v0.2.0
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      notes: ${{ steps.notes.outputs.body }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Check the tag against the versions in the repo
+        run: node scripts/version.mjs check "$TAG"
+      - id: notes
+        name: Take the release notes from the changelog
+        run: |
+          delimiter="notes-$(openssl rand -hex 8)"
+          {
+            echo "body<<$delimiter"
+            node scripts/release-notes.mjs "$TAG"
+            echo
+            echo "The installers are not code signed yet; see [docs/desktop.md](https://github.com/${{ github.repository }}/blob/$TAG/docs/desktop.md)."
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+      - run: yarn install --immutable
+      - run: yarn check
+      - run: yarn test
+
+  build:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-22.04
+            args: --bundles deb,rpm
+          - name: macOS (Apple silicon)
+            os: macos-latest
+            args: --bundles dmg
+          - name: macOS (Intel)
+            os: macos-15-intel
+            args: --bundles dmg
+          - name: Windows
+            os: windows-latest
+            args: --bundles nsis
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: yarn install --immutable
+      - name: Build the daemon and web bundle
+        run: yarn workspace desktop prepare-bundle
+      - name: Build and upload the installers
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tauriScript: yarn tauri
+          tagName: ${{ env.TAG }}
+          releaseName: Lemmata ${{ env.TAG }}
+          releaseBody: ${{ needs.verify.outputs.notes }}
+          releaseDraft: true
+          prerelease: ${{ contains(env.TAG, '-') }}
+          args: ${{ matrix.args }}

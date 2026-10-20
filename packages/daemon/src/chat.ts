@@ -22,13 +22,13 @@ import {
 } from "./agents.js";
 import { describeCanvas } from "./cards/describe.js";
 import { loadDetail } from "./cards/load.js";
-import type { Author } from "./cards/types.js";
+import type { Author, RunContext } from "./cards/types.js";
+import { memoryPreamble } from "./memory.js";
 import { mcpConfigFor, registerRun, unregisterRun } from "./mcp/registry.js";
 import type { ToolDeps } from "./mcp/tools.js";
 import { ROLE_PROMPTS } from "./roles.js";
 import { projectDir } from "./runCard.js";
 
-/** Cache reads count fully, so a long agent run reaches this sooner than it looks. */
 export const DEFAULT_MAX_TOKENS = 1_000_000;
 
 export type ChatDeps = ToolDeps & {
@@ -38,14 +38,12 @@ export type ChatDeps = ToolDeps & {
 
 export type Emit = (event: ChatEvent) => Promise<void>;
 
-/** Active runs per canvas, keyed by agent id or "assistant". */
 const active = new Map<string, Map<string, AbortController>>();
 
 export function activeRuns(canvasId: string): string[] {
   return [...(active.get(canvasId)?.keys() ?? [])];
 }
 
-/** Aborts one run (`runKey`) or every run on the canvas; returns how many. */
 export function abortRuns(canvasId: string, runKey?: string): number {
   const runs = active.get(canvasId);
   const keys = runKey ? [runKey] : [...(runs?.keys() ?? [])];
@@ -70,7 +68,6 @@ function snapshot(detail: CanvasDetail) {
   };
 }
 
-/** Nodes and edges that changed since the last snapshot. */
 function changes(before: ReturnType<typeof snapshot>, after: CanvasDetail) {
   return {
     nodes: after.nodes.filter((n) => before.nodes.get(n.id) !== n.updatedAt),
@@ -84,10 +81,6 @@ const usageTokens = (event: Extract<RunEvent, { type: "usage" }>) =>
   event.usage.cacheRead +
   event.usage.cacheWrite;
 
-/**
- * Validates a chat request and reserves the run, throwing `ConflictError` (409) or `CanvasNotFound`
- * before anything streams. The returned function runs the agent and streams its events.
- */
 export async function startChat(
   deps: ChatDeps,
   canvasId: string,
@@ -188,7 +181,14 @@ export async function startChat(
       }
 
       const focus = target ? [target.id] : [];
-      secret = registerRun({ canvasId, author, target: target?.id, focus });
+      const runContext: RunContext = {
+        canvasId,
+        author,
+        target: target?.id,
+        focus,
+      };
+      let memoryReported = 0;
+      secret = registerRun(runContext);
 
       const attempt = await runAttempt(
         {
@@ -199,6 +199,9 @@ export async function startChat(
           title: request.text.slice(0, 80),
           maxTokens: agent?.tokenCap ?? DEFAULT_MAX_TOKENS,
           signal: controller.signal,
+          onStart: (started) => {
+            runContext.attemptId = started.id;
+          },
           options: {
             cwd: await projectDir(db, canvasId, deps.workspaceDir),
             prompt:
@@ -215,9 +218,12 @@ export async function startChat(
               : undefined,
             systemPromptAddendum: [
               `Project: ${project.title}\n${project.statement}`,
+              await memoryPreamble(db, project.id),
               ROLE_PROMPTS[role],
               `Canvas at the start of this run:\n${describeCanvas(detail, author, focus)}`,
-            ].join("\n\n"),
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
             mcpServers: mcpConfigFor(secret, deps.port()),
           },
         },
@@ -231,6 +237,12 @@ export async function startChat(
           }
           if (event.type === "tool_result") {
             await emitChanges();
+
+            const saved = (runContext.memorySaved ?? 0) - memoryReported;
+            if (saved > 0) {
+              memoryReported += saved;
+              await emit({ type: "memory", saved });
+            }
           }
           if (event.type === "usage") {
             tokens += usageTokens(event);

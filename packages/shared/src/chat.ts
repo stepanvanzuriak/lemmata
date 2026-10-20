@@ -27,6 +27,7 @@ export type ChatEvent =
   | { type: "tool_use"; name: string }
   | { type: "usage"; tokens: number }
   | { type: "cards"; nodes: CanvasNode[]; edges: CanvasEdge[] }
+  | { type: "memory"; saved: number }
   | { type: "warning"; message: string }
   | { type: "error"; message: string }
   | { type: "done"; status: string; message: ChatMessage | null };

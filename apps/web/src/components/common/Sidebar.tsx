@@ -27,14 +27,12 @@ const nav: NavItem[] = [
   { to: paths.canvas, label: "Research canvas", Icon: NodesRight },
   { to: paths.sessions, label: "Sessions", Icon: Comment },
   { to: paths.notebook, label: "Notebook", Icon: BookOpen },
+  { to: paths.memory, label: "Research memory", Icon: Layers },
   { to: paths.literature, label: "Literature", Icon: FileText },
   { to: paths.usage, label: "Usage & budgets", Icon: ChartColumn },
 ];
 
-const phase2 = [
-  { label: "Research memory", Icon: Layers },
-  { label: "Semantic graph", Icon: GraphNode },
-];
+const phase2 = [{ label: "Semantic graph", Icon: GraphNode }];
 
 const rowBase = "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm";
 

@@ -4,6 +4,7 @@ import { RouteError } from "../components/common/RouteError";
 import { RoutePlaceholder } from "../components/common/RoutePlaceholder";
 import { Settings } from "../pages/Settings";
 import { Workspaces } from "../pages/Workspaces";
+import { MemoryPage } from "../pages/Memory";
 import { CanvasPage, CanvasRedirect } from "../pages/Canvas";
 
 export type RouteHandle = { title: string; fullBleed?: boolean };
@@ -42,6 +43,11 @@ export const router = createBrowserRouter([
           },
           placeholder("sessions", "Sessions"),
           placeholder("notebook", "Notebook"),
+          {
+            path: "memory",
+            Component: MemoryPage,
+            handle: { title: "Research memory" } satisfies RouteHandle,
+          },
           placeholder("literature", "Literature"),
           placeholder("usage", "Usage & budgets"),
           {

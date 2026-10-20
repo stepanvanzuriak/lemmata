@@ -48,3 +48,10 @@ export type {
   ModelOption,
   RunInfo,
 } from "./chat.js";
+export type {
+  AddMemoryRequest,
+  MemoryEntry,
+  MemoryKind,
+  UpdateMemoryRequest,
+} from "./memory.js";
+export type { Settings } from "./settings.js";

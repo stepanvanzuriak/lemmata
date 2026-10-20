@@ -4,12 +4,13 @@ export type AgentRole = "assistant" | "prover" | "referee";
 
 export type Author = { agentId?: string; role: AgentRole };
 
-/** One agent run's view of the canvas: who is acting and where. */
 export type RunContext = {
   canvasId: string;
   author: Author;
   target?: string;
   focus?: string[];
+  attemptId?: string;
+  memorySaved?: number;
 };
 
 /** A refusal the model should read and act on (wrong ref, no right, gating, …). */

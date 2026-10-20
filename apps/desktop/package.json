@@ -1,0 +1,16 @@
+{
+  "name": "desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "prepare-bundle": "node scripts/prepare-bundle.mjs",
+    "start": "yarn prepare-bundle && tauri dev",
+    "build": "yarn prepare-bundle && tauri build",
+    "build:no-bundle": "yarn prepare-bundle && tauri build --no-bundle",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.0"
+  }
+}

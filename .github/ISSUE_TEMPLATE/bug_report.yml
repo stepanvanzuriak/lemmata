@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Create a project\n2. Add a Prover\n3. Send /prover goal"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: How are you running Lemmata?
+      options: [Desktop app, From source (browser), Other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Lemmata version or commit
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04, macOS 15, Windows 11
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Daemon output or the error shown in the app. Remove anything private.
+      render: shell

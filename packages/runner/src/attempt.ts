@@ -23,6 +23,7 @@ export type RunAttemptOptions = {
   options: StartOptions;
   maxTokens: number;
   signal?: AbortSignal;
+  onStart?: (attempt: Attempt) => void;
 };
 
 const STATUS: Record<DoneReason, Exclude<AttemptStatus, "running">> = {
@@ -42,6 +43,7 @@ export async function runAttempt(
     options,
     maxTokens,
     signal,
+    onStart,
   }: RunAttemptOptions,
   onEvent: (event: RunEvent) => void | Promise<void> = () => {},
 ): Promise<Attempt> {
@@ -51,6 +53,7 @@ export async function runAttempt(
     title,
     model: options.model?.id,
   });
+  onStart?.(row);
   const handle = adapter.start(options);
   let spent = 0;
   let reason: DoneReason = "completed";

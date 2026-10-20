@@ -2,6 +2,7 @@ import { Outlet } from "react-router";
 import clsx from "clsx";
 import { Sidebar } from "./Sidebar";
 import { NavBar } from "./NavBar";
+import { Onboarding } from "../onboarding/Onboarding";
 import { useFullBleed } from "../../lib/hooks";
 
 export function AppShell() {
@@ -14,6 +15,7 @@ export function AppShell() {
         fullBleed ? "h-screen overflow-hidden" : "min-h-screen",
       )}
     >
+      <Onboarding />
       <Sidebar />
       <main
         className={clsx(
