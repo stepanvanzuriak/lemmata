@@ -12,6 +12,7 @@ export async function addMessage(
     attemptId?: string | null;
     agentId?: string | null;
     target?: string | null;
+    cards?: string[] | null;
   },
 ): Promise<ChatMessage> {
   const [row] = await db

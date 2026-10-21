@@ -29,6 +29,7 @@ import {
   recordLiterature,
 } from "../cards/literature.js";
 import { loadDetail, toCanvasNode } from "../cards/load.js";
+import { resolveNote } from "../cards/resolve.js";
 import { fieldsOf, ToolRefusal, type RunContext } from "../cards/types.js";
 import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../runCard.js";
 
@@ -289,6 +290,23 @@ export function registerTools(
   );
 
   server.registerTool(
+    "resolve_note",
+    {
+      description: [
+        "Mark a referee note as dealt with, once the canvas answers it: the note stays but stops being shown in full to later runs.",
+        "reason: one line on what answers it, naming the cards. Only a note linked from a card with checked-by can be resolved, and only after the work is on the canvas — not because you disagree with it.",
+      ].join(" "),
+      inputSchema: { id: cardRef, reason: z.string().min(1) },
+    },
+    ({ id, reason }) =>
+      guard(async () => {
+        const { note, target } = await resolveNote(db, run, id, reason);
+
+        return `Resolved [${note.id}] "${fieldsOf(note).title}" on ${fieldsOf(target).label ?? `[${target.id}]`}.`;
+      }),
+  );
+
+  server.registerTool(
     "connect_cards",
     {
       description:
@@ -429,12 +447,15 @@ export function registerTools(
     {
       description: [
         "Write the result of a literature check on a literature card: verdict, a short markdown summary, suggestions, and the papers that matter with one sentence each on why.",
-        `verdicts: ${LITERATURE_VERDICTS.join(", ")}. At most ${MAX_PAPERS} papers and ${MAX_SUGGESTIONS} suggestions. Paper ids are arXiv ids from search_literature. Calling it again replaces the earlier result.`,
+        `verdicts: ${LITERATURE_VERDICTS.join(", ")}. At most ${MAX_PAPERS} papers and ${MAX_SUGGESTIONS} suggestions. Paper ids are arXiv ids from search_literature. Calling it again replaces the earlier result. Wrap every formula in $...$ in the summary, suggestions and relevance (e.g. $t_2 \\ge 3 + \\sum_{r\\ge 4}(r-3)t_r$); bare math will not render.`,
       ].join(" "),
       inputSchema: {
         card: cardRef,
         verdict: z.enum(LITERATURE_VERDICTS),
-        summary: z.string().min(1),
+        summary: z
+          .string()
+          .min(1)
+          .describe("Short markdown; every formula wrapped in $...$"),
         suggestions: z.array(z.string()).optional(),
         papers: z.array(
           z.object({ id: z.string(), relevance: z.string().min(1) }),

@@ -53,7 +53,7 @@ function PaperItem({
       )}
       <details className="text-xs text-lm-muted">
         <summary className="cursor-pointer select-none">Abstract</summary>
-        <p className="m-0 mt-1 leading-normal">{paper.abstract}</p>
+        <Markdown className="mt-1 leading-normal">{paper.abstract}</Markdown>
       </details>
       <Button size="sm" variant="ghost" className="self-end" onPress={onToggle}>
         {paper.dismissed ? "Restore" : "Dismiss"}

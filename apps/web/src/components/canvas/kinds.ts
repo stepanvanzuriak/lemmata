@@ -4,6 +4,7 @@ import type {
   CardRun,
   LiteraturePayload,
   NodeKind,
+  Resolved,
 } from "shared";
 
 export type CardFields = Partial<BasePayload> & {
@@ -11,6 +12,7 @@ export type CardFields = Partial<BasePayload> & {
   status?: string;
   source?: string;
   run?: CardRun;
+  resolved?: Resolved | null;
 };
 
 export const fieldsOf = (node: CanvasNode) => node.payload as CardFields;

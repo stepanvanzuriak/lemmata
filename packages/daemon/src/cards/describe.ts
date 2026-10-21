@@ -5,7 +5,7 @@ import {
   type LiteraturePayload,
 } from "shared";
 import { editRight } from "./rights.js";
-import { fieldsOf, isArchived, type Author } from "./types.js";
+import { fieldsOf, isArchived, isResolved, type Author } from "./types.js";
 
 const FULL_CHARS = 8_000;
 const DETAIL_CHARS = 1_500;
@@ -97,6 +97,7 @@ function describeCard(
     p.label,
     `"${p.title ?? ""}"`,
     status && `status: ${status.label}`,
+    isResolved(card) && "resolved",
     `you may change: ${editRight(card, author)}`,
   ]
     .filter(Boolean)
@@ -170,6 +171,9 @@ export function describeCanvas(
     }),
   );
   const levelOf = (card: CanvasNode): Level => {
+    if (isResolved(card)) {
+      return "title";
+    }
     if (focusIds.has(card.id)) {
       return "full";
     }

@@ -10,6 +10,7 @@ export type CanvasGraph = Pick<CanvasDetail, "nodes" | "edges">;
 type StatusFields = {
   status?: string;
   archived?: unknown;
+  resolved?: unknown;
   verdict?: string;
   author?: string;
   run?: CardRun;
@@ -72,11 +73,11 @@ function statementStatus(node: CanvasNode, graph: CanvasGraph): CardStatus {
 
   const issues = outgoing.filter((e) => {
     const target = byId.get(e.toNode);
-    return (
-      e.kind === "checked-by" &&
-      target?.kind === "note" &&
-      fields(target).author === "Referee"
-    );
+
+    if (e.kind !== "checked-by" || target?.kind !== "note") {
+      return false;
+    }
+    return fields(target).author === "Referee" && !fields(target).resolved;
   }).length;
 
   if (issues > 0) {
@@ -155,11 +156,16 @@ export function cardStatus(
           label: "Not checked",
         }
       );
-    case "note":
-      if (fields(node).author === "Referee") {
-        return { tone: "warn", label: "Referee" };
+    case "note": {
+      if (fields(node).author !== "Referee") {
+        return null;
       }
-      return null;
+
+      if (fields(node).resolved) {
+        return { tone: "ok", label: "Resolved" };
+      }
+      return { tone: "warn", label: "Referee" };
+    }
     default:
       return null;
   }

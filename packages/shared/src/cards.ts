@@ -15,6 +15,12 @@ export type Archived = {
   reason?: string;
 };
 
+export type Resolved = {
+  at: string;
+  by?: string;
+  reason?: string;
+};
+
 export type BasePayload = {
   title: string;
   text?: string;
@@ -80,6 +86,7 @@ export type CodePayload = BasePayload & {
 
 export type PlainPayload = BasePayload & {
   kind: "statement" | "note" | "memory" | "arxiv";
+  resolved?: Resolved | null;
 };
 
 export type Paper = {

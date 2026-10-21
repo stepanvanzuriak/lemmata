@@ -5,6 +5,8 @@ type ChatState = {
   /** Lets the card viewer send `/prover H1` through the open chat panel. */
   send: ((text: string) => void) | null;
   setSend: (send: ((text: string) => void) | null) => void;
+  focus: ((nodeId: string) => void) | null;
+  setFocus: (focus: ((nodeId: string) => void) | null) => void;
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
   /** Model for Assistant messages; null is the agent's default. */
@@ -20,6 +22,8 @@ export const useChatStore = create<ChatState>()(
     (set) => ({
       send: null,
       setSend: (send) => set({ send }),
+      focus: null,
+      setFocus: (focus) => set({ focus }),
       collapsed: false,
       setCollapsed: (collapsed) => set({ collapsed }),
       assistantModel: null,

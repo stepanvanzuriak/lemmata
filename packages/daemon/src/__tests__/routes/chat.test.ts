@@ -112,6 +112,8 @@ it("streams events in order with the new cards", async () => {
     status: "done",
     message: { role: "assistant", text: "Adding two hypotheses. Done." },
   });
+  const done = events.at(-1) as Extract<ChatEvent, { type: "done" }>;
+  expect(done.message!.cards).toEqual(cards.nodes.map((n) => n.id));
 });
 
 it("stores the typed command, resumes per target and claims while running", async () => {

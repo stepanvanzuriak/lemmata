@@ -16,6 +16,7 @@ export type LiveRun = {
   tokens: number;
   tool: string | null;
   notes: string[];
+  cards: string[];
 };
 
 const DROPPED =
@@ -76,6 +77,7 @@ export function useChatRuns(
                 tokens: 0,
                 tool: null,
                 notes: [],
+                cards: [],
               },
             }));
             break;
@@ -88,9 +90,18 @@ export function useChatRuns(
           case "usage":
             update(key, (run) => ({ ...run, tokens: event.tokens }));
             break;
-          case "cards":
+          case "cards": {
             onCards(event.nodes, event.edges);
+            const ids = event.nodes.map((node) => node.id);
+            update(key, (run) => ({
+              ...run,
+              cards: [
+                ...run.cards,
+                ...ids.filter((id) => !run.cards.includes(id)),
+              ],
+            }));
             break;
+          }
           case "memory":
             queryClient.invalidateQueries({ queryKey: memoryKey });
             update(key, (run) => ({

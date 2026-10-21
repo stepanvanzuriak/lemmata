@@ -47,3 +47,62 @@ it("referees settled work and splits the goal when nothing is open", () => {
     "/prover goal",
   ]);
 });
+
+it("asks the prover to answer open referee notes, by title when a card has no label", () => {
+  const nodes = [
+    node("g", "goal", { status: "open" }),
+    node("h1", "hypothesis", { label: "H1", status: "open" }),
+    node("n1", "note", { title: "Referee: H1 has no argument" }),
+    node("01M5DH7QFJ", "statement", {
+      title: "Melchior bound: $f_k(n)\\le n(n-1)/(k(k-1)+2(k-3))$",
+    }),
+    node("n2", "note", { title: "Referee: the remark is unsupported" }),
+    node("n3", "note", {
+      title: "Referee: already dealt with",
+      resolved: { at: "2026-10-21T06:00:00.000Z" },
+    }),
+    node("lit", "literature", { title: "Literature: H1" }),
+  ];
+  const edges = [
+    edge("h1", "n1", "checked-by"),
+    edge("01M5DH7QFJ", "n2", "checked-by"),
+    edge("01M5DH7QFJ", "n3", "checked-by"),
+    edge("h1", "lit", "checked-by"),
+  ];
+  const steps = nextSteps({ nodes, edges }, []);
+
+  expect(steps.map((s) => s.label)).toEqual([
+    "/prover H1",
+    "/prover Melchior bound: $f_k(n)\\le n(n-1)/(k$...",
+    "/literature H1",
+  ]);
+  expect(steps[1]).toMatchObject({ command: "/prover 01M5DH7QFJ" });
+});
+
+it("drops a referee note step once the prover was already asked", () => {
+  const nodes = [
+    node("g", "goal", { status: "open" }),
+    node("h1", "hypothesis", { label: "H1", status: "open" }),
+    node("n1", "note", { title: "Referee: H1 has no argument" }),
+  ];
+  const edges = [edge("h1", "n1", "checked-by")];
+
+  expect(
+    nextSteps({ nodes, edges }, [asked("/prover H1", "h1")]).map(
+      (s) => s.label,
+    ),
+  ).toEqual(["/literature H1"]);
+});
+
+it("a statement checked only by a literature card is not a gap", () => {
+  const nodes = [
+    node("g", "goal", { status: "open" }),
+    node("s1", "statement", { title: "Melchior bound" }),
+    node("lit", "literature", { title: "Literature: Melchior bound" }),
+  ];
+  const edges = [edge("s1", "lit", "checked-by")];
+
+  expect(nextSteps({ nodes, edges }, []).map((s) => s.label)).toEqual([
+    "/prover goal",
+  ]);
+});

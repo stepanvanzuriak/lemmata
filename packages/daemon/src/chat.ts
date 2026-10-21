@@ -75,16 +75,19 @@ const staleNotice = (canvas: string) =>
 
 export class CanvasNotFound extends Error {}
 
+const contentOf = (node: CanvasDetail["nodes"][number]) =>
+  `${node.kind}:${JSON.stringify(node.payload)}`;
+
 function snapshot(detail: CanvasDetail) {
   return {
-    nodes: new Map(detail.nodes.map((n) => [n.id, n.updatedAt])),
+    nodes: new Map(detail.nodes.map((n) => [n.id, contentOf(n)])),
     edges: new Set(detail.edges.map((e) => e.id)),
   };
 }
 
 function changes(before: ReturnType<typeof snapshot>, after: CanvasDetail) {
   return {
-    nodes: after.nodes.filter((n) => before.nodes.get(n.id) !== n.updatedAt),
+    nodes: after.nodes.filter((n) => before.nodes.get(n.id) !== contentOf(n)),
     edges: after.edges.filter((e) => !before.edges.has(e.id)),
   };
 }
@@ -184,14 +187,16 @@ export async function startChat(
     let seen = snapshot(detail);
     let reply = "";
     let tokens = 0;
-    /** Cards the current attempt added or changed. */
-    let touched = 0;
+    const touched = new Set<string>();
 
     const emitChanges = async () => {
       const current = await loadDetail(db, canvasId);
       const changed = changes(seen, current);
       seen = snapshot(current);
-      touched += changed.nodes.length;
+
+      for (const node of changed.nodes) {
+        touched.add(node.id);
+      }
 
       if (changed.nodes.length > 0 || changed.edges.length > 0) {
         await emit({ type: "cards", ...changed });
@@ -346,14 +351,14 @@ export async function startChat(
           },
         );
 
-      touched = 0;
+      touched.clear();
       let attempt = await attemptOnce();
 
       // A prover that gave up without leaving anything gets one more turn to make the target smaller.
       if (
         role === "prover" &&
         attempt.status === "done" &&
-        touched === 0 &&
+        touched.size === 0 &&
         attempt.sessionId
       ) {
         reply += "\n\n";
@@ -375,6 +380,8 @@ export async function startChat(
         });
       }
 
+      await emitChanges();
+
       const message: ChatMessage = await addMessage(db, {
         canvasId,
         role: "assistant",
@@ -382,6 +389,7 @@ export async function startChat(
         attemptId: attempt.id,
         agentId: agent?.id,
         target: target?.id,
+        cards: [...touched],
       });
 
       if (agent && target) {

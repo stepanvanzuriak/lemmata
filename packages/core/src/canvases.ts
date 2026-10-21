@@ -206,7 +206,7 @@ export function updateNodePositions(
     for (const { id, x, y, w, h } of positions) {
       await tx
         .update(canvasNode)
-        .set({ x, y, w, h, updatedAt: now })
+        .set({ x, y, w, h })
         .where(and(eq(canvasNode.id, id), eq(canvasNode.canvasId, canvasId)));
     }
     await touchCanvas(tx, canvasId, now);

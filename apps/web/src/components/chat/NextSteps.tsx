@@ -2,6 +2,7 @@ import { Button } from "@heroui/react";
 import type { CanvasDetail, ChatMessage, UpdateNodeRequest } from "shared";
 import { useRunNode, useUpdateNode } from "../../api/canvases";
 import { nextSteps, type NextStep } from "../../lib/nextSteps";
+import { Markdown } from "../common/Markdown";
 
 /** Buttons for the next moves after the last reply, so the conversation never stalls. */
 export function NextSteps({
@@ -59,7 +60,9 @@ export function NextSteps({
           }
           onPress={() => take(step)}
         >
-          <span className="truncate font-mono">{step.label}</span>
+          <span className="truncate font-mono">
+            <Markdown inline>{step.label}</Markdown>
+          </span>
         </Button>
       ))}
     </div>

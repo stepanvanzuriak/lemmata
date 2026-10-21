@@ -22,6 +22,7 @@ export type {
   NodePayload,
   Paper,
   PlainPayload,
+  Resolved,
   RunOutput,
 } from "./cards.js";
 export type {

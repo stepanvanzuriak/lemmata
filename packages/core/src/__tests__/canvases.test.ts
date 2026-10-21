@@ -75,6 +75,7 @@ it("adds, merges, moves and deletes nodes", async () => {
     y: 20,
     w: 30,
     h: 40,
+    updatedAt: merged!.updatedAt,
   });
 
   await deleteNode(db, n.id);

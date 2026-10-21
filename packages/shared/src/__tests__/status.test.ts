@@ -207,3 +207,40 @@ describe("settleReady for hypotheses", () => {
     ).toBeNull();
   });
 });
+
+describe("referee notes", () => {
+  it("badges a referee note and marks it resolved once it is dealt with", () => {
+    const open = node("note", { author: "Referee" });
+    const done = node("note", {
+      author: "Referee",
+      resolved: { at: "2026-10-21T06:25:08.621Z", reason: "answered on H16" },
+    });
+    const plain = node("note", { author: "Prover" });
+    const graph = { nodes: [open, done, plain], edges: [] };
+
+    expect(cardStatus(open, graph)).toEqual({ tone: "warn", label: "Referee" });
+    expect(cardStatus(done, graph)).toEqual({ tone: "ok", label: "Resolved" });
+    expect(cardStatus(plain, graph)).toBeNull();
+  });
+
+  it("counts only unresolved referee notes against a statement", () => {
+    const claim = node("statement");
+    const open = node("note", { author: "Referee" });
+    const done = node("note", { author: "Referee", resolved: { at: "x" } });
+    const nodes = [claim, open, done];
+
+    expect(
+      cardStatus(claim, {
+        nodes,
+        edges: [
+          edge(claim, open, "checked-by"),
+          edge(claim, done, "checked-by"),
+        ],
+      }),
+    ).toEqual({ tone: "warn", label: "1 issue" });
+
+    expect(
+      cardStatus(claim, { nodes, edges: [edge(claim, done, "checked-by")] }),
+    ).toEqual({ tone: "idle", label: "Unchecked" });
+  });
+});

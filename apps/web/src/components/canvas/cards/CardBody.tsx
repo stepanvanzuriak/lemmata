@@ -201,6 +201,9 @@ export function CardBody({
   const chip = <StatusChip status={status} />;
   const p = fieldsOf(node);
   const title = p.title || "Untitled";
+  const isOk = status?.tone === "ok";
+  const isReferee = p.author === "Referee";
+  const isResolvedNoteByReferee = isReferee && isOk;
 
   switch (node.kind) {
     case "goal":
@@ -251,11 +254,18 @@ export function CardBody({
       return <LiteratureCard node={node} status={status} />;
     case "note":
       return (
-        <div className="box-border flex w-62.5 rotate-[-1.5deg] flex-col gap-2 rounded bg-lm-note px-4 py-3.5 shadow-[0_2px_6px_rgba(20,22,26,0.08)]">
+        <div
+          className={clsx(
+            "box-border flex w-62.5 rotate-[-1.5deg] flex-col gap-2 rounded bg-lm-note px-4 py-3.5 shadow-[0_2px_6px_rgba(20,22,26,0.08)]",
+            { "bg-lm-tint-ok": isOk },
+          )}
+        >
           <div className="text-sm leading-normal text-lm-note-ink">
-            <Markdown inline>{title}</Markdown>
+            <Markdown inline>
+              {`${isResolvedNoteByReferee ? "RESOLVED: " : ""}${title}`}
+            </Markdown>
           </div>
-          {p.text && (
+          {p.text && !isResolvedNoteByReferee && (
             <Markdown className="text-[13px] leading-normal text-lm-note-ink">
               {p.text}
             </Markdown>

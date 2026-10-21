@@ -1,5 +1,5 @@
 import "@xyflow/react/dist/style.css";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router";
 import {
   Background,
@@ -112,6 +112,12 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
   const savePositions = useSaveNodePositions(canvasId);
   const send = (text: string) => useChatStore.getState().send?.(text);
   const showArchived = useChatStore((state) => state.showArchived);
+  const setFocus = useChatStore((state) => state.setFocus);
+
+  useEffect(() => {
+    setFocus(setSelectedId);
+    return () => setFocus(null);
+  }, [setFocus]);
 
   const archivedIds = useMemo(
     () =>

@@ -27,6 +27,7 @@ import { useChatStore } from "../../stores/chat";
 import { Markdown } from "../common/Markdown";
 import { AgentDialog } from "./AgentDialog";
 import { archivedByRun } from "../canvas/kinds";
+import { CardsChanged } from "./CardsChanged";
 import { CleanupNotice } from "./CleanupNotice";
 import { NextSteps } from "./NextSteps";
 import { ModelSelect } from "./ModelSelect";
@@ -106,7 +107,15 @@ function MessageBubble({
   );
 }
 
-function LiveRunBubble({ run, onStop }: { run: LiveRun; onStop: () => void }) {
+function LiveRunBubble({
+  canvasId,
+  run,
+  onStop,
+}: {
+  canvasId: string;
+  run: LiveRun;
+  onStop: () => void;
+}) {
   return (
     <div className="flex flex-col gap-1.5 rounded-xl border border-lm-accent/40 bg-lm-tint-work px-3 py-2">
       <div className="flex items-center gap-2 text-[11px] text-lm-muted">
@@ -136,6 +145,9 @@ function LiveRunBubble({ run, onStop }: { run: LiveRun; onStop: () => void }) {
           {note}
         </span>
       ))}
+      {run.cards.length > 0 && (
+        <CardsChanged canvasId={canvasId} ids={run.cards} />
+      )}
     </div>
   );
 }
@@ -382,6 +394,9 @@ export function ChatPanel({
                 agents={agents}
                 asked={askedBy(messages, index)}
               />
+              {message.cards && message.cards.length > 0 && (
+                <CardsChanged canvasId={canvasId} ids={message.cards} />
+              )}
               {count && (
                 <CleanupNotice
                   canvasId={canvasId}
@@ -413,6 +428,7 @@ export function ChatPanel({
         {runs.map((run) => (
           <LiveRunBubble
             key={run.info.runKey}
+            canvasId={canvasId}
             run={run}
             onStop={() => abortRun.mutate(run.info.runKey)}
           />

@@ -35,9 +35,13 @@ export type CardFields = {
   author?: string;
   agentId?: string;
   archived?: { at: string; by?: string; reason?: string } | null;
+  resolved?: { at: string; by?: string; reason?: string } | null;
 };
 
 export const fieldsOf = (node: CanvasNode) => node.payload as CardFields;
 
 export const isArchived = (node: CanvasNode) =>
   Boolean(fieldsOf(node).archived);
+
+export const isResolved = (node: CanvasNode) =>
+  node.kind === "note" && Boolean(fieldsOf(node).resolved);

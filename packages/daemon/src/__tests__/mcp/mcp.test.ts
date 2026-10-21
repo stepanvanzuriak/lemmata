@@ -90,6 +90,7 @@ it("lists tools for a live secret", async () => {
     "read_canvas",
     "record_literature",
     "remember",
+    "resolve_note",
     "run_card",
     "search_literature",
     "update_card",

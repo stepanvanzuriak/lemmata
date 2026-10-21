@@ -223,7 +223,7 @@ export function CardViewer({
         <LiteraturePanel canvasId={canvasId} node={node} />
       )}
 
-      {!editing && <AgentActions node={node} />}
+      {!editing && <AgentActions canvasId={canvasId} node={node} />}
 
       {node.kind !== "goal" && (
         <Button

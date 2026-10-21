@@ -47,6 +47,7 @@ export const chatMessage = sqliteTable(
       onDelete: "set null",
     }),
     target: text(),
+    cards: text({ mode: "json" }).$type<string[]>(),
     /** The reset that hid this message from the chat; null while shown. */
     archivedBy: text("archived_by"),
     createdAt: text("created_at").notNull().$defaultFn(isoNow),
@@ -61,4 +62,6 @@ export const chatMessageSchema = createSelectSchema(chatMessage);
 
 export type CanvasAgent = z.infer<typeof canvasAgentSchema>;
 export type AgentRole = (typeof AGENT_ROLES)[number];
-export type ChatMessage = z.infer<typeof chatMessageSchema>;
+export type ChatMessage = Omit<z.infer<typeof chatMessageSchema>, "cards"> & {
+  cards: string[] | null;
+};
