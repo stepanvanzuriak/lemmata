@@ -1,7 +1,7 @@
 import { MIGRATIONS_FOLDER, openDb } from "core";
 import type { AgentAdapter } from "runner";
 import { createApp } from "../../app.js";
-import type { ArxivClient } from "../../arxiv.js";
+import type { ArxivClient } from "../../arxiv/arxiv.js";
 import { TOKEN_HEADER } from "../../security.js";
 
 export const TOKEN = "test-token";

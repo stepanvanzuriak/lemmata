@@ -18,7 +18,7 @@ import { figureRoutes } from "./routes/figures.js";
 import { memoryRoutes } from "./routes/memory.js";
 import { settingsRoutes } from "./routes/settings.js";
 import type { AgentAdapter } from "runner";
-import { createArxivClient, type ArxivClient } from "./arxiv.js";
+import { HttpArxivClient, type ArxivClient } from "./arxiv/arxiv.js";
 
 export type AppOptions = {
   db: Db;
@@ -37,7 +37,7 @@ export function createApp({
   toolchain,
   staticDir,
   adapter,
-  arxiv = createArxivClient(),
+  arxiv = new HttpArxivClient(),
 }: AppOptions) {
   const app = new Hono()
     .use("*", hostAndOrigin(security))

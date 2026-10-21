@@ -12,7 +12,8 @@ import {
   type Toolchain,
 } from "shared";
 import { z } from "zod";
-import { ArxivError, MAX_RESULTS, type ArxivClient } from "../arxiv.js";
+import { ArxivError, type ArxivClient } from "../arxiv/arxiv.js";
+import { MAX_RESULTS } from "../arxiv/constants.js";
 import { archiveCards, MAX_ARCHIVE } from "../cards/archive.js";
 import {
   CREATABLE_KINDS,

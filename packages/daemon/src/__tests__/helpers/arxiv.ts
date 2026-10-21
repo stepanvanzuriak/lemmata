@@ -1,5 +1,5 @@
-import type { ArxivClient } from "../../arxiv.js";
-import { parseAtom } from "../../arxiv.js";
+import type { ArxivClient } from "../../arxiv/arxiv.js";
+import { parseAtom } from "../../arxiv/atom.js";
 
 /** Two entries in arXiv's Atom format, with entities and wrapped lines. */
 export const FEED = `<?xml version="1.0" encoding="UTF-8"?>

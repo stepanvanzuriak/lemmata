@@ -7,7 +7,8 @@ import {
   type LiteratureVerdict,
   type Paper,
 } from "shared";
-import { arxivId, type ArxivClient } from "../arxiv.js";
+import type { ArxivClient } from "../arxiv/arxiv.js";
+import { arxivId } from "../arxiv/atom.js";
 import { findCard } from "./find.js";
 import { loadDetail, toCanvasNode } from "./load.js";
 import { freeSpot } from "./place.js";
