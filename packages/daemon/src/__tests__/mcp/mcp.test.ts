@@ -11,14 +11,18 @@ import {
   registerRun,
   unregisterRun,
 } from "../../mcp/registry.js";
+import type { ArxivClient } from "../../arxiv/arxiv.js";
+import { feedArxiv } from "../helpers/arxiv.js";
 import { authed, HOST, testApp } from "../helpers/app.js";
 import { STUB_PYPLOT } from "../helpers/matplotlib.js";
 import { callTool, connectMcp, textOf, type App } from "../helpers/mcp.js";
 
-async function setup() {
+async function setup(arxiv?: ArxivClient) {
   const app = await testApp(
     undefined,
     await mkdtemp(join(tmpdir(), "lemmata-ws-")),
+    undefined,
+    arxiv,
   );
   const json = { ...authed({ "content-type": "application/json" }) };
   const project = (await (
@@ -83,11 +87,13 @@ it("lists tools for a live secret", async () => {
 
   expect(client.getInstructions()).toContain("run_card");
   expect(tools.map((t) => t.name).sort()).toEqual([
+    "add_paper",
     "archive_cards",
     "connect_cards",
     "create_cards",
     "get_card",
     "read_canvas",
+    "read_paper",
     "record_literature",
     "remember",
     "resolve_note",
@@ -216,4 +222,70 @@ it("returns figures from run_card as images, 3D ones from four angles", async ()
   ).toBe(true);
   // the 3D figure's strip is a re-encoded PNG, unlike the stub's own bytes
   expect(images[1]).not.toEqual(images[0]);
+});
+
+const PAPER_TEX = [
+  "\\documentclass{article}",
+  "\\begin{document}",
+  "\\section{Introduction}",
+  "We study ordinary lines.",
+  "\\section{Main result}",
+  "\\begin{theorem}[Green--Tao]",
+  "Few ordinary lines force a near-pencil.",
+  "\\end{theorem}",
+  "x".repeat(8_000),
+  "\\end{document}",
+].join("\n");
+
+it("adds a paper and reads it by contents, section and query", async () => {
+  const arxiv: ArxivClient = {
+    ...feedArxiv,
+    fetchSource: async () => ({
+      file: { name: "main.tex", data: new TextEncoder().encode(PAPER_TEX) },
+      files: ["main.tex"],
+    }),
+  };
+  const { app, secret } = await setup(arxiv);
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+
+  const added = await call(client, "add_paper", { id: "arXiv:1208.0053" });
+  const id = /\[([^\]]+)\]/.exec(textOf(added))![1]!;
+
+  const contents = textOf(await call(client, "read_paper", { card: id }));
+  expect(contents).toContain("Abstract:");
+  expect(contents).toContain("1. Main result");
+  expect(contents).not.toContain("We study ordinary lines.");
+
+  const section = textOf(
+    await call(client, "read_paper", { card: id, section: "theorem" }),
+  );
+  expect(section).toContain("Few ordinary lines force");
+  expect(section).toMatch(/\.\.\. \[\d+ more chars\]$/);
+
+  const found = textOf(
+    await call(client, "read_paper", { card: id, query: "ORDINARY lines" }),
+  );
+  expect(found).toContain("1 passage(s)");
+  expect(found).toContain("near-pencil");
+  expect(found).toContain("[0. Introduction]");
+
+  const canvas = textOf(await call(client, "read_canvas", {}));
+  expect(canvas).not.toContain("We study ordinary lines.");
+});
+
+it("refuses read_paper on a card that is not a paper", async () => {
+  const { app, secret } = await setup();
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+  const result = await call(client, "read_paper", { card: "goal" });
+
+  expect(result.isError).toBe(true);
+  expect(textOf(result)).toContain("not a paper");
 });

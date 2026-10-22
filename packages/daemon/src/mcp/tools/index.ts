@@ -2,11 +2,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { findCard } from "../../cards/find.js";
 import { loadDetail } from "../../cards/load.js";
 import { ToolRefusal, type RunContext } from "../../cards/types.js";
+import { registerAddPaper } from "./addPaper.js";
 import { registerArchiveCards } from "./archiveCards.js";
 import { registerConnectCards } from "./connectCards.js";
 import { registerCreateCards } from "./createCards.js";
 import { registerGetCard } from "./getCard.js";
 import { registerReadCanvas } from "./readCanvas.js";
+import { registerReadPaper } from "./readPaper.js";
 import { registerRecordLiterature } from "./recordLiterature.js";
 import { registerRemember } from "./remember.js";
 import { registerResolveNote } from "./resolveNote.js";
@@ -28,6 +30,8 @@ const TOOLS: RegisterTool[] = [
   registerRunCard,
   registerRemember,
   registerSearchLiterature,
+  registerAddPaper,
+  registerReadPaper,
   registerRecordLiterature,
   registerArchiveCards,
 ];

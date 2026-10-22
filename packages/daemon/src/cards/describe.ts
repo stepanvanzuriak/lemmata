@@ -13,7 +13,7 @@ const BRIEF_CHARS = 200;
 
 type Level = "full" | "detail" | "brief" | "title";
 
-const clip = (text: string, max: number) =>
+export const clip = (text: string, max: number) =>
   text.length > max
     ? `${text.slice(0, max)}... [${text.length - max} more chars]`
     : text;

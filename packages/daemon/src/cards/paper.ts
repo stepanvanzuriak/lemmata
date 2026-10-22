@@ -1,7 +1,8 @@
-import { addEdge, addNode, type Db } from "core";
+import { addEdge, addNode, updateNode, type Db } from "core";
 import type { CanvasNode, PaperPayload } from "shared";
 import type { ArxivClient } from "../arxiv/arxiv.js";
 import { arxivId } from "../arxiv/atom.js";
+import { loadPaper, type CachedPaper } from "../arxiv/papers.js";
 import { findCard } from "./find.js";
 import { loadDetail, toCanvasNode } from "./load.js";
 import { freeSpot } from "./place.js";
@@ -75,4 +76,47 @@ export async function addPaper(
   });
 
   return toCanvasNode(row);
+}
+
+export async function fetchPaperSource(
+  db: Db,
+  arxiv: ArxivClient,
+  workspaceDir: string,
+  run: RunContext,
+  ref: string,
+  { refresh = false } = {},
+): Promise<{ card: CanvasNode; paper: CachedPaper }> {
+  const card = findCard(await loadDetail(db, run.canvasId), ref);
+
+  if (!card) {
+    throw new ToolRefusal(
+      `No card matches "${ref}". Call read_canvas to see the cards.`,
+    );
+  }
+  if (card.kind !== "arxiv") {
+    throw new ToolRefusal(`[${card.id}] is a ${card.kind} card, not a paper.`);
+  }
+
+  const { arxivId: id } = paperOf(card);
+
+  if (!id) {
+    throw new ToolRefusal(`[${card.id}] has no arXiv id.`);
+  }
+
+  const paper = await loadPaper(arxiv, workspaceDir, id, { refresh });
+
+  if (refresh || !paperOf(card).source) {
+    const row = await updateNode(db, card.id, {
+      source: {
+        fetchedAt: paper.meta.fetchedAt,
+        file: paper.meta.file,
+        bytes: paper.meta.bytes,
+        sections: paper.sections.map(({ index, title }) => ({ index, title })),
+      },
+    });
+
+    return { card: row ? toCanvasNode(row) : card, paper };
+  }
+
+  return { card, paper };
 }

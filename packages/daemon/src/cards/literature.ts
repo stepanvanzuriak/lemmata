@@ -6,6 +6,7 @@ import {
   type LiteraturePayload,
   type LiteratureVerdict,
   type Paper,
+  type PaperPayload,
 } from "shared";
 import type { ArxivClient } from "../arxiv/arxiv.js";
 import { arxivId } from "../arxiv/atom.js";
@@ -115,6 +116,21 @@ export async function recordLiterature(
   }
 
   const seen = run.papers ?? new Map<string, Paper>();
+
+  for (const node of detail.nodes) {
+    const paper = node.payload as Partial<PaperPayload>;
+
+    if (node.kind === "arxiv" && !isArchived(node) && paper.arxivId) {
+      seen.set(paper.arxivId, {
+        id: paper.arxivId,
+        title: paper.title ?? paper.arxivId,
+        authors: paper.authors ?? [],
+        published: paper.published ?? "",
+        abstract: paper.abstract ?? "",
+        url: paper.url ?? `https://arxiv.org/abs/${paper.arxivId}`,
+      });
+    }
+  }
   const wanted = record.papers.map((p) => ({ ...p, id: arxivId(p.id) }));
   const missing = wanted.filter((p) => !seen.has(p.id)).map((p) => p.id);
 
