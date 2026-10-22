@@ -3,6 +3,7 @@ import type { AgentAdapter } from "runner";
 import { createApp } from "../../app.js";
 import type { ArxivClient } from "../../arxiv/arxiv.js";
 import { TOKEN_HEADER } from "../../security.js";
+import type { SourceFile } from "../../arxiv/source.js";
 
 export const TOKEN = "test-token";
 export const HOST = "127.0.0.1:4317";
@@ -29,10 +30,10 @@ export async function testApp(
   });
 }
 
-/** Tests never reach arXiv; pass a stub to `testApp` to return papers. */
 export const offlineArxiv: ArxivClient = {
   search: async () => [],
   byIds: async () => [],
+  fetchSource: async () => ({}) as SourceFile,
 };
 
 export const authed = (headers: Record<string, string> = {}) => ({

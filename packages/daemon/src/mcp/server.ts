@@ -1,14 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Handler } from "hono";
+import { VERSION } from "shared/version";
 import { CANVAS_INSTRUCTIONS } from "./instructions.js";
 import { lookupRun } from "./registry.js";
 import { registerTools, type ToolDeps } from "./tools.js";
 
-/**
- * `POST /mcp`: stateless Streamable HTTP. Auth is the per-run secret, not the daemon token,
- * so the token never reaches the model.
- */
 export function mcpHandler(deps: ToolDeps): Handler {
   return async (c) => {
     const secret = c.req.header("authorization")?.match(/^Bearer (.+)$/)?.[1];
@@ -19,7 +16,7 @@ export function mcpHandler(deps: ToolDeps): Handler {
     }
 
     const server = new McpServer(
-      { name: "lemmata", version: "0.1.0" },
+      { name: "lemmata", version: VERSION },
       { instructions: CANVAS_INSTRUCTIONS },
     );
     const transport = new WebStandardStreamableHTTPServerTransport({

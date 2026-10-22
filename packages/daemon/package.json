@@ -16,6 +16,7 @@
     "core": "workspace:*",
     "fast-xml-parser": "^5.11.2",
     "hono": "^4.13.13",
+    "nanotar": "^0.3.0",
     "open": "^11.0.4",
     "runner": "workspace:*",
     "shared": "workspace:*",

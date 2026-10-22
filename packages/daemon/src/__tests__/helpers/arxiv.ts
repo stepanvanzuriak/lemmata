@@ -1,7 +1,7 @@
 import type { ArxivClient } from "../../arxiv/arxiv.js";
 import { parseAtom } from "../../arxiv/atom.js";
+import type { SourceFile } from "../../arxiv/source.js";
 
-/** Two entries in arXiv's Atom format, with entities and wrapped lines. */
 export const FEED = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>ArXiv Query</title>
@@ -24,8 +24,8 @@ export const FEED = `<?xml version="1.0" encoding="UTF-8"?>
   </entry>
 </feed>`;
 
-/** Answers every search with FEED and every id lookup from it. */
 export const feedArxiv: ArxivClient = {
   search: async () => parseAtom(FEED),
   byIds: async (ids) => parseAtom(FEED).filter((p) => ids.includes(p.id)),
+  fetchSource: async () => ({}) as SourceFile,
 };

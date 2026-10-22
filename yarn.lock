@@ -3235,6 +3235,7 @@ __metadata:
     core: "workspace:*"
     fast-xml-parser: "npm:^5.11.2"
     hono: "npm:^4.13.13"
+    nanotar: "npm:^0.3.0"
     open: "npm:^11.0.4"
     runner: "workspace:*"
     shared: "workspace:*"
@@ -5799,6 +5800,13 @@ __metadata:
   bin:
     nanoid: bin/nanoid.cjs
   checksum: 10c0/856e8bf3bddb959d65997bd94908be030dbc5e6ed88fb3af2a638e51d1938f4d4f454c7c7231aba340775224f88b8cfd3ce1693c70471bfd05f5b6a2227c0c1e
+  languageName: node
+  linkType: hard
+
+"nanotar@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "nanotar@npm:0.3.0"
+  checksum: 10c0/dae2ab18ae3a32412f206446d3e81ba6ffdcef7786961aeb8166a3f648461c4a237c92b96eda6c4be3e2a3d964a4edec45ce5407d4cce05fede6fa15787053ca
   languageName: node
   linkType: hard
 

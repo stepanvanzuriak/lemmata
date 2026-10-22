@@ -3,12 +3,15 @@ import type { Paper } from "shared";
 import { arxivId, parseAtom } from "./atom.js";
 import {
   API,
+  SOURCE_API,
   CACHE_MS,
   MAX_RESULTS,
   SPACING_MS,
   TIMEOUT_MS,
+  USER_AGENT,
 } from "./constants.js";
 import { isRawQuery, searchTerms, toSearchQuery } from "./query.js";
+import { unpackSource, type SourceFile } from "./source.js";
 
 export type FetchFn = typeof fetch;
 
@@ -22,6 +25,7 @@ export class ArxivError extends Error {
 export type ArxivClient = {
   search: (query: string, max?: number) => Promise<Paper[]>;
   byIds: (ids: string[]) => Promise<Paper[]>;
+  fetchSource: (id: string) => Promise<SourceFile>;
 };
 
 export class HttpArxivClient implements ArxivClient {
@@ -76,18 +80,36 @@ export class HttpArxivClient implements ArxivClient {
     );
   }
 
-  private async throttle() {
-    const at = Math.max(Date.now(), this.next);
-    this.next = at + this.spacingMs;
-    await sleep(at - Date.now());
+  async fetchSource(id: string) {
+    const arxivFormatedId = arxivId(id);
+    const res = await this.get(`${SOURCE_API}/${arxivFormatedId}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const files = unpackSource(bytes);
+    const texFiles = files.filter(({ name }) => name.endsWith(".tex"));
+    const decoder = new TextDecoder("utf-8");
+    const largest = texFiles.reduce<SourceFile | undefined>(
+      (largest, file) =>
+        !largest || file.data.length > largest.data.length ? file : largest,
+      undefined,
+    );
+    const mainFile = texFiles.find(({ data }) =>
+      decoder.decode(data).includes("\\documentclass"),
+    );
+
+    if (!mainFile && !largest) {
+      throw new ArxivError(`arXiv has no TeX source for ${id}.`);
+    }
+
+    return mainFile ?? largest!;
   }
 
-  private async fetchPapers(key: string) {
+  async get(url: string) {
     await this.throttle();
 
     let res: Response;
     try {
-      res = await this.fetchFn(`${API}?${key}`, {
+      res = await this.fetchFn(url, {
+        headers: { "User-Agent": USER_AGENT },
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch (error) {
@@ -98,6 +120,18 @@ export class HttpArxivClient implements ArxivClient {
     if (!res.ok) {
       throw new ArxivError(`arXiv answered ${res.status}.`);
     }
+
+    return res;
+  }
+
+  private async throttle() {
+    const at = Math.max(Date.now(), this.next);
+    this.next = at + this.spacingMs;
+    await sleep(at - Date.now());
+  }
+
+  private async fetchPapers(key: string) {
+    const res = await this.get(`${API}?${key}`);
 
     return parseAtom(await res.text());
   }
