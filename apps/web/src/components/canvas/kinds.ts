@@ -4,6 +4,7 @@ import type {
   CardRun,
   LiteraturePayload,
   NodeKind,
+  PaperPayload,
   Resolved,
 } from "shared";
 
@@ -19,6 +20,9 @@ export const fieldsOf = (node: CanvasNode) => node.payload as CardFields;
 
 export const literatureOf = (node: CanvasNode) =>
   node.payload as Partial<LiteraturePayload>;
+
+export const paperOf = (node: CanvasNode) =>
+  node.payload as Partial<PaperPayload>;
 
 export const isArchived = (node: CanvasNode) =>
   Boolean(fieldsOf(node).archived);
