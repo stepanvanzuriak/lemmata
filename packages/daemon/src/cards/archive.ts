@@ -53,7 +53,6 @@ export function keepReason(
   return null;
 }
 
-/** Archives cards without the keep rules; a reset hides everything it replaced. */
 export async function archiveNodes(
   db: Db,
   ids: string[],

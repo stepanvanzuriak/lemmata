@@ -33,7 +33,6 @@ const literatureOf = (node: CanvasNode) =>
 const nameOf = (card: CanvasNode) =>
   fieldsOf(card).label ?? `"${fieldsOf(card).title ?? card.id}"`;
 
-/** The literature card checking `target`, if one is linked and not archived. */
 export function linkedLiterature(detail: CanvasDetail, target: CanvasNode) {
   return detail.nodes.find(
     (n) =>
@@ -43,10 +42,6 @@ export function linkedLiterature(detail: CanvasDetail, target: CanvasNode) {
   );
 }
 
-/**
- * The card a `/literature <ref>` run writes to: the literature card linked to `ref`, or a new
- * one linked from it with checked-by. A literature card with no target checks itself.
- */
 export async function literatureCardFor(
   db: Db,
   detail: CanvasDetail,
@@ -103,7 +98,7 @@ export async function recordLiterature(
       `"${record.card}" is not a literature card. Pass the id of the literature card named in the task.`,
     );
   }
-  // A literature card is a shared record: any agent that searched may fill it, but not one the user wrote.
+
   if (card.createdBy === "user" && editRight(card, run.author) !== "all") {
     throw new ToolRefusal(`You may not change ${nameOf(card)}.`);
   }

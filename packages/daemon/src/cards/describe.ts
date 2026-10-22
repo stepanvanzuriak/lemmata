@@ -137,7 +137,6 @@ function describeLinks(detail: CanvasDetail): string[] {
   });
 }
 
-/** The canvas without archived cards and their links. */
 export function visibleDetail(detail: CanvasDetail): CanvasDetail {
   const nodes = detail.nodes.filter((n) => !isArchived(n));
   const ids = new Set(nodes.map((n) => n.id));
@@ -149,7 +148,6 @@ export function visibleDetail(detail: CanvasDetail): CanvasDetail {
   };
 }
 
-/** Focus cards in full, their neighbours in detail, others brief, titles only past the budget. */
 export function describeCanvas(
   full: CanvasDetail,
   author: Author,

@@ -8,10 +8,6 @@ const nameOf = (card: CanvasNode) =>
 
 const GOAL_STATUS = { supported: "proved", refuted: "disproved" } as const;
 
-/**
- * Tells the agent which parents its change decided: the goal, or a hypothesis whose
- * sub-lemmas are all supported or whose counterexample holds. Null when none are.
- */
 export function settleNudge(detail: CanvasDetail): string | null {
   const lines = detail.nodes.flatMap((card) => {
     const ready = !isArchived(card) && settleReady(card, detail);

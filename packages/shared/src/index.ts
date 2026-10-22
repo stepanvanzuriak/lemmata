@@ -17,6 +17,7 @@ export type {
   HypothesisPayload,
   LeanDiagnostic,
   LiteraturePayload,
+  PaperPayload,
   LiteratureVerdict,
   NodeKind,
   NodePayload,

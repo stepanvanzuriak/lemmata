@@ -1,10 +1,10 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { Paper } from "shared";
 import { arxivId, parseAtom } from "./atom.js";
+import { ArxivError } from "./errors.js";
 import {
   API,
   SOURCE_API,
-  ARXIV_ID,
   CACHE_MS,
   MAX_DOWNLOAD_BYTES,
   MAX_SOURCE_BYTES,
@@ -18,12 +18,7 @@ import { unpackSource, type PaperSource, type SourceFile } from "./source.js";
 
 export type FetchFn = typeof fetch;
 
-export class ArxivError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ArxivError";
-  }
-}
+export { ArxivError };
 
 export type ArxivClient = {
   search: (query: string, max?: number) => Promise<Paper[]>;
@@ -85,10 +80,6 @@ export class HttpArxivClient implements ArxivClient {
 
   async fetchSource(id: string): Promise<PaperSource> {
     const clean = arxivId(id);
-
-    if (!ARXIV_ID.test(clean)) {
-      throw new ArxivError(`"${id}" is not an arXiv id.`);
-    }
 
     const res = await this.get(`${SOURCE_API}/${clean}`);
     const declared = Number(res.headers.get("content-length") ?? 0);

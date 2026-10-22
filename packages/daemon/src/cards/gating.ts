@@ -3,7 +3,6 @@ import { cardStatus, type CanvasDetail, type CanvasNode } from "shared";
 const CHECK_EDGES = new Set(["tested-by", "checked-by"]);
 const CHECK_KINDS = new Set(["python", "lean"]);
 
-/** Python/Lean checks linked to the card that are failing or not run yet. */
 export function unpassedChecks(
   detail: CanvasDetail,
   card: CanvasNode,

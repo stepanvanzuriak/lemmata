@@ -1,4 +1,4 @@
-import type { CardRun } from "./cards.js";
+import type { CardRun, PaperPayload } from "./cards.js";
 import type { CanvasDetail, CanvasNode } from "./canvas.js";
 
 export type Tone = "ok" | "bad" | "warn" | "work" | "idle";
@@ -113,7 +113,6 @@ const HYPOTHESIS_STATUS: Record<string, CardStatus> = {
   refuted: { tone: "bad", label: "Refuted" },
 };
 
-/** An open hypothesis whose parts already decide it says so on the card. */
 function readyStatus(node: CanvasNode, graph: CanvasGraph): CardStatus | null {
   const ready = settleReady(node, graph);
 
@@ -165,6 +164,13 @@ export function cardStatus(
         return { tone: "ok", label: "Resolved" };
       }
       return { tone: "warn", label: "Referee" };
+    }
+    case "arxiv": {
+      const arxivPayload = node.payload as PaperPayload;
+      if (arxivPayload.source) {
+        return { tone: "ok", label: "Source read" };
+      }
+      return { tone: "idle", label: "Abstract only" };
     }
     default:
       return null;

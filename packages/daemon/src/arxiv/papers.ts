@@ -1,8 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { ArxivError, type ArxivClient } from "./arxiv.js";
+import type { ArxivClient } from "./arxiv.js";
 import { arxivId } from "./atom.js";
-import { ARXIV_ID } from "./constants.js";
 import { cleanTex, sectionsOf, type Section } from "./source.js";
 
 export type PaperMeta = {
@@ -38,11 +37,6 @@ export async function loadPaper(
   { refresh = false } = {},
 ): Promise<CachedPaper> {
   const id = arxivId(rawId);
-
-  if (!ARXIV_ID.test(id)) {
-    throw new ArxivError(`"${rawId}" is not an arXiv id.`);
-  }
-
   const dir = paperDir(workspaceDir, id);
   const cached = refresh ? undefined : await readCached(dir);
 

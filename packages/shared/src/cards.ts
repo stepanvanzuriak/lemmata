@@ -85,7 +85,7 @@ export type CodePayload = BasePayload & {
 };
 
 export type PlainPayload = BasePayload & {
-  kind: "statement" | "note" | "memory" | "arxiv";
+  kind: "statement" | "note" | "memory";
   resolved?: Resolved | null;
 };
 
@@ -98,6 +98,21 @@ export type Paper = {
   url: string;
   relevance?: string;
   dismissed?: boolean;
+};
+
+export type PaperPayload = BasePayload & {
+  kind: "arxiv";
+  arxivId: string;
+  authors?: string[];
+  published?: string;
+  abstract?: string;
+  url?: string;
+  source?: {
+    fetchedAt: string;
+    file: string;
+    bytes: number;
+    sections: { index: number; title: string }[];
+  };
 };
 
 export const LITERATURE_VERDICTS = [
@@ -125,4 +140,5 @@ export type NodePayload =
   | HypothesisPayload
   | CodePayload
   | PlainPayload
-  | LiteraturePayload;
+  | LiteraturePayload
+  | PaperPayload;
