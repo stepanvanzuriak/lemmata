@@ -1,6 +1,5 @@
 import type { ArxivClient } from "../../arxiv/arxiv.js";
 import { parseAtom } from "../../arxiv/atom.js";
-import type { SourceFile } from "../../arxiv/source.js";
 
 export const FEED = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -27,5 +26,8 @@ export const FEED = `<?xml version="1.0" encoding="UTF-8"?>
 export const feedArxiv: ArxivClient = {
   search: async () => parseAtom(FEED),
   byIds: async (ids) => parseAtom(FEED).filter((p) => ids.includes(p.id)),
-  fetchSource: async () => ({}) as SourceFile,
+  fetchSource: async () => ({
+    file: { name: "main.tex", data: new Uint8Array() },
+    files: ["main.tex"],
+  }),
 };

@@ -4,14 +4,17 @@ import { arxivId, parseAtom } from "./atom.js";
 import {
   API,
   SOURCE_API,
+  ARXIV_ID,
   CACHE_MS,
+  MAX_DOWNLOAD_BYTES,
+  MAX_SOURCE_BYTES,
   MAX_RESULTS,
   SPACING_MS,
   TIMEOUT_MS,
   USER_AGENT,
 } from "./constants.js";
 import { isRawQuery, searchTerms, toSearchQuery } from "./query.js";
-import { unpackSource, type SourceFile } from "./source.js";
+import { unpackSource, type PaperSource, type SourceFile } from "./source.js";
 
 export type FetchFn = typeof fetch;
 
@@ -25,7 +28,7 @@ export class ArxivError extends Error {
 export type ArxivClient = {
   search: (query: string, max?: number) => Promise<Paper[]>;
   byIds: (ids: string[]) => Promise<Paper[]>;
-  fetchSource: (id: string) => Promise<SourceFile>;
+  fetchSource: (id: string) => Promise<PaperSource>;
 };
 
 export class HttpArxivClient implements ArxivClient {
@@ -80,27 +83,53 @@ export class HttpArxivClient implements ArxivClient {
     );
   }
 
-  async fetchSource(id: string) {
-    const arxivFormatedId = arxivId(id);
-    const res = await this.get(`${SOURCE_API}/${arxivFormatedId}`);
+  async fetchSource(id: string): Promise<PaperSource> {
+    const clean = arxivId(id);
+
+    if (!ARXIV_ID.test(clean)) {
+      throw new ArxivError(`"${id}" is not an arXiv id.`);
+    }
+
+    const res = await this.get(`${SOURCE_API}/${clean}`);
+    const declared = Number(res.headers.get("content-length") ?? 0);
+
+    if (declared > MAX_DOWNLOAD_BYTES) {
+      throw new ArxivError(`The source of ${clean} is too large to fetch.`);
+    }
+
     const bytes = new Uint8Array(await res.arrayBuffer());
-    const files = unpackSource(bytes);
+
+    if (bytes.length > MAX_DOWNLOAD_BYTES) {
+      throw new ArxivError(`The source of ${clean} is too large to fetch.`);
+    }
+
+    let files: SourceFile[];
+    try {
+      files = unpackSource(bytes);
+    } catch {
+      throw new ArxivError(`arXiv has no TeX source for ${clean}.`);
+    }
+
     const texFiles = files.filter(({ name }) => name.endsWith(".tex"));
     const decoder = new TextDecoder("utf-8");
     const largest = texFiles.reduce<SourceFile | undefined>(
-      (largest, file) =>
-        !largest || file.data.length > largest.data.length ? file : largest,
+      (best, file) =>
+        !best || file.data.length > best.data.length ? file : best,
       undefined,
     );
-    const mainFile = texFiles.find(({ data }) =>
-      decoder.decode(data).includes("\\documentclass"),
-    );
+    const file =
+      texFiles.find(({ data }) =>
+        decoder.decode(data).includes("\\documentclass"),
+      ) ?? largest;
 
-    if (!mainFile && !largest) {
-      throw new ArxivError(`arXiv has no TeX source for ${id}.`);
+    if (!file) {
+      throw new ArxivError(`arXiv has no TeX source for ${clean}.`);
+    }
+    if (file.data.length > MAX_SOURCE_BYTES) {
+      throw new ArxivError(`The main TeX file of ${clean} is too large.`);
     }
 
-    return mainFile ?? largest!;
+    return { file, files: files.map(({ name }) => name) };
   }
 
   async get(url: string) {

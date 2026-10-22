@@ -3,7 +3,6 @@ import type { AgentAdapter } from "runner";
 import { createApp } from "../../app.js";
 import type { ArxivClient } from "../../arxiv/arxiv.js";
 import { TOKEN_HEADER } from "../../security.js";
-import type { SourceFile } from "../../arxiv/source.js";
 
 export const TOKEN = "test-token";
 export const HOST = "127.0.0.1:4317";
@@ -33,7 +32,9 @@ export async function testApp(
 export const offlineArxiv: ArxivClient = {
   search: async () => [],
   byIds: async () => [],
-  fetchSource: async () => ({}) as SourceFile,
+  fetchSource: async () => {
+    throw new Error("offline");
+  },
 };
 
 export const authed = (headers: Record<string, string> = {}) => ({
