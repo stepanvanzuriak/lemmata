@@ -29,7 +29,7 @@ import { literatureCardFor } from "./cards/literature.js";
 import { isArchived, type Author, type RunContext } from "./cards/types.js";
 import { memoryPreamble } from "./memory.js";
 import { mcpConfigFor, registerRun, unregisterRun } from "./mcp/registry.js";
-import type { ToolDeps } from "./mcp/tools.js";
+import type { ToolDeps } from "./mcp/tools/index.js";
 import { ROLE_PROMPTS } from "./roles.js";
 import { projectDir } from "./runCard.js";
 import { parseTask, taskPrompt } from "./tasks.js";

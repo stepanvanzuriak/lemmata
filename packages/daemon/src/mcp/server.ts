@@ -4,7 +4,7 @@ import type { Handler } from "hono";
 import { VERSION } from "shared/version";
 import { CANVAS_INSTRUCTIONS } from "./instructions.js";
 import { lookupRun } from "./registry.js";
-import { registerTools, type ToolDeps } from "./tools.js";
+import { registerTools, type ToolDeps } from "./tools/index.js";
 
 export function mcpHandler(deps: ToolDeps): Handler {
   return async (c) => {
