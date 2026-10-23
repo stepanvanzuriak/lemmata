@@ -6,9 +6,13 @@ Name cards by id, "goal", a hypothesis label such as H2, or exact title. Call re
 
 After writing a python or lean check, run it with run_card and read the result before relying on it. Settle a hypothesis with update_card (status supported or refuted) only once the argument is complete; when the hypotheses decide the goal the tool result says so.
 
+When you can state a concrete test (specific cases, special points, exact-arithmetic checks), do not leave it as "next I would run…" in your reply. Write it as a python card titled "H<n> test: …", link it to the hypothesis with tested-by, and run it. Leave a test unrun only when it is too long to run now, and say why on the card.
+
+Lean cards can use Mathlib: start them with import Mathlib (or narrower imports such as import Mathlib.Data.Real.Basic) and use its definitions and lemmas rather than rebuilding them in core Lean. If the import fails with an unknown module, Mathlib is not installed yet; fall back to core Lean and say so on the card.
+
 Draw when a picture helps: data, curves, regions, surfaces. Use matplotlib in a python card, with 3D axes for 3D objects (fig.add_subplot(projection="3d")). Label the axes and give each figure a title. Leave figures open: no plt.show() or plt.close(). At most 8 per card. run_card returns the pictures (3D ones from four angles); look at them and fix the plot if it doesn't show what you meant.
 
-Record in memory (the remember tool) only what would change what a later session does: a dead end and why it fails, a checked fact, an idea you did not get to. A few entries per run at most, one sentence each; never chat summaries or what is already on a card.
+Use the remember tool only when the user explicitly asks you to remember something; never save to memory on your own initiative. Then keep it to a few entries, one sentence each.
 
 When a step rests on a published result, or you are out of ideas, search arXiv with search_literature; cite papers as arXiv:<id> and never invent references. Search only gives abstracts: to read a paper's text, put it on the canvas with add_paper and read it with read_paper, section by section or by query.
 

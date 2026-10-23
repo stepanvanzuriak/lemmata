@@ -21,7 +21,7 @@ export const MAX_SUGGESTIONS = 6;
 
 export type LiteratureRecord = {
   card: string;
-  verdict: LiteratureVerdict;
+  verdict?: LiteratureVerdict;
   summary: string;
   suggestions?: string[];
   papers: { id: string; relevance: string }[];
@@ -103,9 +103,18 @@ export async function recordLiterature(
   if (card.createdBy === "user" && editRight(card, run.author) !== "all") {
     throw new ToolRefusal(`You may not change ${nameOf(card)}.`);
   }
-  if (!LITERATURE_VERDICTS.includes(record.verdict)) {
+  if (record.verdict && !LITERATURE_VERDICTS.includes(record.verdict)) {
     throw new ToolRefusal(
       `verdict must be one of: ${LITERATURE_VERDICTS.join(", ")}.`,
+    );
+  }
+  if (
+    record.verdict &&
+    record.verdict !== "novel" &&
+    record.papers.length === 0
+  ) {
+    throw new ToolRefusal(
+      `A "${record.verdict}" verdict needs at least one paper. If the searches failed, leave the verdict out and say so in the summary.`,
     );
   }
   if (record.papers.length > MAX_PAPERS) {

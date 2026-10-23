@@ -179,7 +179,8 @@ function cleanTraceback(stderr: string, card: string) {
   return stderr.replaceAll(card, "<card>").replace(WRAPPER_FRAME, "");
 }
 
-export type PythonCommand = { cmd: string; args: string[] };
+export type RunCommand = { cmd: string; args: string[]; cwd?: string };
+export type PythonCommand = RunCommand;
 
 export async function runPython(
   source: string,
@@ -280,6 +281,7 @@ export async function runLean(
   source: string,
   leanDir: string,
   options: RunOptions = {},
+  lean: RunCommand = { cmd: "lean", args: [] },
 ): Promise<{ output: RunOutput; report: LeanReport; found: boolean }> {
   const name = source.match(THEOREM)?.[1];
   const hash = createHash("sha1").update(source).digest("hex");
@@ -288,9 +290,10 @@ export async function runLean(
   await mkdir(leanDir, { recursive: true });
   await writeFile(file, name ? `${source}\n\n#print axioms ${name}\n` : source);
 
-  const output = await runProcess("lean", [file], {
+  const output = await runProcess(lean.cmd, [...lean.args, file], {
     timeoutMs: 120_000,
     ...options,
+    cwd: lean.cwd ?? options.cwd,
   });
   const found = !(output.exitCode === null && output.stderr.includes("ENOENT"));
   const text = `${output.stdout}\n${output.stderr}`.replaceAll(file, "<card>");

@@ -1,7 +1,7 @@
 import type { CanvasNode } from "shared";
 import { fieldsOf, type Author } from "./types.js";
 
-export type EditRight = "all" | "status" | "none";
+export type EditRight = "all" | "body" | "status" | "none";
 
 export function editRight(card: CanvasNode, author: Author): EditRight {
   if (author.agentId && fieldsOf(card).agentId === author.agentId) {
@@ -21,10 +21,10 @@ export function editRight(card: CanvasNode, author: Author): EditRight {
   ) {
     return "all";
   }
-  if (
-    author.role === "prover" &&
-    (card.kind === "hypothesis" || card.kind === "goal")
-  ) {
+  if (author.role === "prover" && card.kind === "hypothesis") {
+    return "body";
+  }
+  if (author.role === "prover" && card.kind === "goal") {
     return "status";
   }
 

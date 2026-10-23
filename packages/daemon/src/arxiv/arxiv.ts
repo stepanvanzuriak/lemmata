@@ -9,6 +9,12 @@ import {
   MAX_DOWNLOAD_BYTES,
   MAX_SOURCE_BYTES,
   MAX_RESULTS,
+  COOLDOWN_MS,
+  MAX_BACKOFF_MS,
+  MAX_RATE_LIMITS,
+  MAX_RETRIES,
+  RATE_LIMITED,
+  RETRY_STATUSES,
   SPACING_MS,
   TIMEOUT_MS,
   USER_AGENT,
@@ -32,10 +38,13 @@ export class HttpArxivClient implements ArxivClient {
     { at: number; papers: Promise<Paper[]> }
   >();
   private next = 0;
+  private rateLimits = 0;
+  private blockedUntil = 0;
 
   constructor(
     private readonly fetchFn: FetchFn = fetch,
     private readonly spacingMs = SPACING_MS,
+    private readonly cooldownMs = COOLDOWN_MS,
   ) {}
 
   async search(query: string, max = 10) {
@@ -124,30 +133,66 @@ export class HttpArxivClient implements ArxivClient {
   }
 
   async get(url: string) {
-    await this.throttle();
+    for (let attempt = 0; ; attempt++) {
+      this.checkCooldown();
+      await this.throttle();
+      this.checkCooldown();
 
-    let res: Response;
-    try {
-      res = await this.fetchFn(url, {
-        headers: { "User-Agent": USER_AGENT },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-    } catch (error) {
-      throw new ArxivError(
-        `arXiv is unreachable (${error instanceof Error ? error.message : String(error)}).`,
-      );
-    }
-    if (!res.ok) {
+      let res: Response;
+      try {
+        res = await this.fetchFn(url, {
+          headers: { "User-Agent": USER_AGENT },
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+      } catch (error) {
+        if (attempt < MAX_RETRIES) {
+          await sleep(this.backoff(attempt));
+          continue;
+        }
+        throw new ArxivError(
+          `arXiv is unreachable (${error instanceof Error ? error.message : String(error)}).`,
+        );
+      }
+      if (res.ok) {
+        this.rateLimits = 0;
+        return res;
+      }
+      if (res.status === RATE_LIMITED && ++this.rateLimits >= MAX_RATE_LIMITS) {
+        this.rateLimits = 0;
+        this.blockedUntil = Date.now() + this.cooldownMs;
+        this.checkCooldown();
+      }
+      if (RETRY_STATUSES.has(res.status) && attempt < MAX_RETRIES) {
+        await sleep(this.backoff(attempt, res.headers.get("retry-after")));
+        continue;
+      }
       throw new ArxivError(`arXiv answered ${res.status}.`);
     }
+  }
 
-    return res;
+  private backoff(attempt: number, retryAfter?: string | null) {
+    const seconds = Number(retryAfter);
+    const base = this.spacingMs * 2 ** (attempt + 1);
+
+    return Number.isFinite(seconds) && seconds > 0
+      ? Math.min(seconds * 1000, MAX_BACKOFF_MS)
+      : Math.min(base, MAX_BACKOFF_MS);
+  }
+
+  private checkCooldown() {
+    const left = this.blockedUntil - Date.now();
+
+    if (left > 0) {
+      throw new ArxivError(
+        `arXiv is rate-limiting this machine. Wait ${Math.ceil(left / 60_000)} min before searching again; do not record a verdict meanwhile.`,
+      );
+    }
   }
 
   private async throttle() {
     const at = Math.max(Date.now(), this.next);
     this.next = at + this.spacingMs;
-    await sleep(at - Date.now());
+    await sleep(Math.max(0, at - Date.now()));
   }
 
   private async fetchPapers(key: string) {

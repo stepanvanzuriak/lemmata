@@ -84,6 +84,29 @@ export async function runNode(id: string) {
   return data;
 }
 
+export async function addPaper({
+  canvasId,
+  arxivId,
+  connectFrom,
+}: {
+  canvasId: string;
+  arxivId: string;
+  connectFrom?: string;
+}) {
+  const { data } = await api.post<CanvasNode>(`/canvases/${canvasId}/papers`, {
+    arxivId,
+    connectFrom,
+  });
+
+  return data;
+}
+
+export async function fetchPaperSource(id: string) {
+  const { data } = await api.post<CanvasNode>(`/nodes/${id}/source`);
+
+  return data;
+}
+
 export async function deleteNode(id: string) {
   const { data } = await api.delete<CanvasNode>(`/nodes/${id}`);
 
@@ -188,6 +211,18 @@ export function useSaveNodePositions(canvasId: string) {
 
 export function useRunNode(canvasId: string) {
   return useCanvasMutation(canvasId, runNode);
+}
+
+export function useAddPaper(canvasId: string) {
+  return useCanvasMutation(
+    canvasId,
+    (input: { arxivId: string; connectFrom?: string }) =>
+      addPaper({ canvasId, ...input }),
+  );
+}
+
+export function useFetchPaperSource(canvasId: string) {
+  return useCanvasMutation(canvasId, fetchPaperSource);
 }
 
 export function useDeleteNode(canvasId: string) {

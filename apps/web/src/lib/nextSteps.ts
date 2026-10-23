@@ -8,6 +8,7 @@ import {
 export type NextStep =
   | { kind: "command"; label: string; command: string }
   | { kind: "run"; label: string; nodeId: string }
+  | { kind: "fetch"; label: string; nodeId: string }
   | { kind: "settle"; label: string; nodeId: string; status: string };
 
 type Fields = {
@@ -18,6 +19,7 @@ type Fields = {
   archived?: unknown;
   resolved?: unknown;
   target?: string;
+  source?: unknown;
 };
 
 const fields = (node: CanvasNode) => node.payload as Fields;
@@ -104,6 +106,16 @@ export function nextSteps(
       steps.push({
         kind: "run",
         label: `Run "${fields(node).title ?? "check"}"`,
+        nodeId: node.id,
+      });
+    }
+  }
+
+  for (const node of nodes) {
+    if (node.kind === "arxiv" && !fields(node).source) {
+      steps.push({
+        kind: "fetch",
+        label: `Fetch "${nameOf(node)}"`,
         nodeId: node.id,
       });
     }

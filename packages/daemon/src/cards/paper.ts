@@ -8,7 +8,11 @@ import { loadDetail, toCanvasNode } from "./load.js";
 import { freeSpot } from "./place.js";
 import { isArchived, ToolRefusal, type RunContext } from "./types.js";
 
-export type NewPaper = { id: string; connectFrom?: string };
+export type NewPaper = {
+  id: string;
+  connectFrom?: string;
+  by?: "user" | "ai";
+};
 
 const paperOf = (node: CanvasNode) => node.payload as Partial<PaperPayload>;
 
@@ -16,7 +20,7 @@ export async function addPaper(
   db: Db,
   arxiv: ArxivClient,
   run: RunContext,
-  { id, connectFrom }: NewPaper,
+  { id, connectFrom, by = "ai" }: NewPaper,
 ): Promise<CanvasNode> {
   const wanted = arxivId(id);
 
@@ -53,7 +57,6 @@ export async function addPaper(
     published: paper.published,
     abstract: paper.abstract,
     url: paper.url,
-    author: run.author.role[0]!.toUpperCase() + run.author.role.slice(1),
   };
 
   const row = await addNode(db, {
@@ -64,8 +67,16 @@ export async function addPaper(
       parent,
       "arxiv",
     ),
-    payload: { ...payload, agentId: run.author.agentId },
-    createdBy: "ai",
+    payload:
+      by === "user"
+        ? payload
+        : {
+            ...payload,
+            author:
+              run.author.role[0]!.toUpperCase() + run.author.role.slice(1),
+            agentId: run.author.agentId,
+          },
+    createdBy: by,
   });
 
   await addEdge(db, {

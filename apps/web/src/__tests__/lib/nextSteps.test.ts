@@ -106,3 +106,17 @@ it("a statement checked only by a literature card is not a gap", () => {
     "/prover goal",
   ]);
 });
+
+it("offers to fetch a paper card that has no source yet", () => {
+  const nodes = [
+    node("g", "goal", { status: "open" }),
+    node("p1", "arxiv", { title: "Few ordinary lines", arxivId: "1208.0053" }),
+    node("p2", "arxiv", { title: "Read already", source: { sections: [] } }),
+  ];
+
+  expect(
+    nextSteps({ nodes, edges: [] }, []).filter((s) => s.kind === "fetch"),
+  ).toEqual([
+    { kind: "fetch", label: 'Fetch "Few ordinary lines"', nodeId: "p1" },
+  ]);
+});

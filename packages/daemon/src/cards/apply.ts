@@ -154,6 +154,14 @@ export async function updateCard(
   if (right === "status" && keys.some((key) => key !== "status")) {
     throw new ToolRefusal(`You may only change the status of ${nameOf(card)}.`);
   }
+  if (
+    right === "body" &&
+    keys.some((key) => !["status", "text", "markdown"].includes(key))
+  ) {
+    throw new ToolRefusal(
+      `You may only change the status, text and markdown of ${nameOf(card)}.`,
+    );
+  }
   if (patch.status !== undefined) {
     const allowed = STATUSES[card.kind];
 

@@ -26,10 +26,10 @@ it("lets the assistant change any ai card", () => {
   expect(editRight(card("note", "user"), { role: "assistant" })).toBe("none");
 });
 
-it("gives the prover status rights on others' hypotheses and the goal", () => {
+it("gives the prover body rights on others' hypotheses and status on the goal", () => {
   const prover = { role: "prover" as const, agentId: "p1" };
 
-  expect(editRight(card("hypothesis", "user"), prover)).toBe("status");
+  expect(editRight(card("hypothesis", "user"), prover)).toBe("body");
   expect(editRight(card("goal", "user"), prover)).toBe("status");
   expect(editRight(card("statement", "user"), prover)).toBe("none");
 });
@@ -51,4 +51,21 @@ it("refuses status-only callers other fields", async () => {
   );
   const goal = await updateCard(db, run, "goal", { status: "proved" });
   expect(goal.payload).toMatchObject({ status: "proved" });
+});
+
+it("lets the prover rewrite a hypothesis body but not its title", async () => {
+  const { canvasSetup } = await import("./helpers.js");
+  const { createCards, updateCard } = await import("../../cards/apply.js");
+  const { db, run } = await canvasSetup({ role: "prover", agentId: "p1" });
+
+  await createCards(
+    db,
+    { ...run, author: { role: "assistant", agentId: "a1" } },
+    [{ kind: "hypothesis", label: "H1", title: "Claim" }],
+  );
+  await expect(updateCard(db, run, "H1", { title: "x" })).rejects.toThrow(
+    "You may only change the status, text and markdown",
+  );
+  const card = await updateCard(db, run, "H1", { text: "Weak evidence." });
+  expect(card.payload).toMatchObject({ text: "Weak evidence." });
 });

@@ -11,8 +11,8 @@ export const registerRemember: RegisterTool = (server, { db, run }) => {
     "remember",
     {
       description: [
-        `Save up to ${MAX_MEMORY_ENTRIES} notes for later sessions on this project, each one sentence (at most ${MAX_MEMORY_CHARS} characters). They are shown to every later run.`,
-        "Record only what would change what a later session does: a fact that was established or checked, a dead end with the reason it fails, or an idea worth trying that you did not get to. Never record chat summaries, progress updates or what is already on a card. Repeats are ignored.",
+        `Save up to ${MAX_MEMORY_ENTRIES} notes for later sessions on this project, each one sentence (at most ${MAX_MEMORY_CHARS} characters). They are shown to every later run. Call this only when the user explicitly asks you to remember something; never on your own initiative.`,
+        "Record what the user asked to keep, as a fact, a dead end with the reason it fails, or an idea. Never record chat summaries, progress updates or what is already on a card. Repeats are ignored.",
         "kinds: fact, dead-end, idea.",
       ].join(" "),
       inputSchema: {

@@ -1,3 +1,4 @@
+export { parseArxivId } from "./arxiv.js";
 export type {
   Project,
   CreateProjectInput,

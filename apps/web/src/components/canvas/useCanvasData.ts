@@ -33,10 +33,13 @@ function toFlowNode(
     prev.data.ready === ready &&
     sameStatus(prev.data.status, status);
 
+  const serverMoved =
+    !prev || prev.data.node.x !== node.x || prev.data.node.y !== node.y;
+
   return {
     id: node.id,
     type: "card",
-    position: { x: node.x, y: node.y },
+    position: serverMoved ? { x: node.x, y: node.y } : prev.position,
     data: unchanged ? prev.data : { node, status, ready },
     selected: prev?.selected,
     deletable: node.kind !== "goal",

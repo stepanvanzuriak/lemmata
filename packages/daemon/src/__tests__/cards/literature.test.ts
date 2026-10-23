@@ -60,3 +60,43 @@ it("accepts a paper card on the canvas as a source without asking arXiv", async 
     papers: [{ id: "1208.0053", relevance: "Read the main theorem." }],
   });
 });
+
+it("refuses a verdict without papers unless nothing was found", async () => {
+  const { db, run } = await canvasSetup({ role: "prover", agentId: "p1" });
+  const goal = findCard(await loadDetail(db, run.canvasId), "goal")!;
+  const { card } = await literatureCardFor(
+    db,
+    await loadDetail(db, run.canvasId),
+    goal,
+  );
+
+  await recordLiterature(db, feedArxiv, run, {
+    card: card.id,
+    verdict: "related",
+    summary: "Neighbouring work.",
+    papers: [{ id: "1208.0053", relevance: "Neighbouring structure." }],
+  });
+  await expect(
+    recordLiterature(db, feedArxiv, run, {
+      card: card.id,
+      verdict: "related",
+      summary: "Placeholder.",
+      papers: [],
+    }),
+  ).rejects.toThrow(/needs at least one paper/);
+
+  const novel = await recordLiterature(db, feedArxiv, run, {
+    card: card.id,
+    verdict: "novel",
+    summary: "Searches found nothing.",
+    papers: [],
+  });
+  const failed = await recordLiterature(db, feedArxiv, run, {
+    card: card.id,
+    summary: "arXiv was rate-limiting; check incomplete.",
+    papers: [],
+  });
+
+  expect(novel.payload).toMatchObject({ verdict: "novel" });
+  expect(failed.payload).not.toHaveProperty("verdict");
+});

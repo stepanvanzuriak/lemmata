@@ -9,7 +9,7 @@ import {
 } from "core";
 import type { CardFigure, CardRun, RunOutput, Toolchain } from "shared";
 import { runLean, runPython, type LeanReport } from "./exec.js";
-import { pythonCommand } from "./toolchain.js";
+import { leanCommand, pythonCommand } from "./toolchain.js";
 
 export const RUNNABLE_KINDS = new Set(["python", "lean"]);
 
@@ -153,6 +153,7 @@ async function runLeanCard(
     source,
     join(workspaceDir, ".lemmata", "lean"),
     { cwd, isolated },
+    leanCommand(),
   );
   const ok =
     found &&

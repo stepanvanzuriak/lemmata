@@ -21,6 +21,9 @@ import {
   updateNodePositions,
 } from "core";
 import type { CanvasDetail, CanvasNode, NodeKind, Toolchain } from "shared";
+import { ArxivError, type ArxivClient } from "../arxiv/arxiv.js";
+import { fetchPaperSource, addPaper } from "../cards/paper.js";
+import { ToolRefusal, type RunContext } from "../cards/types.js";
 import { validate } from "../validate.js";
 import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../runCard.js";
 
@@ -67,6 +70,11 @@ const restoreSchema = z.object({
   by: z.string().optional(),
 });
 
+const addPaperSchema = z.object({
+  arxivId: z.string().min(1),
+  connectFrom: z.string().optional(),
+});
+
 const addEdgeSchema = z.object({
   fromNode: z.string(),
   toNode: z.string(),
@@ -86,10 +94,20 @@ export function canvasRoutes(
   {
     workspaceDir,
     toolchain,
-  }: { workspaceDir: string; toolchain: Promise<Toolchain> },
+    arxiv,
+  }: {
+    workspaceDir: string;
+    toolchain: Promise<Toolchain>;
+    arxiv: ArxivClient;
+  },
 ) {
   const canvasExists = async (id: string) =>
     Boolean(await db.query.canvas.findFirst({ where: { id } }));
+
+  const byUser = (canvasId: string): RunContext => ({
+    canvasId,
+    author: { role: "assistant" },
+  });
 
   return new Hono()
     .get("/canvases", async (c) => {
@@ -144,6 +162,34 @@ export function canvasRoutes(
 
       return c.json(toNode(node), 201);
     })
+    .post(
+      "/canvases/:id/papers",
+      validate("json", addPaperSchema),
+      async (c) => {
+        const canvasId = c.req.param("id");
+
+        if (!(await canvasExists(canvasId))) {
+          return c.json({ error: "canvas not found" }, 404);
+        }
+
+        const { arxivId, connectFrom } = c.req.valid("json");
+
+        try {
+          const node = await addPaper(db, arxiv, byUser(canvasId), {
+            id: arxivId,
+            connectFrom,
+            by: "user",
+          });
+
+          return c.json(node, 201);
+        } catch (error) {
+          if (error instanceof ToolRefusal || error instanceof ArxivError) {
+            return c.json({ error: error.message }, 400);
+          }
+          throw error;
+        }
+      },
+    )
     .patch(
       "/canvases/:id/nodes",
       validate("json", positionsSchema),
@@ -225,6 +271,36 @@ export function canvasRoutes(
       });
 
       return c.json(toNode(updated!), 200);
+    })
+    .post("/nodes/:id/source", async (c) => {
+      const node = await db.query.canvasNode.findFirst({
+        where: { id: c.req.param("id") },
+      });
+
+      if (!node) {
+        return c.json({ error: "node not found" }, 404);
+      }
+      if (node.kind !== "arxiv") {
+        return c.json({ error: `${node.kind} cards have no source` }, 400);
+      }
+
+      try {
+        const { card } = await fetchPaperSource(
+          db,
+          arxiv,
+          workspaceDir,
+          byUser(node.canvasId),
+          node.id,
+          { refresh: true },
+        );
+
+        return c.json(card, 200);
+      } catch (error) {
+        if (error instanceof ToolRefusal || error instanceof ArxivError) {
+          return c.json({ error: error.message }, 502);
+        }
+        throw error;
+      }
     })
     .delete("/nodes/:id", async (c) => {
       try {

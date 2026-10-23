@@ -27,7 +27,10 @@ const node = (kind: NodeKind) =>
     createdBy: "user",
     createdAt: "",
     updatedAt: "",
-    payload: { title: "Sum $a^2 + b^2$", source: "print(1)" },
+    payload:
+      kind === "arxiv"
+        ? { title: "Sum $a^2 + b^2$", arxivId: "1208.0053" }
+        : { title: "Sum $a^2 + b^2$", source: "print(1)" },
   }) as CanvasNode;
 
 it.each(KINDS)("renders the %s title with math", (kind) => {

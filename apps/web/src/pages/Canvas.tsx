@@ -24,6 +24,7 @@ import {
   useSaveNodePositions,
 } from "../api/canvases";
 import { useGetAllProjects } from "../api/projects";
+import { AddPaperDialog } from "../components/canvas/AddPaperDialog";
 import { CardViewer } from "../components/canvas/CardViewer";
 import { CardNode } from "../components/canvas/cards/CardNode";
 import { KindEdge } from "../components/canvas/KindEdge";
@@ -105,6 +106,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
   const wrapper = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState<Connection | null>(null);
+  const [addingPaper, setAddingPaper] = useState(false);
   const addNode = useAddNode(canvasId);
   const addEdge = useAddEdge(canvasId);
   const deleteNode = useDeleteNode(canvasId);
@@ -303,6 +305,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
               onLiterature={() =>
                 send(`/literature ${literatureRef(selected)}`)
               }
+              onAddPaper={() => setAddingPaper(true)}
               isPending={addNode.isPending}
             />
           </Panel>
@@ -340,6 +343,15 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
           onClose={() => setSelectedId(null)}
         />
       )}
+      <AddPaperDialog
+        canvasId={canvasId}
+        connectFrom={
+          selected && !isArchived(selected) ? selected.id : undefined
+        }
+        isOpen={addingPaper}
+        onOpenChange={setAddingPaper}
+        onAdded={(node) => setSelectedId(node.id)}
+      />
       <ChatPanel canvasId={canvasId} onCards={mergeLive} />
     </div>
   );

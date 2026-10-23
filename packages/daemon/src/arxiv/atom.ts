@@ -1,6 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import type { Paper } from "shared";
-import { ARXIV_ID } from "./constants.js";
+import { parseArxivId, type Paper } from "shared";
 import { ArxivError } from "./errors.js";
 
 const parser = new XMLParser({
@@ -20,14 +19,9 @@ type Entry = {
 const squash = (text = "") => text.replace(/\s+/g, " ").trim();
 
 export function arxivId(raw: string) {
-  const id = raw
-    .trim()
-    .replace(/^.*arxiv\.org\/(abs|pdf)\//i, "")
-    .replace(/^arxiv:/i, "")
-    .replace(/\.pdf$/i, "")
-    .replace(/v\d+$/, "");
+  const id = parseArxivId(raw);
 
-  if (!ARXIV_ID.test(id)) {
+  if (!id) {
     throw new ArxivError(
       `"${raw}" is not an arXiv id. Use an id such as 1107.0327, or an arxiv.org/abs link.`,
     );

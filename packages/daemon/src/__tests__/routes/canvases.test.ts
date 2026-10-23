@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import type { Canvas, CanvasDetail, CanvasEdge, CanvasNode } from "shared";
+import type { ArxivClient } from "../../arxiv/arxiv.js";
 import { authed, testApp } from "../helpers/app.js";
+import { feedArxiv } from "../helpers/arxiv.js";
 
 const send = (method: string, body?: unknown) => ({
   method,
@@ -11,10 +13,12 @@ const send = (method: string, body?: unknown) => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
-async function setup() {
+async function setup(arxiv?: ArxivClient) {
   const app = await testApp(
     undefined,
     await mkdtemp(join(tmpdir(), "lemmata-ws-")),
+    undefined,
+    arxiv,
   );
   const project = await (
     await app.request(
@@ -199,4 +203,66 @@ it("refuses to run a card that is not code", async () => {
   const res = await app.request(`/api/nodes/${goal.id}/run`, send("POST"));
 
   expect(res.status).toBe(400);
+});
+
+const TEX =
+  "\\documentclass{article}\n\\section{Intro}\nHello.\n\\section{Main}\nWorld.";
+const sourceArxiv: ArxivClient = {
+  ...feedArxiv,
+  fetchSource: async () => ({
+    file: { name: "main.tex", data: new TextEncoder().encode(TEX) },
+    files: ["main.tex"],
+  }),
+};
+
+it("adds a paper card by link and fetches its source without the text", async () => {
+  const { app, canvas, goal, detail } = await setup(sourceArxiv);
+  const added = await app.request(
+    `/api/canvases/${canvas.id}/papers`,
+    send("POST", { arxivId: "https://arxiv.org/abs/1208.0053v2" }),
+  );
+  const node = (await added.json()) as CanvasNode;
+
+  expect(added.status).toBe(201);
+  expect(node).toMatchObject({
+    kind: "arxiv",
+    createdBy: "user",
+    payload: { arxivId: "1208.0053" },
+  });
+  expect((await detail()).edges).toEqual([
+    expect.objectContaining({ fromNode: goal.id, toNode: node.id }),
+  ]);
+
+  const fetched = await app.request(
+    `/api/nodes/${node.id}/source`,
+    send("POST"),
+  );
+  const body = (await fetched.json()) as CanvasNode;
+  const source = (body.payload as { source?: { sections: unknown[] } }).source;
+
+  expect(fetched.status).toBe(200);
+  expect(source?.sections).toEqual([
+    { index: 0, title: "Intro" },
+    { index: 1, title: "Main" },
+  ]);
+  expect(JSON.stringify(body)).not.toContain("Hello.");
+});
+
+it("refuses a bad or unknown paper and a source for another card", async () => {
+  const { app, canvas, goal } = await setup(sourceArxiv);
+  const add = (arxivId: string, extra = {}) =>
+    app.request(
+      `/api/canvases/${canvas.id}/papers`,
+      send("POST", { arxivId, ...extra }),
+    );
+
+  expect((await add("https://evil.test/x")).status).toBe(400);
+  expect((await add("2101.99999")).status).toBe(400);
+  expect((await add("1208.0053", { connectFrom: "H9" })).status).toBe(400);
+  expect(
+    (await app.request(`/api/nodes/${goal.id}/source`, send("POST"))).status,
+  ).toBe(400);
+  expect(
+    (await app.request("/api/nodes/nope/source", send("POST"))).status,
+  ).toBe(404);
 });

@@ -84,3 +84,18 @@ it("spaces requests, caches answers and turns network failures into ArxivError",
   await expect(offline.search("lines")).rejects.toBeInstanceOf(ArxivError);
   await expect(offline.search("points")).rejects.toThrow(/unreachable/);
 });
+
+it("stops calling arXiv for a while after repeated 429s", async () => {
+  const fetchFn = vi.fn(async () => new Response("", { status: 429 }));
+  const client = new HttpArxivClient(
+    fetchFn as unknown as typeof fetch,
+    0,
+    60_000,
+  );
+
+  await expect(client.byIds(["1208.0053"])).rejects.toThrow(/rate-limiting/);
+  expect(fetchFn).toHaveBeenCalledTimes(2);
+
+  await expect(client.search("ordinary lines")).rejects.toThrow(/Wait 1 min/);
+  expect(fetchFn).toHaveBeenCalledTimes(2);
+});

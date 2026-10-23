@@ -10,15 +10,17 @@ import {
 } from "@heroui/react";
 import type { CanvasNode, UpdateNodeRequest } from "shared";
 import {
+  useCanvas,
   useDeleteNode,
   useRestoreNodes,
   useUpdateNode,
 } from "../../api/canvases";
 import { Markdown } from "../common/Markdown";
-import { fieldsOf, KIND_LABELS } from "./kinds";
+import { fieldsOf, isArchived, KIND_LABELS, paperOf } from "./kinds";
 import { RunPanel } from "./RunPanel";
 import { AgentActions } from "./AgentActions";
 import { LiteraturePanel } from "./LiteraturePanel";
+import { PaperPanel } from "./PaperPanel";
 
 const STATUSES: Partial<Record<CanvasNode["kind"], string[]>> = {
   goal: ["open", "proved", "disproved"],
@@ -133,6 +135,12 @@ export function CardViewer({
   const updateNode = useUpdateNode(canvasId);
   const deleteNode = useDeleteNode(canvasId);
   const restore = useRestoreNodes(canvasId);
+  const canvas = useCanvas(canvasId);
+  const onCanvas = new Set(
+    (canvas.data?.nodes ?? [])
+      .filter((n) => n.kind === "arxiv" && !isArchived(n))
+      .map((n) => paperOf(n).arxivId ?? ""),
+  );
   const p = fieldsOf(node);
   const statuses = STATUSES[node.kind];
 
@@ -220,8 +228,10 @@ export function CardViewer({
       {isCode(node) && !editing && <RunPanel canvasId={canvasId} node={node} />}
 
       {node.kind === "literature" && (
-        <LiteraturePanel canvasId={canvasId} node={node} />
+        <LiteraturePanel canvasId={canvasId} node={node} onCanvas={onCanvas} />
       )}
+
+      {node.kind === "arxiv" && <PaperPanel canvasId={canvasId} node={node} />}
 
       {!editing && <AgentActions canvasId={canvasId} node={node} />}
 

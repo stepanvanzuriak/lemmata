@@ -5,6 +5,7 @@ import {
   BookOpen,
   ArrowRotateLeft,
   BroomMotion,
+  FilePlus,
   LayoutCellsLarge,
   Sticker,
 } from "@gravity-ui/icons";
@@ -76,6 +77,7 @@ export function Toolbar({
   onCleanup,
   onReset,
   onLiterature,
+  onAddPaper,
   isPending,
 }: {
   onCreate: (kind: CreatableKind) => void;
@@ -83,6 +85,7 @@ export function Toolbar({
   onCleanup?: VoidFunction;
   onReset?: VoidFunction;
   onLiterature?: VoidFunction;
+  onAddPaper?: VoidFunction;
   isPending?: boolean;
 }) {
   return (
@@ -137,6 +140,14 @@ export function Toolbar({
         onPress={() => onLiterature?.()}
       >
         <BookOpen width={18} height={18} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Add paper"
+        hint="Add an arXiv paper by id or link, attached to the selected card or the goal"
+        isDisabled={!onAddPaper}
+        onPress={() => onAddPaper?.()}
+      >
+        <FilePlus width={18} height={18} aria-hidden="true" />
       </ActionButton>
     </ToolbarRoot>
   );
