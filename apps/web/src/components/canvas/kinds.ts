@@ -12,6 +12,8 @@ export type CardFields = Partial<BasePayload> & {
   label?: string;
   status?: string;
   source?: string;
+  python?: string;
+  lean?: string;
   run?: CardRun;
   resolved?: Resolved | null;
 };
@@ -38,6 +40,7 @@ export const KIND_LABELS: Record<NodeKind, string> = {
   literature: "Literature",
   python: "Python",
   lean: "Lean",
+  toolbox: "Toolbox",
 };
 
 export const CREATABLE_KINDS = [
@@ -46,6 +49,7 @@ export const CREATABLE_KINDS = [
   "attack",
   "python",
   "lean",
+  "toolbox",
   "note",
 ] as const satisfies readonly NodeKind[];
 

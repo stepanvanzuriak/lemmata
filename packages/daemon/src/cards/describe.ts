@@ -121,6 +121,14 @@ function describeCard(
   if (p.source && level !== "brief") {
     lines.push(`  source:\n${clip(p.source, max)}`);
   }
+  if (card.kind === "toolbox" && level !== "brief") {
+    if (p.python) {
+      lines.push(`  reusable Python:\n${clip(p.python, max)}`);
+    }
+    if (p.lean) {
+      lines.push(`  reusable Lean:\n${clip(p.lean, max)}`);
+    }
+  }
   lines.push(...runLines(card, max));
   lines.push(...literatureLines(card, level));
 

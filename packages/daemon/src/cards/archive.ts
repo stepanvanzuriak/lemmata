@@ -32,6 +32,9 @@ export function keepReason(
   if (card.kind === "goal") {
     return "the goal stays";
   }
+  if (card.kind === "toolbox") {
+    return "the toolbox is shared canvas infrastructure; use delete_toolbox if it is no longer useful";
+  }
   if (card.createdBy === "user") {
     return "it is the user's card";
   }

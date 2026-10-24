@@ -11,12 +11,14 @@ const WIDTH: Record<NodeKind, number> = {
   literature: 320,
   python: 290,
   lean: 290,
+  toolbox: 300,
 };
 
 const HEIGHT: Partial<Record<NodeKind, number>> = {
   python: 200,
   lean: 200,
   literature: 200,
+  toolbox: 300,
 };
 const DEFAULT_HEIGHT = 150;
 const GAP = 60;

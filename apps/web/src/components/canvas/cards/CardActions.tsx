@@ -106,11 +106,11 @@ function actionsFor(node: CanvasNode, ready: Ready): ReactNode {
           <Action
             onPress={() =>
               send(
-                `/prover ${ref} Propose up to three distinct attacks on this hypothesis as attack cards linked to it. Do not carry them out.`,
+                `/prover ${ref} Propose one attack on this hypothesis as a single attack card linked to it. Do not add more than one, and do not carry it out.`,
               )
             }
           >
-            Plan attacks
+            Plan attack
           </Action>
           <Action onPress={() => send(`/referee ${ref}`)}>Referee</Action>
           <Action onPress={() => send(`/literature ${ref}`)}>Literature</Action>

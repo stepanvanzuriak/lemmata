@@ -3,7 +3,12 @@ import type { CanvasDetail, CanvasNode } from "./canvas.js";
 
 export type Tone = "ok" | "bad" | "warn" | "work" | "idle";
 
-export type CardStatus = { tone: Tone; label: string; detail?: string };
+export type CardStatus = {
+  tone: Tone;
+  label: string;
+  detail?: string;
+  since?: number;
+};
 
 export type CanvasGraph = Pick<CanvasDetail, "nodes" | "edges">;
 
@@ -14,6 +19,7 @@ type StatusFields = {
   verdict?: string;
   author?: string;
   run?: CardRun;
+  runningSince?: number;
   claimedByRole?: string;
 };
 
@@ -25,8 +31,11 @@ const roleName = (role?: string) =>
 const CHECK_KINDS = new Set(["python", "lean"]);
 
 function runStatus(node: CanvasNode): CardStatus {
-  const run = fields(node).run;
+  const { run, runningSince } = fields(node);
 
+  if (runningSince) {
+    return { tone: "work", label: "Running", since: runningSince };
+  }
   if (!run) {
     return { tone: "idle", label: "Not run" };
   }

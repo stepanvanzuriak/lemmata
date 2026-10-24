@@ -23,6 +23,7 @@ export const CREATABLE_KINDS = [
   "lean",
   "note",
   "memory",
+  "toolbox",
 ] as const satisfies readonly NodeKind[];
 
 export type NewCard = Omit<CardFields, "agentId"> & {
@@ -89,6 +90,11 @@ export async function createCards(
     if (!parent) {
       throw new ToolRefusal(
         `No card matches connectFrom "${parentRef}". Use an id, "goal", a label like H2, or an exact title.`,
+      );
+    }
+    if (kind === "toolbox" && nodes.some((node) => node.kind === "toolbox")) {
+      throw new ToolRefusal(
+        "This canvas already has a toolbox card. Update it instead.",
       );
     }
 

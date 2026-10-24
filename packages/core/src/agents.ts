@@ -57,7 +57,7 @@ export async function removeAgent(
   return row;
 }
 
-/** Releases every claim; run at daemon start so a crash can't lock hypotheses forever. */
+/** Releases every claim and stale run marker; run at daemon start so a crash can't lock hypotheses forever. */
 export async function clearClaims(db: Db): Promise<number> {
   const rows = await db
     .update(canvasNode)
@@ -70,6 +70,15 @@ export async function clearClaims(db: Db): Promise<number> {
     })
     .where(sql`json_extract(${canvasNode.payload}, '$.claimedBy') IS NOT NULL`)
     .returning({ id: canvasNode.id });
+
+  await db
+    .update(canvasNode)
+    .set({
+      payload: sql`json_remove(${canvasNode.payload}, '$.runningSince')`,
+    })
+    .where(
+      sql`json_extract(${canvasNode.payload}, '$.runningSince') IS NOT NULL`,
+    );
 
   return rows.length;
 }

@@ -18,7 +18,10 @@ import type { CardFlowNode } from "./cards/CardNode";
 import { toFlowEdge, type CardFlowEdge } from "./edges";
 
 const sameStatus = (a?: CardStatus | null, b?: CardStatus | null) =>
-  a?.tone === b?.tone && a?.label === b?.label && a?.detail === b?.detail;
+  a?.tone === b?.tone &&
+  a?.label === b?.label &&
+  a?.detail === b?.detail &&
+  a?.since === b?.since;
 
 function toFlowNode(
   node: CanvasNode,

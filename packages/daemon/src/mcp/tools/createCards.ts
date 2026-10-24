@@ -24,7 +24,8 @@ export const registerCreateCards: RegisterTool = (server, { db, run }) => {
     {
       description: [
         `Add up to ${MAX_NEW_CARDS} cards; returns their ids. Give each a title and text (short, shown on the card) or markdown (full body).`,
-        "Kinds: statement (lemma, claim, definition, finished proof in markdown), hypothesis (approach or conjecture to check; starts open, label given automatically), attack (one concrete route to a hypothesis, to be carried out later; starts open, label A<n> given automatically; connectFrom the hypothesis; put the outline in markdown), python (self-contained check in source, runs in a fresh process), lean (Lean 4 in source, main theorem first), note (remark or question for the user), memory (dead end or fact worth keeping).",
+        "Kinds: statement (lemma, claim, definition, finished proof in markdown), hypothesis (approach or conjecture to check; starts open, label given automatically), attack (one concrete route to a hypothesis, to be carried out later; starts open, label A<n> given automatically; connectFrom the hypothesis; put the outline in markdown), python (self-contained check in source, runs in a fresh process), lean (Lean 4 in source, main theorem first), toolbox (the canvas's unique reusable Python and Lean snippets; use python and lean fields), note (remark or question for the user), memory (dead end or fact worth keeping).",
+        "Check for a toolbox before writing code; reuse its snippets and update it when improving shared code. A canvas can have only one toolbox.",
         "connectFrom names the parent (may be a card earlier in this call; default: the run's target or the goal). edgeKind defaults to tested-by for python/lean and depends-on otherwise; use refuted-by for evidence against a claim.",
       ].join(" "),
       inputSchema: { cards: z.array(newCard).min(1).max(MAX_NEW_CARDS) },

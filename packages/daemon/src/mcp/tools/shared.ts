@@ -70,4 +70,12 @@ export const cardFields = {
     .describe("Full body; math in $...$ or $$...$$"),
   label: z.string().optional().describe("Hypothesis label such as H3"),
   source: z.string().optional().describe("Code for python and lean cards"),
+  python: z
+    .string()
+    .optional()
+    .describe("Reusable Python snippet in a toolbox card"),
+  lean: z
+    .string()
+    .optional()
+    .describe("Reusable Lean snippet in a toolbox card"),
 };

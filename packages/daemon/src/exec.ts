@@ -186,6 +186,7 @@ export async function runPython(
   source: string,
   python: PythonCommand,
   options: RunOptions = {},
+  toolbox?: string,
 ): Promise<RunOutput> {
   const dir = await mkdtemp(join(tmpdir(), "lemmata-py-"));
   const card = join(dir, "card.py");
@@ -193,6 +194,9 @@ export async function runPython(
 
   try {
     await writeFile(card, source);
+    if (toolbox) {
+      await writeFile(join(dir, "toolbox.py"), toolbox);
+    }
     const output = await runProcess(
       python.cmd,
       [...python.args, "-u", "-c", PYTHON_WRAPPER, outDir, card],
@@ -203,6 +207,7 @@ export async function runPython(
           PYTHONDONTWRITEBYTECODE: "1",
           MPLBACKEND: "Agg",
           PYTHONWARNINGS: "ignore::SyntaxWarning",
+          ...(toolbox ? { PYTHONPATH: dir } : {}),
           ...processOptions.env,
         },
       },
@@ -275,6 +280,65 @@ export function parseLeanOutput(output: string): LeanReport {
   };
 }
 
+const LEAN_IMPORT = /^import\s+\S+(?:\s+import\s+\S+)*\s*$/;
+const TOOLBOX_IMPORT = /^import\s+Toolbox\s*$/m;
+
+/**
+ * Lean has no local modules here, so `import Toolbox` inlines the toolbox's
+ * source ahead of the card. Imports are hoisted to line 1 and the card's own
+ * import lines are blanked, which keeps the card's lines at a fixed offset.
+ */
+export function inlineLeanToolbox(source: string, toolbox: string) {
+  if (!TOOLBOX_IMPORT.test(source)) {
+    return { source, offset: 0 };
+  }
+
+  const imports = new Set<string>();
+  const body: string[] = [];
+
+  for (const line of toolbox.split("\n")) {
+    if (LEAN_IMPORT.test(line.trim())) {
+      imports.add(line.trim().replace(/\s+/g, " "));
+    } else {
+      body.push(line);
+    }
+  }
+
+  const card = source.split("\n").map((line) => {
+    if (!LEAN_IMPORT.test(line.trim())) {
+      return line;
+    }
+    for (const part of line.trim().split(/\s+/).slice(1)) {
+      if (part !== "Toolbox" && part !== "import") {
+        imports.add(`import ${part}`);
+      }
+    }
+    return "";
+  });
+  const head = [...imports].join(" ").replace(/ import import /g, " import ");
+
+  return {
+    source: [head, ...body, ...card].join("\n"),
+    offset: body.length + 1,
+  };
+}
+
+/** Maps diagnostics back to card lines; those inside the inlined toolbox are tagged. */
+function shiftReport(report: LeanReport, offset: number): LeanReport {
+  if (!offset) {
+    return report;
+  }
+
+  return {
+    ...report,
+    diagnostics: report.diagnostics.map((d) =>
+      d.line > offset
+        ? { ...d, line: d.line - offset }
+        : { ...d, line: 1, message: `[toolbox] ${d.message}` },
+    ),
+  };
+}
+
 const THEOREM = /^\s*(?:theorem|lemma)\s+([^\s:({[]+)/m;
 
 export async function runLean(
@@ -282,13 +346,20 @@ export async function runLean(
   leanDir: string,
   options: RunOptions = {},
   lean: RunCommand = { cmd: "lean", args: [] },
+  toolbox?: string,
 ): Promise<{ output: RunOutput; report: LeanReport; found: boolean }> {
   const name = source.match(THEOREM)?.[1];
-  const hash = createHash("sha1").update(source).digest("hex");
+  const inlined = toolbox
+    ? inlineLeanToolbox(source, toolbox)
+    : { source, offset: 0 };
+  const hash = createHash("sha1").update(inlined.source).digest("hex");
   const file = join(leanDir, `check-${hash}.lean`);
 
   await mkdir(leanDir, { recursive: true });
-  await writeFile(file, name ? `${source}\n\n#print axioms ${name}\n` : source);
+  await writeFile(
+    file,
+    name ? `${inlined.source}\n\n#print axioms ${name}\n` : inlined.source,
+  );
 
   const output = await runProcess(lean.cmd, [...lean.args, file], {
     timeoutMs: 1200000,
@@ -306,7 +377,7 @@ export async function runLean(
         ? output.stderr.replaceAll(file, "<card>")
         : "Lean not found",
     },
-    report: parseLeanOutput(text),
+    report: shiftReport(parseLeanOutput(text), inlined.offset),
     found,
   };
 }

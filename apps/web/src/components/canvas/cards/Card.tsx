@@ -1,5 +1,10 @@
 import clsx from "clsx";
-import type { PropsWithChildren, ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type PropsWithChildren,
+  type ReactNode,
+} from "react";
 import { Chip } from "@heroui/react";
 import type { CanvasNode, CardStatus } from "shared";
 import { TONES } from "../../../lib/status";
@@ -30,6 +35,27 @@ export function Card({
   );
 }
 
+function formatElapsed(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = String(total % 60).padStart(2, "0");
+
+  return m >= 60
+    ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}:${s}`
+    : `${m}:${s}`;
+}
+
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(Date.now);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <span className="tabular-nums">{formatElapsed(now - since)}</span>;
+}
+
 export function StatusChip({ status }: { status?: CardStatus | null }) {
   if (!status) {
     return null;
@@ -41,6 +67,12 @@ export function StatusChip({ status }: { status?: CardStatus | null }) {
     <Chip size="sm" variant="soft" color={chipColor} className="self-start">
       <Icon width={12} height={12} aria-hidden="true" />
       {status.detail ? `${status.label} · ${status.detail}` : status.label}
+      {status.since != null && (
+        <>
+          {" · "}
+          <Elapsed since={status.since} />
+        </>
+      )}
     </Chip>
   );
 }

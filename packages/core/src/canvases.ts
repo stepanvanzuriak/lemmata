@@ -43,6 +43,13 @@ export class GoalNodeError extends Error {
   }
 }
 
+export class UniqueToolboxError extends Error {
+  constructor(public readonly canvasId: string) {
+    super("This canvas already has a toolbox card");
+    this.name = "UniqueToolboxError";
+  }
+}
+
 export class NotFoundError extends Error {
   constructor(what: string, id: string) {
     super(`${what} ${id} not found`);
@@ -138,6 +145,21 @@ export function createCanvas(
 export async function addNode(db: Db, input: NodeInput): Promise<CanvasNode> {
   const now = isoNow();
   return db.transaction(async (tx) => {
+    if (input.kind === "toolbox") {
+      const existing = await tx
+        .select({ id: canvasNode.id })
+        .from(canvasNode)
+        .where(
+          and(
+            eq(canvasNode.canvasId, input.canvasId),
+            eq(canvasNode.kind, "toolbox"),
+          ),
+        )
+        .limit(1);
+      if (existing.length) {
+        throw new UniqueToolboxError(input.canvasId);
+      }
+    }
     const [row] = await tx
       .insert(canvasNode)
       .values({

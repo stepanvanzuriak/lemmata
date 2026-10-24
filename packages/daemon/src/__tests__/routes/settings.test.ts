@@ -15,17 +15,17 @@ it("starts not onboarded and remembers the change across restarts", async () => 
   const app = await testApp(undefined, dir);
 
   const initial = await app.request("/api/settings", { headers: authed() });
-  expect(await initial.json()).toEqual({ onboarded: false });
+  expect(await initial.json()).toEqual({ onboarded: false, agent: "claude" });
 
   const saved = await app.request("/api/settings", patch({ onboarded: true }));
   expect(saved.status).toBe(200);
-  expect(await saved.json()).toEqual({ onboarded: true });
+  expect(await saved.json()).toEqual({ onboarded: true, agent: "claude" });
 
   const restarted = await testApp(undefined, dir);
   const again = await restarted.request("/api/settings", {
     headers: authed(),
   });
-  expect(await again.json()).toEqual({ onboarded: true });
+  expect(await again.json()).toEqual({ onboarded: true, agent: "claude" });
 });
 
 it("rejects a body with the wrong types", async () => {

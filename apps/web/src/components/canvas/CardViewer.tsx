@@ -36,6 +36,7 @@ const READ_ONLY = new Set<CanvasNode["kind"]>([
 
 const isCode = (node: CanvasNode) =>
   node.kind === "python" || node.kind === "lean";
+const isToolbox = (node: CanvasNode) => node.kind === "toolbox";
 
 function ReadView({ node }: { node: CanvasNode }) {
   const p = fieldsOf(node);
@@ -53,6 +54,20 @@ function ReadView({ node }: { node: CanvasNode }) {
         <pre className="m-0 overflow-auto rounded-lg bg-lm-code p-3 font-mono text-xs leading-normal text-lm-nav-fg">
           {p.source || " "}
         </pre>
+      )}
+      {isToolbox(node) && (
+        <div className="flex flex-col gap-3">
+          {(["python", "lean"] as const).map((language) => (
+            <section key={language}>
+              <h3 className="m-0 mb-1 text-xs font-semibold uppercase text-lm-muted">
+                {language}
+              </h3>
+              <pre className="m-0 overflow-auto rounded-lg bg-lm-code p-3 font-mono text-xs leading-normal text-lm-nav-fg">
+                {p[language] || "No snippet"}
+              </pre>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -82,11 +97,18 @@ function EditForm({
         onSave(
           isCode(node)
             ? { title: value("title"), source: value("source") }
-            : {
-                title: value("title"),
-                text: value("text"),
-                markdown: value("markdown"),
-              },
+            : isToolbox(node)
+              ? {
+                  title: value("title"),
+                  text: value("text"),
+                  python: value("python"),
+                  lean: value("lean"),
+                }
+              : {
+                  title: value("title"),
+                  text: value("text"),
+                  markdown: value("markdown"),
+                },
         );
       }}
     >
@@ -99,6 +121,21 @@ function EditForm({
           <Label>Source</Label>
           <TextArea rows={14} className="font-mono text-xs" />
         </TextField>
+      ) : isToolbox(node) ? (
+        <>
+          <TextField name="text" defaultValue={p.text ?? ""}>
+            <Label>Description</Label>
+            <TextArea rows={3} />
+          </TextField>
+          <TextField name="python" defaultValue={p.python ?? ""}>
+            <Label>Python snippet</Label>
+            <TextArea rows={8} className="font-mono text-xs" />
+          </TextField>
+          <TextField name="lean" defaultValue={p.lean ?? ""}>
+            <Label>Lean snippet</Label>
+            <TextArea rows={8} className="font-mono text-xs" />
+          </TextField>
+        </>
       ) : (
         <>
           <TextField name="text" defaultValue={p.text ?? ""}>

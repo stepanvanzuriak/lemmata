@@ -8,7 +8,8 @@ export type NodeKind =
   | "arxiv"
   | "literature"
   | "python"
-  | "lean";
+  | "lean"
+  | "toolbox";
 
 export type Archived = {
   at: string;
@@ -93,6 +94,15 @@ export type CodePayload = BasePayload & {
   kind: "python" | "lean";
   source: string;
   run?: CardRun;
+  /** Epoch ms when the current run started; set only while it executes. */
+  runningSince?: number;
+};
+
+/** Canvas-wide reusable Python and Lean snippets. A canvas has at most one. */
+export type ToolboxPayload = BasePayload & {
+  kind: "toolbox";
+  python?: string;
+  lean?: string;
 };
 
 export type PlainPayload = BasePayload & {
@@ -151,6 +161,7 @@ export type NodePayload =
   | HypothesisPayload
   | AttackPayload
   | CodePayload
+  | ToolboxPayload
   | PlainPayload
   | LiteraturePayload
   | PaperPayload;

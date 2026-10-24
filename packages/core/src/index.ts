@@ -28,6 +28,7 @@ export {
   deleteEdge,
   parsePayload,
   GoalNodeError,
+  UniqueToolboxError,
   NotFoundError,
   type CanvasDetail,
   type NodeInput,

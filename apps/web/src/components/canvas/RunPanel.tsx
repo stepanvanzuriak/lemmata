@@ -127,9 +127,6 @@ export function RunPanel({
           </span>
         )}
       </div>
-      <p className="m-0 text-[11px] text-lm-muted">
-        Runs as you, in the project folder. Not a sandbox.
-      </p>
       {run && (
         <>
           {run.diagnostics?.map((d, index) => (

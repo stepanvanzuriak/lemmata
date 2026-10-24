@@ -34,6 +34,7 @@ import type { ToolDeps } from "./mcp/tools/index.js";
 import { ROLE_PROMPTS } from "./roles.js";
 import { projectDir } from "./runCard.js";
 import { parseTask, taskPrompt } from "./tasks.js";
+import { readSettings } from "./routes/settings.js";
 
 export const DEFAULT_MAX_TOKENS = 1_000_000;
 
@@ -188,7 +189,9 @@ export async function startChat(
   const project = canvas.project;
 
   return async (emit) => {
-    const adapter = deps.adapter?.() ?? createAdapter("claude");
+    const adapter =
+      deps.adapter?.() ??
+      createAdapter((await readSettings(deps.workspaceDir)).agent);
     const modelId = agent?.model ?? request.model ?? null;
     let secret: string | null = null;
     let seen = snapshot(detail);
@@ -219,7 +222,11 @@ export async function startChat(
       const current = await loadDetail(db, canvasId);
       const added = current.nodes.filter((n) => !before.has(n.id));
       const replaced = current.nodes.filter(
-        (n) => before.has(n.id) && n.kind !== "goal" && !isArchived(n),
+        (n) =>
+          before.has(n.id) &&
+          n.kind !== "goal" &&
+          n.kind !== "toolbox" &&
+          !isArchived(n),
       );
 
       if (attempt.status !== "done" || added.length === 0) {

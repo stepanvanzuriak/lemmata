@@ -122,17 +122,19 @@ async function runPythonCard(
   cwd: string,
   nodeId: string,
   { toolchain, isolated, workspaceDir }: RunCardOptions,
+  toolbox?: string,
 ): Promise<CardRun> {
   const outDir = figuresDir(workspaceDir, nodeId);
 
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
 
-  const output = await runPython(source, pythonCommand(await toolchain), {
-    cwd,
-    isolated,
-    outDir,
-  });
+  const output = await runPython(
+    source,
+    pythonCommand(await toolchain),
+    { cwd, isolated, outDir },
+    toolbox,
+  );
   const figures = await readFigures(outDir);
 
   return {
@@ -148,12 +150,14 @@ async function runLeanCard(
   source: string,
   cwd: string,
   { workspaceDir, isolated }: RunCardOptions,
+  toolbox?: string,
 ): Promise<CardRun> {
   const { output, report, found } = await runLean(
     source,
     join(workspaceDir, ".lemmata", "lean"),
     { cwd, isolated },
     leanCommand(),
+    toolbox,
   );
   const ok =
     found &&
@@ -179,12 +183,27 @@ async function runCardNodeNow(
 ): Promise<CanvasNode | undefined> {
   const source = String(parsePayload(node.payload).source ?? "");
   const cwd = await projectDir(db, node.canvasId, options.workspaceDir);
-  const run =
-    node.kind === "python"
-      ? await runPythonCard(source, cwd, node.id, options)
-      : await runLeanCard(source, cwd, options);
 
-  return updateNode(db, node.id, { run });
+  const toolboxCard = await db.query.canvasNode.findFirst({
+    where: { canvasId: node.canvasId, kind: "toolbox" },
+  });
+  const toolbox = toolboxCard
+    ? String(parsePayload(toolboxCard.payload)[node.kind] ?? "")
+    : "";
+
+  await updateNode(db, node.id, { runningSince: Date.now() });
+
+  try {
+    const run =
+      node.kind === "python"
+        ? await runPythonCard(source, cwd, node.id, options, toolbox)
+        : await runLeanCard(source, cwd, options, toolbox);
+
+    return await updateNode(db, node.id, { run, runningSince: undefined });
+  } catch (error) {
+    await updateNode(db, node.id, { runningSince: undefined });
+    throw error;
+  }
 }
 
 const queues = new Map<string, Promise<unknown>>();

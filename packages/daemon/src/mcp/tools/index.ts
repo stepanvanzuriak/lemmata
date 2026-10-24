@@ -16,6 +16,7 @@ import { registerRunCard } from "./runCard.js";
 import { registerSearchLiterature } from "./searchLiterature.js";
 import type { RegisterTool, ToolContext, ToolDeps } from "./shared.js";
 import { registerUpdateCard } from "./updateCard.js";
+import { registerDeleteToolbox } from "./deleteToolbox.js";
 
 export type { ToolDeps } from "./shared.js";
 export { MAX_MEMORY_CHARS, MAX_MEMORY_ENTRIES } from "./remember.js";
@@ -34,6 +35,7 @@ const TOOLS: RegisterTool[] = [
   registerReadPaper,
   registerRecordLiterature,
   registerArchiveCards,
+  registerDeleteToolbox,
 ];
 
 export function registerTools(

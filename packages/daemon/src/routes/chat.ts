@@ -19,6 +19,7 @@ import {
 } from "../chat.js";
 import { validate } from "../validate.js";
 import { createAdapter } from "runner";
+import { readSettings } from "./settings.js";
 
 const chatSchema = z.object({
   text: z.string().trim().min(1),
@@ -65,8 +66,13 @@ export function chatRoutes(deps: ChatDeps) {
     .post("/canvases/:id/chat/abort", (c) =>
       c.json({ aborted: abortRuns(c.req.param("id"), c.req.query("agent")) }),
     )
-    .get("/models", (c) =>
-      c.json((deps.adapter?.() ?? createAdapter("claude")).models),
+    .get("/models", async (c) =>
+      c.json(
+        (
+          deps.adapter?.() ??
+          createAdapter((await readSettings(deps.workspaceDir)).agent)
+        ).models,
+      ),
     )
     .get("/canvases/:id/runs", (c) => c.json(activeRuns(c.req.param("id"))))
     .get("/canvases/:id/messages", async (c) =>

@@ -7,6 +7,7 @@ import {
   EDGE_KINDS,
   NODE_CREATORS,
   GoalNodeError,
+  UniqueToolboxError,
   NotFoundError,
   addEdge,
   addNode,
@@ -38,6 +39,7 @@ const NODE_KINDS = [
   "literature",
   "python",
   "lean",
+  "toolbox",
 ] as const satisfies readonly NodeKind[];
 
 const payload = z.record(z.string(), z.unknown());
@@ -159,9 +161,16 @@ export function canvasRoutes(
         return c.json({ error: "canvas not found" }, 404);
       }
 
-      const node = await addNode(db, { ...c.req.valid("json"), canvasId });
+      try {
+        const node = await addNode(db, { ...c.req.valid("json"), canvasId });
 
-      return c.json(toNode(node), 201);
+        return c.json(toNode(node), 201);
+      } catch (error) {
+        if (error instanceof UniqueToolboxError) {
+          return c.json({ error: error.message }, 409);
+        }
+        throw error;
+      }
     })
     .post(
       "/canvases/:id/papers",

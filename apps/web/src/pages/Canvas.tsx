@@ -41,6 +41,7 @@ import { ChatPanel } from "../components/chat/ChatPanel";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 import { useCurrentProjectId, useTheme } from "../lib/hooks";
 import { useChatStore } from "../stores/chat";
+import { downloadLatex } from "../lib/latex";
 import { tidyLayout } from "../lib/layout";
 import { paths } from "../lib/paths";
 
@@ -74,6 +75,13 @@ function newPayload(
       return { title: "Python check", source: "" };
     case "lean":
       return { title: "Lean check", source: "" };
+    case "toolbox":
+      return {
+        title: "Toolbox",
+        text: "Reusable Python and Lean snippets",
+        python: "",
+        lean: "",
+      };
     case "note":
       return { title: "Note" };
     case "statement":
@@ -325,7 +333,9 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
                 send(`/literature ${literatureRef(selected)}`)
               }
               onAddPaper={() => setAddingPaper(true)}
+              onExport={() => downloadLatex(visibleDetail)}
               isPending={addNode.isPending}
+              hasToolbox={detail.nodes.some((node) => node.kind === "toolbox")}
             />
           </Panel>
           {pending && (

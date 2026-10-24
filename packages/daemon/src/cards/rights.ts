@@ -4,6 +4,9 @@ import { fieldsOf, type Author } from "./types.js";
 export type EditRight = "all" | "body" | "status" | "none";
 
 export function editRight(card: CanvasNode, author: Author): EditRight {
+  if (card.kind === "toolbox") {
+    return "all";
+  }
   if (author.agentId && fieldsOf(card).agentId === author.agentId) {
     return "all";
   }

@@ -7,7 +7,7 @@ import {
   Typography,
 } from "@heroui/react";
 import { Display, Moon, Sun } from "@gravity-ui/icons";
-import { useUpdateSettings } from "../api/settings";
+import { useSettings, useUpdateSettings } from "../api/settings";
 import { Toolchain } from "../components/onboarding/Toolchain";
 import { useTheme } from "../lib/hooks";
 import type { ThemePreference } from "../stores/theme";
@@ -25,6 +25,7 @@ const themes: {
 export function Settings() {
   const { preference, resolved, setPreference } = useTheme();
   const settings = useUpdateSettings();
+  const { data: savedSettings } = useSettings();
 
   return (
     <div className="flex max-w-180 flex-col gap-6">
@@ -62,6 +63,32 @@ export function Settings() {
                 {label}
               </ToggleButton>
             ))}
+          </ToggleButtonGroup>
+        </Card.Content>
+      </Card>
+
+      <Card className="gap-4 rounded-xl border border-lm-line px-5 py-4.5 shadow-none">
+        <Card.Header className="gap-1">
+          <Card.Title className="text-base font-semibold">Agent</Card.Title>
+          <Card.Description>
+            Choose which coding agent runs chats and canvas tasks.
+          </Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <ToggleButtonGroup
+            aria-label="Agent"
+            selectionMode="single"
+            disallowEmptySelection
+            selectedKeys={[savedSettings?.agent ?? "claude"]}
+            onSelectionChange={(keys) => {
+              const [key] = keys;
+              if (key === "claude" || key === "codex") {
+                settings.mutate({ agent: key });
+              }
+            }}
+          >
+            <ToggleButton id="claude">Claude Code</ToggleButton>
+            <ToggleButton id="codex">Codex</ToggleButton>
           </ToggleButtonGroup>
         </Card.Content>
       </Card>

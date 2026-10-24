@@ -19,6 +19,7 @@ export type {
   LeanDiagnostic,
   LiteraturePayload,
   PaperPayload,
+  ToolboxPayload,
   LiteratureVerdict,
   NodeKind,
   NodePayload,
