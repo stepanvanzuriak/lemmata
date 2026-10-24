@@ -103,3 +103,9 @@ it("isolates MCP config and loads tools up front", async () => {
     "ENABLE_TOOL_SEARCH=false",
   );
 });
+
+it("limits the turns of a run", () => {
+  const { args } = claudeArgs({ ...base, maxTurns: 30 });
+
+  expect(args.slice(-2)).toEqual(["--max-turns", "30"]);
+});

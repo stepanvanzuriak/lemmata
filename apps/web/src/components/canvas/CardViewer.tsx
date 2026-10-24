@@ -25,6 +25,7 @@ import { PaperPanel } from "./PaperPanel";
 const STATUSES: Partial<Record<CanvasNode["kind"], string[]>> = {
   goal: ["open", "proved", "disproved"],
   hypothesis: ["open", "supported", "refuted"],
+  attack: ["open", "worked", "failed"],
 };
 
 const READ_ONLY = new Set<CanvasNode["kind"]>([

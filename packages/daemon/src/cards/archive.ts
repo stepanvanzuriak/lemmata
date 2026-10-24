@@ -39,6 +39,10 @@ export function keepReason(
     return `it is ${status ?? "open"}; only refuted hypotheses are archived`;
   }
 
+  if (card.kind === "attack" && status !== "failed") {
+    return `it is ${status ?? "open"}; only failed attacks are archived`;
+  }
+
   const backs = neighbours(detail, card).find(
     (n) =>
       n &&

@@ -143,6 +143,16 @@ export function nextSteps(
     }
   }
 
+  for (const node of nodes.filter(
+    (n) =>
+      n.kind === "attack" &&
+      (fields(n).status ?? "open") === "open" &&
+      !asked("/prover", n),
+  )) {
+    const command = `/prover ${refOf(node)}`;
+    steps.push({ kind: "command", label: command, command });
+  }
+
   for (const node of open.filter(
     (n) => !refereed.has(n.id) && !asked("/prover", n),
   )) {

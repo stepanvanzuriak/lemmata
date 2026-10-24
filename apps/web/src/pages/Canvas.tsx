@@ -47,9 +47,10 @@ import { paths } from "../lib/paths";
 const nodeTypes = { card: CardNode };
 const edgeTypes = { kind: KindEdge };
 
-function nextHypothesisLabel(labels: (string | undefined)[]) {
-  const numbers = labels.map((label) => Number(label?.match(/^H(\d+)$/)?.[1]));
-  return `H${Math.max(0, ...numbers.filter(Number.isFinite)) + 1}`;
+function nextLabel(labels: (string | undefined)[], prefix: "H" | "A") {
+  const pattern = new RegExp(`^${prefix}(\\d+)$`);
+  const numbers = labels.map((label) => Number(label?.match(pattern)?.[1]));
+  return `${prefix}${Math.max(0, ...numbers.filter(Number.isFinite)) + 1}`;
 }
 
 function newPayload(
@@ -60,7 +61,13 @@ function newPayload(
     case "hypothesis":
       return {
         title: "New hypothesis",
-        label: nextHypothesisLabel(labels),
+        label: nextLabel(labels, "H"),
+        status: "open",
+      };
+    case "attack":
+      return {
+        title: "New attack",
+        label: nextLabel(labels, "A"),
         status: "open",
       };
     case "python":
@@ -204,7 +211,19 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
         ...position,
         payload: newPayload(kind, labels),
       },
-      { onSuccess: (node) => setSelectedId(node.id) },
+      {
+        onSuccess: (node) => {
+          setSelectedId(node.id);
+
+          if (kind === "attack" && selected?.kind === "hypothesis") {
+            addEdge.mutate({
+              fromNode: selected.id,
+              toNode: node.id,
+              kind: "depends-on",
+            });
+          }
+        },
+      },
     );
   };
 

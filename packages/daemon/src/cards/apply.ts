@@ -18,6 +18,7 @@ export const MAX_NEW_CARDS = 8;
 export const CREATABLE_KINDS = [
   "statement",
   "hypothesis",
+  "attack",
   "python",
   "lean",
   "note",
@@ -33,17 +34,20 @@ export type NewCard = Omit<CardFields, "agentId"> & {
 const STATUSES: Partial<Record<NodeKind, string[]>> = {
   goal: ["open", "proved", "disproved"],
   hypothesis: ["open", "supported", "refuted"],
+  attack: ["open", "worked", "failed"],
 };
 
 const nameOf = (card: CanvasNode) =>
   fieldsOf(card).label ?? `"${fieldsOf(card).title ?? card.id}"`;
 
-function nextLabel(nodes: CanvasNode[]) {
+/** Hypotheses are H1, H2, ...; attacks are A1, A2, ... */
+function nextLabel(nodes: CanvasNode[], prefix: "H" | "A") {
+  const pattern = new RegExp(`^${prefix}(\\d+)$`);
   const numbers = nodes
-    .map((n) => Number(fieldsOf(n).label?.match(/^H(\d+)$/)?.[1]))
+    .map((n) => Number(fieldsOf(n).label?.match(pattern)?.[1]))
     .filter(Number.isFinite);
 
-  return `H${Math.max(0, ...numbers) + 1}`;
+  return `${prefix}${Math.max(0, ...numbers) + 1}`;
 }
 
 function defaultEdge(kind: NodeKind): EdgeKind {
@@ -88,11 +92,13 @@ export async function createCards(
       );
     }
 
-    const isHypothesis = kind === "hypothesis";
+    const labelled = kind === "hypothesis" || kind === "attack";
     const payload = withoutEmpty({
       ...fields,
-      label: isHypothesis ? (fields.label ?? nextLabel(nodes)) : fields.label,
-      status: isHypothesis ? "open" : undefined,
+      label: labelled
+        ? (fields.label ?? nextLabel(nodes, kind === "attack" ? "A" : "H"))
+        : fields.label,
+      status: labelled ? "open" : undefined,
       agentId: run.author.agentId,
       author:
         fields.author ??
@@ -170,6 +176,15 @@ export async function updateCard(
         allowed
           ? `Status of a ${card.kind} must be one of: ${allowed.join(", ")}.`
           : `A ${card.kind} card has no status.`,
+      );
+    }
+  }
+  if (card.kind === "attack" && patch.status === "worked") {
+    const pending = unpassedChecks(detail, card);
+
+    if (pending.length > 0) {
+      throw new ToolRefusal(
+        `${nameOf(card)} cannot be marked worked yet: ${pending.map(nameOf).join(", ")} ${pending.length > 1 ? "have" : "has"} not passed. Run them with run_card first.`,
       );
     }
   }

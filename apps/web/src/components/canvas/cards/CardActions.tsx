@@ -103,8 +103,26 @@ function actionsFor(node: CanvasNode, ready: Ready): ReactNode {
         <>
           <SettleAction node={node} ready={ready} />
           <Action onPress={() => send(`/prover ${ref}`)}>Prove</Action>
+          <Action
+            onPress={() =>
+              send(
+                `/prover ${ref} Propose up to three distinct attacks on this hypothesis as attack cards linked to it. Do not carry them out.`,
+              )
+            }
+          >
+            Plan attacks
+          </Action>
           <Action onPress={() => send(`/referee ${ref}`)}>Referee</Action>
           <Action onPress={() => send(`/literature ${ref}`)}>Literature</Action>
+        </>
+      );
+    case "attack":
+      return (
+        <>
+          <Action primary onPress={() => send(`/prover ${ref}`)}>
+            Attack
+          </Action>
+          <Action onPress={() => send(`/referee ${ref}`)}>Referee</Action>
         </>
       );
     case "statement":

@@ -10,7 +10,7 @@ import type {
   Project,
 } from "shared";
 import { expect, it } from "vitest";
-import { STUCK_NUDGE } from "../../chat.js";
+import { MAX_TURNS, STUCK_NUDGE } from "../../chat.js";
 import { authed, testApp } from "../helpers/app.js";
 import {
   callTool,
@@ -116,7 +116,7 @@ it("streams events in order with the new cards", async () => {
   expect(done.message!.cards).toEqual(cards.nodes.map((n) => n.id));
 });
 
-it("stores the typed command, resumes per target and claims while running", async () => {
+it("stores the typed command, starts prover runs fresh and claims while running", async () => {
   const seen: string[] = [];
   const { app, agent, base, chat } = await setup(async (client, options) => {
     if (options.prompt === "make hypotheses") {
@@ -142,8 +142,10 @@ it("stores the typed command, resumes per target and claims while running", asyn
   expect(prover[0]!.prompt).toContain('Work on hypothesis H1 "Small orbits"');
   expect(prover[0]!.prompt).toContain("User instructions: try induction");
   expect(prover[0]!.resumeSessionId).toBeUndefined();
-  expect(prover[1]!.resumeSessionId).toBe("session-2");
+  // The canvas holds a prover's state; resuming would only pile up old canvas dumps.
+  expect(prover[1]!.resumeSessionId).toBeUndefined();
   expect(prover[2]!.resumeSessionId).toBeUndefined();
+  expect(prover[0]!.maxTurns).toBe(MAX_TURNS);
   expect(prover[0]!.model).toEqual({ provider: "scripted", id: "haiku" });
   expect(seen[0]).toContain("status: Prover working");
 

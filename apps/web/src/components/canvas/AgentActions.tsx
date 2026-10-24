@@ -9,7 +9,11 @@ import { useCanvas, useUpdateNode } from "../../api/canvases";
 import { useChatStore } from "../../stores/chat";
 import { fieldsOf } from "./kinds";
 
-const AGENT_KINDS = new Set<CanvasNode["kind"]>(["hypothesis", "goal"]);
+const AGENT_KINDS = new Set<CanvasNode["kind"]>([
+  "hypothesis",
+  "attack",
+  "goal",
+]);
 const LITERATURE_KINDS = new Set<CanvasNode["kind"]>([
   "hypothesis",
   "goal",
@@ -123,7 +127,10 @@ export function AgentActions({
     return <RefereeNoteActions note={node} target={target} />;
   }
 
-  if (!send || !LITERATURE_KINDS.has(node.kind)) {
+  if (
+    !send ||
+    !(AGENT_KINDS.has(node.kind) || LITERATURE_KINDS.has(node.kind))
+  ) {
     return null;
   }
 
@@ -154,13 +161,15 @@ export function AgentActions({
           </Button>
         </>
       )}
-      <Button
-        size="sm"
-        variant="secondary"
-        onPress={() => send(`/literature ${ref}`)}
-      >
-        Check literature
-      </Button>
+      {LITERATURE_KINDS.has(node.kind) && (
+        <Button
+          size="sm"
+          variant="secondary"
+          onPress={() => send(`/literature ${ref}`)}
+        >
+          Check literature
+        </Button>
+      )}
     </div>
   );
 }

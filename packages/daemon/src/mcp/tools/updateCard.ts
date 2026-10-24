@@ -12,7 +12,7 @@ export const registerUpdateCard: RegisterTool = (
     "update_card",
     {
       description:
-        "Change some fields of a card; fields you leave out stay. Prefer this over adding a note when a card is out of date. status: open/supported/refuted for hypotheses, open/proved/disproved for the goal. Changing source clears the last run.",
+        "Change some fields of a card; fields you leave out stay. Prefer this over adding a note when a card is out of date. status: open/supported/refuted for hypotheses, open/worked/failed for attacks, open/proved/disproved for the goal. Changing source clears the last run.",
       inputSchema: {
         id: cardRef,
         ...cardFields,

@@ -30,6 +30,7 @@ export const isArchived = (node: CanvasNode) =>
 export const KIND_LABELS: Record<NodeKind, string> = {
   goal: "Goal",
   hypothesis: "Hypothesis",
+  attack: "Attack",
   statement: "Statement",
   note: "Note",
   memory: "Memory",
@@ -42,6 +43,7 @@ export const KIND_LABELS: Record<NodeKind, string> = {
 export const CREATABLE_KINDS = [
   "statement",
   "hypothesis",
+  "attack",
   "python",
   "lean",
   "note",

@@ -20,7 +20,7 @@ export function findCard(
     nodes.find((n) => n.id === wanted) ??
     nodes.find(
       (n) =>
-        n.kind === "hypothesis" &&
+        (n.kind === "hypothesis" || n.kind === "attack") &&
         fieldsOf(n).label?.toLowerCase() === wanted.toLowerCase(),
     ) ??
     nodes.find((n) => fieldsOf(n).title === wanted)

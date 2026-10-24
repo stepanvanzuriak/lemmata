@@ -14,6 +14,8 @@ export type StartOptions = {
     allowedTools?: string[];
   };
   systemPromptAddendum?: string;
+  /** Stops the run after this many model turns; each turn re-reads the whole context. */
+  maxTurns?: number;
   mcpServers?: Record<string, McpServer>;
 };
 

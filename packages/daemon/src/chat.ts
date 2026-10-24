@@ -16,6 +16,7 @@ import type { CanvasDetail, ChatEvent, ChatRequest, RunInfo } from "shared";
 import {
   claim,
   ConflictError,
+  attackParent,
   expandCommand,
   findTarget,
   parseCommand,
@@ -35,6 +36,12 @@ import { projectDir } from "./runCard.js";
 import { parseTask, taskPrompt } from "./tasks.js";
 
 export const DEFAULT_MAX_TOKENS = 1_000_000;
+
+/** Model turns per run; every turn re-reads the whole context, so long tool loops cost the most. */
+export const MAX_TURNS = 30;
+
+/** These roles start fresh each run: the canvas holds their state, and a resumed session only piles up old canvas dumps. */
+const FRESH_ROLES = new Set<string>(["prover", "referee"]);
 
 export type ChatDeps = ToolDeps & {
   port: () => number;
@@ -256,7 +263,9 @@ export async function startChat(
         await emitChanges();
       }
 
-      const focus = [target?.id, literature?.card.id].filter(
+      const parent =
+        target?.kind === "attack" ? attackParent(detail, target) : undefined;
+      const focus = [target?.id, parent?.id, literature?.card.id].filter(
         (id): id is string => Boolean(id),
       );
       const runContext: RunContext = {
@@ -266,14 +275,15 @@ export async function startChat(
         focus,
       };
 
-      const resumeSessionId = task
-        ? undefined
-        : ((await lastSessionId(
-            db,
-            canvasId,
-            agent?.id ?? null,
-            target?.id ?? null,
-          )) ?? undefined);
+      const resumeSessionId =
+        task || FRESH_ROLES.has(role)
+          ? undefined
+          : ((await lastSessionId(
+              db,
+              canvasId,
+              agent?.id ?? null,
+              target?.id ?? null,
+            )) ?? undefined);
       const promptFor = () => {
         if (command && target) {
           return expandCommand(command, target, detail);
@@ -295,7 +305,10 @@ export async function startChat(
         `Project: ${project.title}\n${project.statement}`,
         await memoryPreamble(db, project.id),
         ROLE_PROMPTS[role],
-        `Canvas at the start of this run:\n${describeCanvas(await loadDetail(db, canvasId), author, focus)}`,
+        // A resumed run already gets the current canvas in its first prompt.
+        resumeSessionId
+          ? null
+          : `Canvas at the start of this run:\n${describeCanvas(await loadDetail(db, canvasId), author, focus)}`,
       ]
         .filter(Boolean)
         .join("\n\n");
@@ -321,6 +334,7 @@ export async function startChat(
                 ? { provider: adapter.name, id: modelId }
                 : undefined,
               systemPromptAddendum,
+              maxTurns: MAX_TURNS,
               mcpServers,
             },
           },
@@ -376,7 +390,7 @@ export async function startChat(
       if (attempt.status === "stopped_budget") {
         await emit({
           type: "warning",
-          message: "Stopped: the run passed its token cap.",
+          message: "Stopped: the run passed its token or turn cap.",
         });
       }
 

@@ -6,6 +6,7 @@ import { CardBody } from "../../../components/canvas/cards/CardBody";
 const KINDS: NodeKind[] = [
   "goal",
   "hypothesis",
+  "attack",
   "statement",
   "note",
   "memory",

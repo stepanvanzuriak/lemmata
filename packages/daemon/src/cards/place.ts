@@ -3,6 +3,7 @@ import type { CanvasNode, NodeKind } from "shared";
 const WIDTH: Record<NodeKind, number> = {
   goal: 320,
   hypothesis: 340,
+  attack: 340,
   statement: 300,
   note: 250,
   memory: 320,

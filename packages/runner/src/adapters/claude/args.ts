@@ -27,6 +27,9 @@ export function claudeArgs(options: StartOptions) {
   if (options.model) {
     args.push("--model", options.model.id);
   }
+  if (options.maxTurns) {
+    args.push("--max-turns", String(options.maxTurns));
+  }
   if (options.systemPromptAddendum) {
     args.push("--append-system-prompt", options.systemPromptAddendum);
   }

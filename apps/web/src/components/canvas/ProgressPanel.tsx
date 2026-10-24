@@ -73,6 +73,8 @@ export function ProgressPanel({
   const of = (...kinds: string[]) =>
     detail.nodes.filter((n) => kinds.includes(n.kind));
   const hypotheses = countTones(of("hypothesis"), detail);
+  const attacks = of("attack");
+  const attackCounts = countTones(attacks, detail);
   const checks = countTones(of("python", "lean"), detail);
   const issues = of("note").filter(
     (n) => fieldsOf(n).author === "Referee",
@@ -95,6 +97,11 @@ export function ProgressPanel({
       <Row label="Hypotheses">
         {`${hypotheses.ok} ✓ · ${hypotheses.bad} ✗ · ${hypotheses.idle} open`}
       </Row>
+      {attacks.length > 0 && (
+        <Row label="Attacks">
+          {`${attackCounts.ok} worked · ${attackCounts.bad} failed · ${attackCounts.idle} untried`}
+        </Row>
+      )}
       <Row label="Checks">
         {`${checks.ok} passed · ${checks.bad + checks.warn} failed · ${checks.idle} not run`}
       </Row>

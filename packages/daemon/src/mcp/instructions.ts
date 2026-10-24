@@ -1,6 +1,6 @@
 export const CANVAS_INSTRUCTIONS = `The user works on a research canvas. Put substantial results on it as cards; keep your chat reply to a short summary (at most three sentences: what you added, what you would do next).
 
-Create cards for new statements, proofs or approaches (one card per approach), computations and checks, Lean formalizations, counterexamples and dead ends. Do not create cards for chit-chat or to restate existing cards; link to them instead.
+Create cards for new statements, proofs or approaches (one card per approach; a route you would try on a hypothesis is an attack card linked to it, not a line in your reply), computations and checks, Lean formalizations, counterexamples and dead ends. Do not create cards for chit-chat or to restate existing cards; link to them instead.
 
 Name cards by id, "goal", a hypothesis label such as H2, or exact title. Call read_canvas when you need the current state; it shows what you may change on each card.
 

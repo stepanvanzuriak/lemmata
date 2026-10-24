@@ -1,6 +1,7 @@
 export type NodeKind =
   | "goal"
   | "hypothesis"
+  | "attack"
   | "statement"
   | "note"
   | "memory"
@@ -42,6 +43,16 @@ export type HypothesisPayload = BasePayload & {
   claimedBy?: string;
   claimedByRole?: "prover" | "referee";
   settledBy?: string;
+};
+
+/** One concrete route to a hypothesis: an argument or construction to try. */
+export type AttackPayload = BasePayload & {
+  kind: "attack";
+  label: string;
+  status: "open" | "claimed" | "worked" | "failed";
+  agentId?: string;
+  claimedBy?: string;
+  claimedByRole?: "prover" | "referee";
 };
 
 export type RunOutput = {
@@ -138,6 +149,7 @@ export type LiteraturePayload = BasePayload & {
 export type NodePayload =
   | GoalPayload
   | HypothesisPayload
+  | AttackPayload
   | CodePayload
   | PlainPayload
   | LiteraturePayload

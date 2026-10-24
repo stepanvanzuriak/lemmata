@@ -30,6 +30,7 @@ import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../runCard.js";
 const NODE_KINDS = [
   "goal",
   "hypothesis",
+  "attack",
   "statement",
   "note",
   "memory",

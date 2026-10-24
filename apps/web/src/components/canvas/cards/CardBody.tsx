@@ -1,3 +1,4 @@
+import { AttackCard } from "./AttackCard";
 import type { CardProps } from "./Card";
 import { CodeCard } from "./CodeCard";
 import { DefaultCard } from "./DefaultCard";
@@ -16,6 +17,8 @@ export function CardBody(props: CardProps) {
       return <GoalCard {...props} />;
     case "hypothesis":
       return <HypothesisCard {...props} />;
+    case "attack":
+      return <AttackCard {...props} />;
     case "python":
     case "lean":
       return <CodeCard {...props} />;

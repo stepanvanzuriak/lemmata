@@ -197,7 +197,7 @@ export async function runPython(
       python.cmd,
       [...python.args, "-u", "-c", PYTHON_WRAPPER, outDir, card],
       {
-        timeoutMs: 60_000,
+        timeoutMs: 600000,
         ...processOptions,
         env: {
           PYTHONDONTWRITEBYTECODE: "1",
@@ -291,7 +291,7 @@ export async function runLean(
   await writeFile(file, name ? `${source}\n\n#print axioms ${name}\n` : source);
 
   const output = await runProcess(lean.cmd, [...lean.args, file], {
-    timeoutMs: 120_000,
+    timeoutMs: 1200000,
     ...options,
     cwd: lean.cwd ?? options.cwd,
   });

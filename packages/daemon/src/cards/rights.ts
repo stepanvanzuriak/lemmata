@@ -21,7 +21,10 @@ export function editRight(card: CanvasNode, author: Author): EditRight {
   ) {
     return "all";
   }
-  if (author.role === "prover" && card.kind === "hypothesis") {
+  if (
+    author.role === "prover" &&
+    (card.kind === "hypothesis" || card.kind === "attack")
+  ) {
     return "body";
   }
   if (author.role === "prover" && card.kind === "goal") {

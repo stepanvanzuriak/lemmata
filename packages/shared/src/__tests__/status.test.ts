@@ -244,3 +244,29 @@ describe("referee notes", () => {
     ).toEqual({ tone: "idle", label: "Unchecked" });
   });
 });
+
+describe("attack cards", () => {
+  it("shows untried, worked and failed attacks", () => {
+    expect(alone(node("attack", { status: "open" }))).toMatchObject({
+      tone: "idle",
+      label: "Untried",
+    });
+    expect(alone(node("attack", { status: "worked" }))?.tone).toBe("ok");
+    expect(alone(node("attack", { status: "failed" }))?.tone).toBe("bad");
+  });
+
+  it("an attack in progress is work in progress", () => {
+    expect(
+      alone(node("attack", { status: "claimed", claimedByRole: "prover" })),
+    ).toMatchObject({ tone: "work", label: "Prover working" });
+  });
+
+  it("a worked attack does not settle its hypothesis", () => {
+    const h = node("hypothesis", { status: "open" });
+    const a = node("attack", { status: "worked" });
+
+    expect(
+      settleReady(h, { nodes: [h, a], edges: [edge(h, a, "depends-on")] }),
+    ).toBeNull();
+  });
+});

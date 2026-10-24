@@ -71,9 +71,31 @@ function batchTask(command: Command, detail: CanvasDetail) {
   return `Work through these open hypotheses one at a time, in order: ${list}. For each, prefer a computation that could settle or sharpen it over restating an approach that already failed on the canvas. Stop after these ${labels.length}, then say in one line per hypothesis what changed.`;
 }
 
-function taskFor(command: Command, target: CanvasNode) {
+/** The hypothesis an attack hangs from: the card that links to it. */
+export function attackParent(
+  detail: Pick<CanvasDetail, "nodes" | "edges">,
+  attack: CanvasNode,
+) {
+  const edge = detail.edges.find((e) => e.toNode === attack.id);
+
+  return detail.nodes.find(
+    (n) => n.id === edge?.fromNode && n.kind === "hypothesis",
+  );
+}
+
+function attackTask(target: CanvasNode, detail?: CanvasDetail) {
+  const parent = detail && attackParent(detail, target);
+  const on = parent ? ` on ${describeTarget(parent)}` : "";
+
+  return `Carry out the attack ${describeTarget(target)}${on}: work through the argument on its card, with checks on the canvas. Mark the attack worked with update_card only when the argument is complete and its checks pass; when it fails, mark it failed and say on the card where and why it breaks. Do not settle the hypothesis from this run alone. If the failure suggests another route, add it as a new attack linked to the hypothesis.`;
+}
+
+function taskFor(command: Command, target: CanvasNode, detail?: CanvasDetail) {
   if (command.role === "referee") {
     return `Referee ${describeTarget(target)}: check the argument and its links, and report gaps as notes.`;
+  }
+  if (target.kind === "attack") {
+    return attackTask(target, detail);
   }
   if (target.kind === "goal") {
     return `Split the goal ${describeTarget(target)} into hypotheses on the canvas.`;
@@ -90,7 +112,7 @@ export function expandCommand(
   const task =
     detail && isBatch(command)
       ? batchTask(command, detail)
-      : taskFor(command, target);
+      : taskFor(command, target, detail);
 
   if (!command.instructions) {
     return task;
@@ -113,11 +135,11 @@ export class ConflictError extends Error {
   }
 }
 
-/** Marks a hypothesis as being worked on by an agent. */
+/** Marks a hypothesis or attack as being worked on by an agent. */
 export async function claim(db: Db, node: CanvasNode, agent: CanvasAgent) {
   const p = node.payload as { status?: string; claimedBy?: string };
 
-  if (node.kind !== "hypothesis") {
+  if (node.kind !== "hypothesis" && node.kind !== "attack") {
     return;
   }
   if (p.claimedBy && p.claimedBy !== agent.id) {

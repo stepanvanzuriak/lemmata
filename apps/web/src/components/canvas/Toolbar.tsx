@@ -23,6 +23,11 @@ const TOOLS: { kind: CreatableKind; label: string; icon: ReactNode }[] = [
     icon: <span className="text-[17px] font-semibold">H</span>,
   },
   {
+    kind: "attack",
+    label: "Add attack",
+    icon: <span className="text-[17px] font-semibold">A</span>,
+  },
+  {
     kind: "python",
     label: "Add Python cell",
     icon: <span className="font-mono text-[13px]">py</span>,

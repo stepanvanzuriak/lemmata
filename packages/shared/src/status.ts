@@ -113,6 +113,12 @@ const HYPOTHESIS_STATUS: Record<string, CardStatus> = {
   refuted: { tone: "bad", label: "Refuted" },
 };
 
+const ATTACK_STATUS: Record<string, CardStatus> = {
+  open: { tone: "idle", label: "Untried" },
+  worked: { tone: "ok", label: "Worked" },
+  failed: { tone: "bad", label: "Failed" },
+};
+
 function readyStatus(node: CanvasNode, graph: CanvasGraph): CardStatus | null {
   const ready = settleReady(node, graph);
 
@@ -143,6 +149,14 @@ export function cardStatus(
         HYPOTHESIS_STATUS[status ?? "open"] ??
         HYPOTHESIS_STATUS.open!
       );
+    case "attack":
+      if (status === "claimed") {
+        return {
+          tone: "work",
+          label: `${roleName(fields(node).claimedByRole)} working`,
+        };
+      }
+      return ATTACK_STATUS[status ?? "open"] ?? ATTACK_STATUS.open!;
     case "python":
     case "lean":
       return runStatus(node);
