@@ -34,6 +34,7 @@ import type { ToolDeps } from "./mcp/tools/index.js";
 import { ROLE_PROMPTS } from "./roles.js";
 import { projectDir } from "./runCard.js";
 import { parseTask, taskPrompt } from "./tasks.js";
+import { resolveModel } from "./providers.js";
 import { readSettings } from "./routes/settings.js";
 
 export const DEFAULT_MAX_TOKENS = 1_000_000;
@@ -163,6 +164,13 @@ export async function startChat(
     }
   }
 
+  const selectedModel = agent ? agent.model : (request.model ?? null);
+  const selection = deps.adapter
+    ? null
+    : resolveModel(await readSettings(deps.workspaceDir), selectedModel);
+  const adapter = deps.adapter?.() ?? createAdapter(selection!.provider);
+  const modelId = selection ? selection.id : selectedModel;
+
   const runKey = agent?.id ?? task?.role ?? "assistant";
   const runs = active.get(canvasId) ?? new Map<string, ActiveRun>();
 
@@ -180,7 +188,7 @@ export async function startChat(
   const run: RunInfo = {
     runKey,
     role,
-    model: agent?.model ?? request.model ?? null,
+    model: selectedModel,
     target: target?.id ?? null,
   };
   const controller = new AbortController();
@@ -189,10 +197,6 @@ export async function startChat(
   const project = canvas.project;
 
   return async (emit) => {
-    const adapter =
-      deps.adapter?.() ??
-      createAdapter((await readSettings(deps.workspaceDir)).agent);
-    const modelId = agent?.model ?? request.model ?? null;
     let secret: string | null = null;
     let seen = snapshot(detail);
     let reply = "";
@@ -290,6 +294,7 @@ export async function startChat(
               canvasId,
               agent?.id ?? null,
               target?.id ?? null,
+              adapter.name,
             )) ?? undefined);
       const promptFor = () => {
         if (command && target) {

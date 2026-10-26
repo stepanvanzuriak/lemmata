@@ -2,6 +2,7 @@ import { createProject, listAttempts, MIGRATIONS_FOLDER, openDb } from "core";
 import { expect, it } from "vitest";
 import { runAttempt } from "../attempt.js";
 import { FakeAdapter } from "../adapters/fake.js";
+import { mapCodexLine } from "../adapters/codex/messages.js";
 import type { RunEvent } from "../runner.js";
 
 const usage = (messageId: string, input: number): RunEvent => ({
@@ -89,4 +90,28 @@ it("ends aborted when the signal fires", async () => {
   });
 
   expect(attempt.status).toBe("aborted");
+});
+
+it("keeps a completed Codex run done when its final usage exceeds the budget", async () => {
+  const { db, project, adapter, options } = await setup([
+    ...mapCodexLine({
+      type: "turn.completed",
+      usage: { input_tokens: 1_330_301, output_tokens: 6_287 },
+    }),
+  ]);
+
+  const attempt = await runAttempt({
+    db,
+    adapter,
+    projectId: project.id,
+    title: "/reset",
+    options,
+    maxTokens: 1_000_000,
+  });
+
+  expect(attempt).toMatchObject({
+    status: "done",
+    inputTokens: 1_330_301,
+    outputTokens: 6_287,
+  });
 });

@@ -17,7 +17,7 @@ _A Prover and a Referee (both on Claude Haiku) working on Fermat's two-squares t
 - **Canvas:** goal, hypothesis, statement, note, Python and Lean cards with LaTeX, connected by typed edges
   (depends on, tested by, used by, checked by, refuted by).
 - **Checks:** run Python and Lean cards locally and see the output on the card.
-- **Agents:** add a Prover or Referee per canvas, pick the model, and send `/prover goal` or `/referee H1` from the chat
+- **Agents:** enable Claude Code and Codex independently in Settings, pick a model per Prover or Referee (including different providers), and send `/prover goal` or `/referee H1` from the chat
   or from a card. Their cards appear on the canvas as they work.
 - **Progress:** hypothesis and goal statuses, plus a panel counting settled hypotheses, passed checks and referee issues.
 - **Research memory:** agents save dead ends and facts per project and read them at the start of every run; you can pin,

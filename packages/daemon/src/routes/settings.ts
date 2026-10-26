@@ -6,10 +6,15 @@ import { z } from "zod";
 import { validate } from "../validate.js";
 import { ADAPTERS, type AdapterName } from "runner";
 
-const DEFAULTS: Settings = { onboarded: false, agent: "claude" };
+const DEFAULTS: Settings = {
+  onboarded: false,
+  agent: "claude",
+  providers: { claude: true, codex: false },
+};
 
 const patchSchema = z.object({
   onboarded: z.boolean().optional(),
+  providers: z.object({ claude: z.boolean(), codex: z.boolean() }).optional(),
   agent: z
     .enum(Object.keys(ADAPTERS) as [AdapterName, ...AdapterName[]])
     .optional(),
@@ -22,7 +27,14 @@ export async function readSettings(workspaceDir: string): Promise<Settings> {
         await readFile(join(workspaceDir, ".lemmata", "settings.json"), "utf8"),
       ),
     );
-    return { ...DEFAULTS, ...saved };
+    return {
+      ...DEFAULTS,
+      ...saved,
+      providers: saved.providers ?? {
+        claude: (saved.agent ?? "claude") === "claude",
+        codex: saved.agent === "codex",
+      },
+    };
   } catch {
     return DEFAULTS;
   }

@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt, like } from "drizzle-orm";
 import type { Db } from "./db/index.js";
 import { attempt, chatMessage, type ChatMessage } from "./db/schema.js";
 import { isoNow } from "./ids.js";
@@ -75,6 +75,7 @@ export async function lastSessionId(
   canvasId: string,
   agentId: string | null,
   target: string | null,
+  provider?: string,
 ): Promise<string | null> {
   const [row] = await db
     .select({ sessionId: attempt.sessionId })
@@ -88,6 +89,7 @@ export async function lastSessionId(
           : isNull(chatMessage.agentId),
         target ? eq(chatMessage.target, target) : isNull(chatMessage.target),
         isNotNull(attempt.sessionId),
+        provider ? like(attempt.model, `${provider}:%`) : undefined,
         // Sessions from before a reset remember a canvas that is gone.
         isNull(chatMessage.archivedBy),
       ),

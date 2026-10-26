@@ -71,6 +71,7 @@ export function mapCodexLine(value: unknown): RunEvent[] {
       ) {
         events.push({
           type: "usage",
+          final: true,
           messageId: String(value.thread_id ?? Date.now()),
           usage: {
             input: Number(usage.input_tokens ?? 0),

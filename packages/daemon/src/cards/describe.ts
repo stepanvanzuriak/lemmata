@@ -11,7 +11,7 @@ const FULL_CHARS = 8_000;
 const DETAIL_CHARS = 1_500;
 const BRIEF_CHARS = 200;
 
-type Level = "full" | "detail" | "brief" | "title";
+type Level = "complete" | "full" | "detail" | "brief" | "title";
 
 export const clip = (text: string, max: number) =>
   text.length > max
@@ -107,9 +107,12 @@ function describeCard(
     return head;
   }
 
-  const max = { full: FULL_CHARS, detail: DETAIL_CHARS, brief: BRIEF_CHARS }[
-    level
-  ];
+  const max = {
+    complete: Infinity,
+    full: FULL_CHARS,
+    detail: DETAIL_CHARS,
+    brief: BRIEF_CHARS,
+  }[level];
   const lines = [head];
 
   if (p.text) {
@@ -236,7 +239,7 @@ export function describeOne(
   const archived = fieldsOf(card).archived;
 
   return [
-    describeCard(card, detail, author, "full"),
+    describeCard(card, detail, author, "complete"),
     archived &&
       `  archived${archived.reason ? `: ${archived.reason}` : ""} (hidden from the canvas)`,
     "Links:",

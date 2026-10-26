@@ -21,11 +21,7 @@ export function codexArgs(options: StartOptions) {
       ];
 
   if (options.model) {
-    // Older saved selections may refer to models no longer exposed by this
-    // Codex account. Let Codex choose its configured default for those runs.
-    if (!["gpt-5.3-codex", "gpt-5.4"].includes(options.model.id)) {
-      args.push("--model", options.model.id);
-    }
+    args.push("--model", options.model.id);
   }
   const prompt = options.systemPromptAddendum
     ? `${options.prompt}\n\n${options.systemPromptAddendum}`

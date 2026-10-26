@@ -18,7 +18,7 @@ import {
   type ChatDeps,
 } from "../chat.js";
 import { validate } from "../validate.js";
-import { createAdapter } from "runner";
+import { enabledModels } from "../providers.js";
 import { readSettings } from "./settings.js";
 
 const chatSchema = z.object({
@@ -68,10 +68,9 @@ export function chatRoutes(deps: ChatDeps) {
     )
     .get("/models", async (c) =>
       c.json(
-        (
-          deps.adapter?.() ??
-          createAdapter((await readSettings(deps.workspaceDir)).agent)
-        ).models,
+        deps.adapter
+          ? await deps.adapter().models
+          : await enabledModels(await readSettings(deps.workspaceDir)),
       ),
     )
     .get("/canvases/:id/runs", (c) => c.json(activeRuns(c.req.param("id"))))

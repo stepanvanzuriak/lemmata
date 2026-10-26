@@ -127,7 +127,8 @@ export function findTarget(detail: CanvasDetail, command: Command) {
 
 export class ConflictError extends Error {
   constructor(
-    public readonly code: "claimed" | "busy" | "no_agent" | "no_target",
+    public readonly code:
+      "claimed" | "busy" | "no_agent" | "no_target" | "no_provider",
     message: string,
   ) {
     super(message);

@@ -228,6 +228,21 @@ it("uses the requested model for the Assistant and lists the adapter's models", 
   ]);
 });
 
+it("waits for models discovered asynchronously by the adapter", async () => {
+  const models = [{ id: "cli-model", label: "CLI Model" }];
+  const app = await testApp(undefined, undefined, () => ({
+    name: "codex",
+    models: Promise.resolve(models),
+    start() {
+      throw new Error("Model discovery must not start an inference run");
+    },
+  }));
+
+  const response = await app.request("/api/models", json("GET"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(models);
+});
+
 it("manages agents", async () => {
   const { app, base } = await setup(async () => []);
 

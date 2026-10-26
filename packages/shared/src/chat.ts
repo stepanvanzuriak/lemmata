@@ -36,5 +36,5 @@ export type ChatEvent =
 
 export type ChatConflict = {
   error: string;
-  code: "busy" | "no_agent" | "no_target";
+  code: "busy" | "no_agent" | "no_target" | "no_provider";
 };

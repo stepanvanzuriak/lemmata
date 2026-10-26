@@ -51,7 +51,7 @@ export async function runAttempt(
     projectId,
     canvasId,
     title,
-    model: options.model?.id,
+    model: `${adapter.name}:${options.model?.id ?? ""}`,
   });
   onStart?.(row);
   const handle = adapter.start(options);
@@ -85,7 +85,7 @@ export async function runAttempt(
         const { input, output, cacheRead, cacheWrite } = event.usage;
         spent += input + output + cacheRead + cacheWrite;
 
-        if (spent > maxTokens && !overBudget) {
+        if (spent > maxTokens && !overBudget && !event.final) {
           overBudget = true;
           await handle.abort();
         }
