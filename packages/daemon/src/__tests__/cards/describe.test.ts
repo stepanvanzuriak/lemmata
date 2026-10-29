@@ -22,6 +22,40 @@ it("describes cards, rights and links", async () => {
   );
 });
 
+it.each(["python", "lean", "toolbox"] as const)(
+  "reads long %s card bodies and code without truncation",
+  async (kind) => {
+    const { db, run } = await canvasSetup();
+    const long = "x".repeat(20_000) + "END";
+    const [card] = await createCards(db, run, [
+      {
+        kind,
+        title: "Long card",
+        text: long,
+        markdown: long,
+        ...(kind === "toolbox"
+          ? { python: long, lean: long }
+          : { source: long }),
+      },
+    ]);
+    const detail = await loadDetail(db, run.canvasId);
+    const text = describeOne(card!, detail, run.author);
+
+    expect(text).toContain(`  text: ${long}`);
+    expect(text).toContain(`  markdown: ${long}`);
+    if (kind === "toolbox") {
+      expect(text).toContain(`  reusable Python:\n${long}`);
+      expect(text).toContain(`  reusable Lean:\n${long}`);
+    } else {
+      expect(text).toContain(`  source:\n${long}`);
+    }
+    expect(text).not.toContain("more chars]");
+    expect(describeCanvas(detail, run.author, [card!.id])).toContain(
+      "more chars]",
+    );
+  },
+);
+
 it("stays under the budget with many long cards", async () => {
   const { db, run } = await canvasSetup();
   const long = "x".repeat(5_000);

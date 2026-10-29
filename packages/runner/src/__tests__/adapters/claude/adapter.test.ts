@@ -44,6 +44,33 @@ it("turns a crash into an error with stderr", async () => {
   expect(events.at(-1)).toEqual({ type: "done", reason: "error" });
 });
 
+it("captures full provider envelopes and stderr only when requested", async () => {
+  const events = await collect(
+    adapter.start({ ...base, captureRawEvents: true }),
+  );
+  expect(events).toContainEqual(
+    expect.objectContaining({
+      type: "provider",
+      stream: "stdout",
+      data: expect.objectContaining({
+        type: "assistant",
+        message: expect.objectContaining({ content: expect.any(Array) }),
+      }),
+    }),
+  );
+  process.env.FAKE_CLAUDE = "crash";
+  const failed = await collect(
+    adapter.start({ ...base, captureRawEvents: true }),
+  );
+  expect(failed).toContainEqual(
+    expect.objectContaining({
+      type: "provider",
+      stream: "stderr",
+      data: expect.stringContaining("boom"),
+    }),
+  );
+});
+
 it("aborts a hanging run within a second", async () => {
   process.env.FAKE_CLAUDE = "hang";
   const handle = adapter.start(base);
@@ -102,4 +129,10 @@ it("isolates MCP config and loads tools up front", async () => {
   expect(error && "message" in error && error.message).toContain(
     "ENABLE_TOOL_SEARCH=false",
   );
+});
+
+it("limits the turns of a run", () => {
+  const { args } = claudeArgs({ ...base, maxTurns: 30 });
+
+  expect(args.slice(-2)).toEqual(["--max-turns", "30"]);
 });

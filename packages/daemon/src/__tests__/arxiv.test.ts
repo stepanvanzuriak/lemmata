@@ -1,11 +1,7 @@
 import { expect, it, vi } from "vitest";
-import {
-  arxivId,
-  ArxivError,
-  createArxivClient,
-  parseAtom,
-  toSearchQuery,
-} from "../arxiv.js";
+import { ArxivError, HttpArxivClient } from "../arxiv/arxiv.js";
+import { arxivId, parseAtom } from "../arxiv/atom.js";
+import { toSearchQuery } from "../arxiv/query.js";
 import { FEED } from "./helpers/arxiv.js";
 
 it("parses Atom entries", () => {
@@ -56,7 +52,7 @@ it("normalises ids and builds queries", () => {
 
 it("spaces requests, caches answers and turns network failures into ArxivError", async () => {
   const fetchFn = vi.fn(async (_url: string) => new Response(FEED));
-  const client = createArxivClient(fetchFn as unknown as typeof fetch, 50);
+  const client = new HttpArxivClient(fetchFn as unknown as typeof fetch, 50);
   const started = Date.now();
 
   const [a, b] = await Promise.all([
@@ -77,14 +73,29 @@ it("spaces requests, caches answers and turns network failures into ArxivError",
     async (url: string) =>
       new Response(url.includes("+OR+") ? FEED : "<feed></feed>"),
   );
-  const loose = createArxivClient(empty as unknown as typeof fetch, 0);
+  const loose = new HttpArxivClient(empty as unknown as typeof fetch, 0);
   expect(await loose.search("few ordinary lines plane")).toHaveLength(2);
   expect(await loose.search("ordinary lines")).toHaveLength(0);
   expect(empty).toHaveBeenCalledTimes(3);
 
-  const offline = createArxivClient(async () => {
+  const offline = new HttpArxivClient(async () => {
     throw new Error("ENOTFOUND");
   }, 0);
   await expect(offline.search("lines")).rejects.toBeInstanceOf(ArxivError);
   await expect(offline.search("points")).rejects.toThrow(/unreachable/);
+});
+
+it("stops calling arXiv for a while after repeated 429s", async () => {
+  const fetchFn = vi.fn(async () => new Response("", { status: 429 }));
+  const client = new HttpArxivClient(
+    fetchFn as unknown as typeof fetch,
+    0,
+    60_000,
+  );
+
+  await expect(client.byIds(["1208.0053"])).rejects.toThrow(/rate-limiting/);
+  expect(fetchFn).toHaveBeenCalledTimes(2);
+
+  await expect(client.search("ordinary lines")).rejects.toThrow(/Wait 1 min/);
+  expect(fetchFn).toHaveBeenCalledTimes(2);
 });

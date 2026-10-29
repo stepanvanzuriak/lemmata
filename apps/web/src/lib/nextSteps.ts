@@ -8,6 +8,7 @@ import {
 export type NextStep =
   | { kind: "command"; label: string; command: string }
   | { kind: "run"; label: string; nodeId: string }
+  | { kind: "fetch"; label: string; nodeId: string }
   | { kind: "settle"; label: string; nodeId: string; status: string };
 
 type Fields = {
@@ -18,6 +19,7 @@ type Fields = {
   archived?: unknown;
   resolved?: unknown;
   target?: string;
+  source?: unknown;
 };
 
 const fields = (node: CanvasNode) => node.payload as Fields;
@@ -109,6 +111,16 @@ export function nextSteps(
     }
   }
 
+  for (const node of nodes) {
+    if (node.kind === "arxiv" && !fields(node).source) {
+      steps.push({
+        kind: "fetch",
+        label: `Fetch "${nameOf(node)}"`,
+        nodeId: node.id,
+      });
+    }
+  }
+
   const refereed = new Set<string>();
 
   for (const node of nodes) {
@@ -129,6 +141,16 @@ export function nextSteps(
         command: `/prover ${refOf(node)}`,
       });
     }
+  }
+
+  for (const node of nodes.filter(
+    (n) =>
+      n.kind === "attack" &&
+      (fields(n).status ?? "open") === "open" &&
+      !asked("/prover", n),
+  )) {
+    const command = `/prover ${refOf(node)}`;
+    steps.push({ kind: "command", label: command, command });
   }
 
   for (const node of open.filter(

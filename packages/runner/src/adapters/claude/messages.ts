@@ -100,6 +100,9 @@ export function mapClaudeLine(json: unknown, seen: Set<string>): RunEvent[] {
       if (json.subtype === "success") {
         return [{ type: "done", reason: "completed" }];
       }
+      if (json.subtype === "error_max_turns") {
+        return [{ type: "done", reason: "budget" }];
+      }
       return [
         { type: "error", message: String(json.result ?? json.subtype) },
         { type: "done", reason: "error" },

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import {
+  inlineLeanToolbox,
   MAX_OUTPUT,
   parseLeanOutput,
   runLean,
@@ -230,4 +231,29 @@ it.skipIf(!hasMatplotlib)("draws a real 3D surface", async () => {
   expect(width / height).toBeGreaterThan(3.6);
   expect(width / height).toBeLessThan(4.4);
   expect(readFileSync(join(outDir, "fig-1.png")).length).toBeGreaterThan(0);
+});
+
+it("lets a python card import the toolbox module", async () => {
+  const out = await runPython(
+    "import toolbox\nprint(toolbox.double(21))",
+    python,
+    { isolated: true },
+    "def double(x):\n    return 2 * x\n",
+  );
+
+  expect(out.stdout.trim()).toBe("42");
+});
+
+it("inlines the lean toolbox and keeps card lines in place", () => {
+  const { source, offset } = inlineLeanToolbox(
+    "import Toolbox\nimport Mathlib.Tactic\n\ntheorem t : double 1 = 2 := rfl",
+    "import Mathlib.Data.Nat.Defs\ndef double (n : Nat) := 2 * n",
+  );
+  const lines = source.split("\n");
+
+  expect(lines[0]).toBe("import Mathlib.Data.Nat.Defs import Mathlib.Tactic");
+  expect(lines[offset + 3]).toBe("theorem t : double 1 = 2 := rfl");
+  expect(
+    inlineLeanToolbox("theorem a : True := trivial", "def x := 1"),
+  ).toEqual({ source: "theorem a : True := trivial", offset: 0 });
 });

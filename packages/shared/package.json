@@ -3,7 +3,9 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./layout": "./src/layout.ts",
+    "./version": "./src/version.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -12,6 +14,7 @@
     "@typescript/native": "npm:typescript@^7.0.2"
   },
   "dependencies": {
-    "core": "workspace:*"
+    "core": "workspace:*",
+    "elkjs": "^0.12.0"
   }
 }

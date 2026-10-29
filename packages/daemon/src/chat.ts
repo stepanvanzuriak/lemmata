@@ -16,6 +16,7 @@ import type { CanvasDetail, ChatEvent, ChatRequest, RunInfo } from "shared";
 import {
   claim,
   ConflictError,
+  attackParent,
   expandCommand,
   findTarget,
   parseCommand,
@@ -29,12 +30,27 @@ import { literatureCardFor } from "./cards/literature.js";
 import { isArchived, type Author, type RunContext } from "./cards/types.js";
 import { memoryPreamble } from "./memory.js";
 import { mcpConfigFor, registerRun, unregisterRun } from "./mcp/registry.js";
-import type { ToolDeps } from "./mcp/tools.js";
+import { CANVAS_INSTRUCTIONS } from "./mcp/instructions.js";
+import type { ToolDeps } from "./mcp/tools/index.js";
 import { ROLE_PROMPTS } from "./roles.js";
 import { projectDir } from "./runCard.js";
 import { parseTask, taskPrompt } from "./tasks.js";
+import { resolveModel } from "./providers.js";
+import { readSettings } from "./routes/settings.js";
 
 export const DEFAULT_MAX_TOKENS = 1_000_000;
+
+/** Model turns per run; every turn re-reads the whole context, so long tool loops cost the most. */
+export const MAX_TURNS = 30;
+
+/** The referee reads and writes a few notes; longer loops only re-read context. */
+const ROLE_MAX_TURNS: Partial<Record<string, number>> = { referee: 12 };
+
+/** Claude's prompt cache lives an hour; resuming an older session re-writes its whole history. */
+const CLAUDE_RESUME_WINDOW_MS = 55 * 60_000;
+
+/** These roles start fresh each run: the canvas holds their state, and a resumed session only piles up old canvas dumps. */
+const FRESH_ROLES = new Set<string>(["prover", "referee"]);
 
 export type ChatDeps = ToolDeps & {
   port: () => number;
@@ -155,6 +171,13 @@ export async function startChat(
     }
   }
 
+  const selectedModel = agent ? agent.model : (request.model ?? null);
+  const selection = deps.adapter
+    ? null
+    : resolveModel(await readSettings(deps.workspaceDir), selectedModel);
+  const adapter = deps.adapter?.() ?? createAdapter(selection!.provider);
+  const modelId = selection ? selection.id : selectedModel;
+
   const runKey = agent?.id ?? task?.role ?? "assistant";
   const runs = active.get(canvasId) ?? new Map<string, ActiveRun>();
 
@@ -172,7 +195,7 @@ export async function startChat(
   const run: RunInfo = {
     runKey,
     role,
-    model: agent?.model ?? request.model ?? null,
+    model: selectedModel,
     target: target?.id ?? null,
   };
   const controller = new AbortController();
@@ -181,8 +204,6 @@ export async function startChat(
   const project = canvas.project;
 
   return async (emit) => {
-    const adapter = deps.adapter?.() ?? createAdapter("claude");
-    const modelId = agent?.model ?? request.model ?? null;
     let secret: string | null = null;
     let seen = snapshot(detail);
     let reply = "";
@@ -212,7 +233,11 @@ export async function startChat(
       const current = await loadDetail(db, canvasId);
       const added = current.nodes.filter((n) => !before.has(n.id));
       const replaced = current.nodes.filter(
-        (n) => before.has(n.id) && n.kind !== "goal" && !isArchived(n),
+        (n) =>
+          before.has(n.id) &&
+          n.kind !== "goal" &&
+          n.kind !== "toolbox" &&
+          !isArchived(n),
       );
 
       if (attempt.status !== "done" || added.length === 0) {
@@ -256,7 +281,9 @@ export async function startChat(
         await emitChanges();
       }
 
-      const focus = [target?.id, literature?.card.id].filter(
+      const parent =
+        target?.kind === "attack" ? attackParent(detail, target) : undefined;
+      const focus = [target?.id, parent?.id, literature?.card.id].filter(
         (id): id is string => Boolean(id),
       );
       const runContext: RunContext = {
@@ -266,14 +293,17 @@ export async function startChat(
         focus,
       };
 
-      const resumeSessionId = task
-        ? undefined
-        : ((await lastSessionId(
-            db,
-            canvasId,
-            agent?.id ?? null,
-            target?.id ?? null,
-          )) ?? undefined);
+      const resumeSessionId =
+        task || FRESH_ROLES.has(role)
+          ? undefined
+          : ((await lastSessionId(
+              db,
+              canvasId,
+              agent?.id ?? null,
+              target?.id ?? null,
+              adapter.name,
+              adapter.name === "claude" ? CLAUDE_RESUME_WINDOW_MS : undefined,
+            )) ?? undefined);
       const promptFor = () => {
         if (command && target) {
           return expandCommand(command, target, detail);
@@ -295,7 +325,10 @@ export async function startChat(
         `Project: ${project.title}\n${project.statement}`,
         await memoryPreamble(db, project.id),
         ROLE_PROMPTS[role],
-        `Canvas at the start of this run:\n${describeCanvas(await loadDetail(db, canvasId), author, focus)}`,
+        // A resumed run already gets the current canvas in its first prompt.
+        resumeSessionId
+          ? null
+          : `Canvas at the start of this run:\n${describeCanvas(await loadDetail(db, canvasId), author, focus)}`,
       ]
         .filter(Boolean)
         .join("\n\n");
@@ -310,6 +343,17 @@ export async function startChat(
             title: request.text.slice(0, 80),
             maxTokens: agent?.tokenCap ?? DEFAULT_MAX_TOKENS,
             signal: controller.signal,
+            transcript: deps.devMode
+              ? {
+                  request: request.text,
+                  userMessageId: userMessage.id,
+                  role,
+                  agentId: agent?.id,
+                  target: target?.id,
+                  runKey,
+                  mcpInstructions: CANVAS_INSTRUCTIONS,
+                }
+              : undefined,
             onStart: (started) => {
               runContext.attemptId = started.id;
             },
@@ -321,6 +365,7 @@ export async function startChat(
                 ? { provider: adapter.name, id: modelId }
                 : undefined,
               systemPromptAddendum,
+              maxTurns: ROLE_MAX_TURNS[role] ?? MAX_TURNS,
               mcpServers,
             },
           },
@@ -330,7 +375,15 @@ export async function startChat(
               await emit({ type: "text", text: event.text });
             }
             if (event.type === "tool_use") {
-              await emit({ type: "tool_use", name: event.name });
+              await emit({
+                type: "tool_use",
+                name: event.name,
+                input:
+                  event.name === "command_execution" &&
+                  typeof event.input === "string"
+                    ? event.input
+                    : undefined,
+              });
             }
             if (event.type === "tool_result") {
               await emitChanges();
@@ -376,7 +429,7 @@ export async function startChat(
       if (attempt.status === "stopped_budget") {
         await emit({
           type: "warning",
-          message: "Stopped: the run passed its token cap.",
+          message: "Stopped: the run passed its token or turn cap.",
         });
       }
 

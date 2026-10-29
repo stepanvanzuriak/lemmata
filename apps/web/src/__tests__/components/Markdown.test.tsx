@@ -41,3 +41,22 @@ it("escapes HTML in the text", () => {
 
   expect(container.querySelector("img")).toBeNull();
 });
+
+it("highlights fenced code while escaping embedded HTML", () => {
+  const { container } = render(
+    <Markdown>
+      {
+        '```python\ndef check():\n    return "<img src=x onerror=alert(1)>"\n```'
+      }
+    </Markdown>,
+  );
+  expect(container.querySelector(".hljs-keyword")?.textContent).toBe("def");
+  expect(container.querySelector("img")).toBeNull();
+  expect(container.textContent).toContain("<img src=x onerror=alert(1)>");
+});
+
+it("preserves unknown code languages as plain text", () => {
+  const { container } = render(<Markdown>{"```unknown\n<x>\n```"}</Markdown>);
+  expect(container.querySelector("pre code")?.textContent).toBe("<x>");
+  expect(container.querySelector("x")).toBeNull();
+});

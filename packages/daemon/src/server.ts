@@ -5,7 +5,7 @@ import { clearClaims, initWorkspace, MIGRATIONS_FOLDER } from "core";
 import { createApp } from "./app.js";
 import { pruneFigures } from "./runCard.js";
 import type { SecurityOptions } from "./security.js";
-import { detectToolchain, warmPython } from "./toolchain.js";
+import { detectToolchain, warmLean, warmPython } from "./toolchain.js";
 
 export type ServerOptions = {
   workspace: string;
@@ -41,6 +41,7 @@ export async function startServer(
   };
   const toolchain = detectToolchain();
   toolchain.then(warmPython, () => {});
+  toolchain.then(warmLean, () => {});
 
   const app = createApp({
     db,

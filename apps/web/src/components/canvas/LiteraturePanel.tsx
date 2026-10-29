@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { cardStatus, type CanvasNode, type Paper } from "shared";
-import { useUpdateNode } from "../../api/canvases";
+import { useAddPaper, useUpdateNode } from "../../api/canvases";
 import { useChatStore } from "../../stores/chat";
 import { Markdown } from "../common/Markdown";
 import { StatusChip } from "./cards/CardBody";
@@ -28,9 +28,15 @@ function authorsOf(paper: Paper) {
 function PaperItem({
   paper,
   onToggle,
+  onAdd,
+  isAdded,
+  isAdding,
 }: {
   paper: Paper;
   onToggle: VoidFunction;
+  onAdd: VoidFunction;
+  isAdded: boolean;
+  isAdding: boolean;
 }) {
   return (
     <li className="flex flex-col gap-1 rounded-lg border border-lm-line bg-lm-surface px-3 py-2">
@@ -55,9 +61,20 @@ function PaperItem({
         <summary className="cursor-pointer select-none">Abstract</summary>
         <Markdown className="mt-1 leading-normal">{paper.abstract}</Markdown>
       </details>
-      <Button size="sm" variant="ghost" className="self-end" onPress={onToggle}>
-        {paper.dismissed ? "Restore" : "Dismiss"}
-      </Button>
+      <div className="flex justify-end gap-1">
+        <Button
+          size="sm"
+          variant="secondary"
+          isDisabled={isAdded}
+          isPending={isAdding}
+          onPress={onAdd}
+        >
+          {isAdded ? "On canvas" : "Add to canvas"}
+        </Button>
+        <Button size="sm" variant="ghost" onPress={onToggle}>
+          {paper.dismissed ? "Restore" : "Dismiss"}
+        </Button>
+      </div>
     </li>
   );
 }
@@ -65,12 +82,15 @@ function PaperItem({
 export function LiteraturePanel({
   canvasId,
   node,
+  onCanvas,
 }: {
   canvasId: string;
   node: CanvasNode;
+  onCanvas: Set<string>;
 }) {
   const send = useChatStore((state) => state.send);
   const updateNode = useUpdateNode(canvasId);
+  const addPaper = useAddPaper(canvasId);
   const p = literatureOf(node);
   const papers = p.papers ?? [];
   const kept = papers.filter((paper) => !paper.dismissed);
@@ -85,6 +105,19 @@ export function LiteraturePanel({
         ),
       },
     });
+
+  const item = (paper: Paper) => (
+    <PaperItem
+      key={paper.id}
+      paper={paper}
+      onToggle={() => toggle(paper.id)}
+      onAdd={() =>
+        addPaper.mutate({ arxivId: paper.id, connectFrom: p.target ?? node.id })
+      }
+      isAdded={onCanvas.has(paper.id)}
+      isAdding={addPaper.isPending && addPaper.variables?.arxivId === paper.id}
+    />
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,13 +159,7 @@ export function LiteraturePanel({
       {kept.length > 0 && (
         <Section label="Papers">
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {kept.map((paper) => (
-              <PaperItem
-                key={paper.id}
-                paper={paper}
-                onToggle={() => toggle(paper.id)}
-              />
-            ))}
+            {kept.map(item)}
           </ul>
         </Section>
       )}
@@ -143,13 +170,7 @@ export function LiteraturePanel({
             Dismissed ({dismissed.length})
           </summary>
           <ul className="m-0 mt-2 flex list-none flex-col gap-2 p-0 opacity-70">
-            {dismissed.map((paper) => (
-              <PaperItem
-                key={paper.id}
-                paper={paper}
-                onToggle={() => toggle(paper.id)}
-              />
-            ))}
+            {dismissed.map(item)}
           </ul>
         </details>
       )}

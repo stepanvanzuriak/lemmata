@@ -1,11 +1,10 @@
 import "@xyflow/react/dist/style.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router";
 import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -22,9 +21,13 @@ import {
   useDeleteEdge,
   useDeleteNode,
   useSaveNodePositions,
+  useSetNodeCollapsed,
 } from "../api/canvases";
 import { useGetAllProjects } from "../api/projects";
+import { AddPaperDialog } from "../components/canvas/AddPaperDialog";
 import { CardViewer } from "../components/canvas/CardViewer";
+import { LocalMiniMap } from "../components/canvas/LocalMiniMap";
+import { collapseCards } from "../components/canvas/collapse";
 import { CardNode } from "../components/canvas/cards/CardNode";
 import { KindEdge } from "../components/canvas/KindEdge";
 import { EDGE_KINDS, EDGE_LABELS } from "../components/canvas/edges";
@@ -40,15 +43,17 @@ import { ChatPanel } from "../components/chat/ChatPanel";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 import { useCurrentProjectId, useTheme } from "../lib/hooks";
 import { useChatStore } from "../stores/chat";
-import { tidyLayout } from "../lib/layout";
+import { downloadLatex } from "../lib/latex";
+import { cardSize, tidyLayout } from "../lib/layout";
 import { paths } from "../lib/paths";
 
 const nodeTypes = { card: CardNode };
 const edgeTypes = { kind: KindEdge };
 
-function nextHypothesisLabel(labels: (string | undefined)[]) {
-  const numbers = labels.map((label) => Number(label?.match(/^H(\d+)$/)?.[1]));
-  return `H${Math.max(0, ...numbers.filter(Number.isFinite)) + 1}`;
+function nextLabel(labels: (string | undefined)[], prefix: "H" | "A") {
+  const pattern = new RegExp(`^${prefix}(\\d+)$`);
+  const numbers = labels.map((label) => Number(label?.match(pattern)?.[1]));
+  return `${prefix}${Math.max(0, ...numbers.filter(Number.isFinite)) + 1}`;
 }
 
 function newPayload(
@@ -59,13 +64,26 @@ function newPayload(
     case "hypothesis":
       return {
         title: "New hypothesis",
-        label: nextHypothesisLabel(labels),
+        label: nextLabel(labels, "H"),
+        status: "open",
+      };
+    case "attack":
+      return {
+        title: "New attack",
+        label: nextLabel(labels, "A"),
         status: "open",
       };
     case "python":
       return { title: "Python check", source: "" };
     case "lean":
       return { title: "Lean check", source: "" };
+    case "toolbox":
+      return {
+        title: "Toolbox",
+        text: "Reusable Python and Lean snippets",
+        python: "",
+        lean: "",
+      };
     case "note":
       return { title: "Note" };
     case "statement":
@@ -105,6 +123,21 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
   const wrapper = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState<Connection | null>(null);
+  const [addingPaper, setAddingPaper] = useState(false);
+  const collapsedIds = useMemo(
+    () =>
+      new Set(
+        nodes.filter(({ data }) => data.node.collapsed).map(({ id }) => id),
+      ),
+    [nodes],
+  );
+  const { mutate: setCollapsed } = useSetNodeCollapsed(canvasId);
+  const toggleChildren = useCallback(
+    (id: string) => {
+      setCollapsed({ id, collapsed: !collapsedIds.has(id) });
+    },
+    [collapsedIds, setCollapsed],
+  );
   const addNode = useAddNode(canvasId);
   const addEdge = useAddEdge(canvasId);
   const deleteNode = useDeleteNode(canvasId);
@@ -127,7 +160,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
     [nodes],
   );
 
-  const shownNodes = useMemo(() => {
+  const uncollapsedNodes = useMemo(() => {
     if (showArchived) {
       return nodes.map((node) =>
         archivedIds.has(node.id) ? { ...node, className: "opacity-45" } : node,
@@ -136,10 +169,31 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
     return nodes.filter(({ id }) => !archivedIds.has(id));
   }, [nodes, archivedIds, showArchived]);
 
+  const collapsedGraph = useMemo(
+    () => collapseCards(uncollapsedNodes, edges, collapsedIds),
+    [uncollapsedNodes, edges, collapsedIds],
+  );
+
+  const shownNodes = useMemo(
+    () =>
+      collapsedGraph.nodes.map((node) =>
+        node.data.descendantCount
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                onToggleChildren: () => toggleChildren(node.id),
+              },
+            }
+          : node,
+      ),
+    [collapsedGraph.nodes, toggleChildren],
+  );
+
   const shownEdges = useMemo(() => {
     const visible = showArchived
-      ? edges
-      : edges.filter(
+      ? collapsedGraph.edges
+      : collapsedGraph.edges.filter(
           ({ source, target }) =>
             !archivedIds.has(source) && !archivedIds.has(target),
         );
@@ -155,7 +209,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
         data: { ...edge.data!, active, dim: !active },
       };
     });
-  }, [edges, selectedId, archivedIds, showArchived]);
+  }, [collapsedGraph.edges, selectedId, archivedIds, showArchived]);
 
   if (query.isPending) {
     return <Loading label="Loading canvas..." />;
@@ -202,16 +256,28 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
         ...position,
         payload: newPayload(kind, labels),
       },
-      { onSuccess: (node) => setSelectedId(node.id) },
+      {
+        onSuccess: (node) => {
+          setSelectedId(node.id);
+
+          if (kind === "attack" && selected?.kind === "hypothesis") {
+            addEdge.mutate({
+              fromNode: selected.id,
+              toNode: node.id,
+              kind: "depends-on",
+            });
+          }
+        },
+      },
     );
   };
 
   const tidy = async () => {
     const positions = await tidyLayout(
-      shownNodes.map(({ id, measured, width, height }) => ({
+      shownNodes.map(({ id, measured, width, height, data }) => ({
         id,
-        width: measured?.width ?? width ?? 300,
-        height: measured?.height ?? height ?? 160,
+        width: measured?.width ?? width ?? cardSize(data.node).width,
+        height: measured?.height ?? height ?? cardSize(data.node).height,
       })),
       shownEdges.map(({ source, target }) => ({ from: source, to: target })),
     );
@@ -224,7 +290,12 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
       })),
     );
     savePositions.mutate(
-      [...positions].map(([id, position]) => ({ id, ...position })),
+      shownNodes.map(({ id, measured, width, height, data }) => ({
+        id,
+        ...positions.get(id)!,
+        w: measured?.width ?? width ?? cardSize(data.node).width,
+        h: measured?.height ?? height ?? cardSize(data.node).height,
+      })),
     );
     requestAnimationFrame(() => fitView({ maxZoom: 1, duration: 300 }));
   };
@@ -252,10 +323,28 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
           onEdgesChange={onEdgesChange}
           onConnect={setPending}
           onNodeClick={(_, node) => setSelectedId(node.id)}
+          onNodeDoubleClick={(event, node) => {
+            if (
+              (event.target as HTMLElement).closest(
+                "button, a, input, textarea, select",
+              )
+            ) {
+              return;
+            }
+            if (node.data.descendantCount) {
+              toggleChildren(node.id);
+            }
+          }}
+          zoomOnDoubleClick={false}
           onPaneClick={() => setSelectedId(null)}
           onNodeDragStop={(_, __, moved) =>
             savePositions.mutate(
-              moved.map(({ id, position }) => ({ id, ...position })),
+              moved.map(({ id, position, measured, width, height, data }) => ({
+                id,
+                ...position,
+                w: measured?.width ?? width ?? cardSize(data.node).width,
+                h: measured?.height ?? height ?? cardSize(data.node).height,
+              })),
             )
           }
           onDelete={({ nodes: gone, edges: goneEdges }) => {
@@ -282,12 +371,7 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
           <Controls showInteractive={false} />
-          <MiniMap
-            position="top-right"
-            pannable
-            zoomable
-            style={{ width: 140, height: 96 }}
-          />
+          <LocalMiniMap selectedId={selectedId} />
           <Panel position="bottom-right">
             <ProgressPanel canvasId={canvasId} detail={visibleDetail} />
           </Panel>
@@ -303,7 +387,10 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
               onLiterature={() =>
                 send(`/literature ${literatureRef(selected)}`)
               }
+              onAddPaper={() => setAddingPaper(true)}
+              onExport={() => downloadLatex(visibleDetail)}
               isPending={addNode.isPending}
+              hasToolbox={detail.nodes.some((node) => node.kind === "toolbox")}
             />
           </Panel>
           {pending && (
@@ -340,6 +427,15 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
           onClose={() => setSelectedId(null)}
         />
       )}
+      <AddPaperDialog
+        canvasId={canvasId}
+        connectFrom={
+          selected && !isArchived(selected) ? selected.id : undefined
+        }
+        isOpen={addingPaper}
+        onOpenChange={setAddingPaper}
+        onAdded={(node) => setSelectedId(node.id)}
+      />
       <ChatPanel canvasId={canvasId} onCards={mergeLive} />
     </div>
   );

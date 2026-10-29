@@ -275,3 +275,29 @@ summary::-webkit-details-marker {
     animation: none;
   }
 }
+
+/* Keep long prose and display equations within their card or preview. */
+.markdown,
+.markdown-inline {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.markdown .katex-display,
+.markdown-inline .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.2em;
+}
+
+.markdown pre.code-block code,
+.code-block code.hljs {
+  display: block;
+  padding: 0;
+  background: transparent;
+  color: var(--color-lm-code-fg);
+  font-size: inherit;
+  overflow-wrap: normal;
+  white-space: pre;
+}

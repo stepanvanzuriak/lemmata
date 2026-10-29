@@ -6,8 +6,10 @@ import {
   type LiteraturePayload,
   type LiteratureVerdict,
   type Paper,
+  type PaperPayload,
 } from "shared";
-import { arxivId, type ArxivClient } from "../arxiv.js";
+import type { ArxivClient } from "../arxiv/arxiv.js";
+import { arxivId } from "../arxiv/atom.js";
 import { findCard } from "./find.js";
 import { loadDetail, toCanvasNode } from "./load.js";
 import { freeSpot } from "./place.js";
@@ -19,7 +21,7 @@ export const MAX_SUGGESTIONS = 6;
 
 export type LiteratureRecord = {
   card: string;
-  verdict: LiteratureVerdict;
+  verdict?: LiteratureVerdict;
   summary: string;
   suggestions?: string[];
   papers: { id: string; relevance: string }[];
@@ -32,7 +34,6 @@ const literatureOf = (node: CanvasNode) =>
 const nameOf = (card: CanvasNode) =>
   fieldsOf(card).label ?? `"${fieldsOf(card).title ?? card.id}"`;
 
-/** The literature card checking `target`, if one is linked and not archived. */
 export function linkedLiterature(detail: CanvasDetail, target: CanvasNode) {
   return detail.nodes.find(
     (n) =>
@@ -42,10 +43,6 @@ export function linkedLiterature(detail: CanvasDetail, target: CanvasNode) {
   );
 }
 
-/**
- * The card a `/literature <ref>` run writes to: the literature card linked to `ref`, or a new
- * one linked from it with checked-by. A literature card with no target checks itself.
- */
 export async function literatureCardFor(
   db: Db,
   detail: CanvasDetail,
@@ -65,11 +62,11 @@ export async function literatureCardFor(
   const row = await addNode(db, {
     canvasId: ref.canvasId,
     kind: "literature",
-    ...freeSpot(
+    ...(await freeSpot(
       detail.nodes.filter((n) => !isArchived(n)),
       ref,
       "literature",
-    ),
+    )),
     payload: {
       title: `Literature: ${fieldsOf(ref).label ?? fieldsOf(ref).title ?? "goal"}`,
       target: ref.id,
@@ -102,13 +99,22 @@ export async function recordLiterature(
       `"${record.card}" is not a literature card. Pass the id of the literature card named in the task.`,
     );
   }
-  // A literature card is a shared record: any agent that searched may fill it, but not one the user wrote.
+
   if (card.createdBy === "user" && editRight(card, run.author) !== "all") {
     throw new ToolRefusal(`You may not change ${nameOf(card)}.`);
   }
-  if (!LITERATURE_VERDICTS.includes(record.verdict)) {
+  if (record.verdict && !LITERATURE_VERDICTS.includes(record.verdict)) {
     throw new ToolRefusal(
       `verdict must be one of: ${LITERATURE_VERDICTS.join(", ")}.`,
+    );
+  }
+  if (
+    record.verdict &&
+    record.verdict !== "novel" &&
+    record.papers.length === 0
+  ) {
+    throw new ToolRefusal(
+      `A "${record.verdict}" verdict needs at least one paper. If the searches failed, leave the verdict out and say so in the summary.`,
     );
   }
   if (record.papers.length > MAX_PAPERS) {
@@ -119,6 +125,21 @@ export async function recordLiterature(
   }
 
   const seen = run.papers ?? new Map<string, Paper>();
+
+  for (const node of detail.nodes) {
+    const paper = node.payload as Partial<PaperPayload>;
+
+    if (node.kind === "arxiv" && !isArchived(node) && paper.arxivId) {
+      seen.set(paper.arxivId, {
+        id: paper.arxivId,
+        title: paper.title ?? paper.arxivId,
+        authors: paper.authors ?? [],
+        published: paper.published ?? "",
+        abstract: paper.abstract ?? "",
+        url: paper.url ?? `https://arxiv.org/abs/${paper.arxivId}`,
+      });
+    }
+  }
   const wanted = record.papers.map((p) => ({ ...p, id: arxivId(p.id) }));
   const missing = wanted.filter((p) => !seen.has(p.id)).map((p) => p.id);
 

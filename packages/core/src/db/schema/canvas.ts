@@ -1,5 +1,6 @@
 import {
   index,
+  integer,
   real,
   sqliteTable,
   text,
@@ -46,6 +47,7 @@ export const canvasNode = sqliteTable(
     y: real().notNull().default(0),
     w: real().notNull().default(0),
     h: real().notNull().default(0),
+    collapsed: integer({ mode: "boolean" }).notNull().default(false),
     payload: text().notNull().default("{}"),
     createdBy: text("created_by", { enum: NODE_CREATORS })
       .notNull()

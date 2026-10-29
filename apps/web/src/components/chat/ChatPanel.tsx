@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { capitalize } from "lodash";
+import { Link } from "react-router";
 import {
   Button,
   CloseButton,
@@ -17,6 +18,8 @@ import type {
   RunInfo,
 } from "shared";
 import {
+  fetchMessages,
+  MESSAGE_PAGE,
   useAbortRun,
   useAgents,
   useMessages,
@@ -117,7 +120,7 @@ function LiveRunBubble({
   onStop: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-xl border border-lm-accent/40 bg-lm-tint-work px-3 py-2">
+    <div className="flex min-w-0 max-w-full flex-col gap-1.5 rounded-xl border border-lm-accent/40 bg-lm-tint-work px-3 py-2">
       <div className="flex items-center gap-2 text-[11px] text-lm-muted">
         <Spinner size="sm" />
         <span className="font-semibold text-lm-accent-ink">
@@ -135,8 +138,12 @@ function LiveRunBubble({
         </Button>
       </div>
       {run.tool && (
-        <span className="font-mono text-[11px] text-lm-muted">
+        <span
+          className="line-clamp-2 min-w-0 max-w-full font-mono text-[11px] break-all whitespace-normal text-lm-muted"
+          title={run.toolInput ? `${run.tool} ${run.toolInput}` : run.tool}
+        >
           → {run.tool}
+          {run.toolInput && <span className="ml-1">{run.toolInput}</span>}
         </span>
       )}
       {run.text && <Markdown className="text-sm">{run.text}</Markdown>}
@@ -259,7 +266,20 @@ export function ChatPanel({
   canvasId: string;
   onCards: (nodes: CanvasNode[], edges: CanvasEdge[]) => void;
 }) {
-  const { data: messages = [] } = useMessages(canvasId);
+  const { data: recent = [] } = useMessages(canvasId);
+  const [older, setOlder] = useState<ChatMessage[]>([]);
+  const [exhausted, setExhausted] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderCanvas, setOlderCanvas] = useState(canvasId);
+
+  if (olderCanvas !== canvasId) {
+    setOlderCanvas(canvasId);
+    setOlder([]);
+    setExhausted(false);
+  }
+  const seen = new Set(recent.map((m) => m.id));
+  const messages = [...older.filter((m) => !seen.has(m.id)), ...recent];
+  const hasMore = !exhausted && messages.length >= MESSAGE_PAGE;
   const { data: detail } = useCanvas(canvasId);
   const archived = archivedByRun(detail?.nodes ?? []);
   const attempts = new Set(messages.map((m) => m.attemptId));
@@ -292,6 +312,27 @@ export function ChatPanel({
     });
     return () => setSend(null);
   });
+
+  const loadOlder = async () => {
+    const el = scroller.current;
+    const height = el?.scrollHeight ?? 0;
+
+    setLoadingOlder(true);
+    try {
+      const page = await fetchMessages(canvasId, messages[0]?.id);
+
+      setOlder((list) => [...page, ...list]);
+      setExhausted(page.length < MESSAGE_PAGE);
+      // Keep the message the user was reading in place.
+      requestAnimationFrame(() => {
+        if (el) {
+          el.scrollTop += el.scrollHeight - height;
+        }
+      });
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   useEffect(() => {
     if (stick.current && scroller.current) {
@@ -352,6 +393,16 @@ export function ChatPanel({
           <span className="text-[11px] font-semibold tracking-[0.06em] text-lm-muted uppercase">
             Agents
           </span>
+          {import.meta.env.DEV && (
+            <Link
+              to={`/canvas/${canvasId}/debug`}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-3 text-[11px] text-lm-muted hover:text-lm-ink"
+            >
+              Debug transcripts
+            </Link>
+          )}
           <Button
             isIconOnly
             size="sm"
@@ -380,6 +431,17 @@ export function ChatPanel({
             Ask the Assistant anything, or add a Prover and send{" "}
             <code>/prover goal</code>.
           </p>
+        )}
+        {hasMore && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="self-center"
+            isPending={loadingOlder}
+            onPress={loadOlder}
+          >
+            Load earlier messages
+          </Button>
         )}
         {unclaimed > 0 && (
           <CleanupNotice canvasId={canvasId} count={unclaimed} />

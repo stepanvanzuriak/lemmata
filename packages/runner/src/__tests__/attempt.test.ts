@@ -1,7 +1,14 @@
-import { createProject, listAttempts, MIGRATIONS_FOLDER, openDb } from "core";
+import {
+  createProject,
+  listAttempts,
+  listAttemptEvents,
+  MIGRATIONS_FOLDER,
+  openDb,
+} from "core";
 import { expect, it } from "vitest";
 import { runAttempt } from "../attempt.js";
 import { FakeAdapter } from "../adapters/fake.js";
+import { mapCodexLine } from "../adapters/codex/messages.js";
 import type { RunEvent } from "../runner.js";
 
 const usage = (messageId: string, input: number): RunEvent => ({
@@ -46,6 +53,71 @@ it("stores the session id and token totals", async () => {
   expect(events).toHaveLength(4);
   expect(adapter.starts).toEqual([options]);
   expect(await listAttempts(db, { projectId: project.id })).toHaveLength(1);
+  expect(await listAttemptEvents(db, attempt.id)).toEqual([]);
+});
+
+it("records complete provider events and failures even when an adapter cannot start", async () => {
+  const { db, project, options } = await setup([]);
+  const attempt = await runAttempt({
+    db,
+    projectId: project.id,
+    title: "broken",
+    options,
+    maxTokens: 100,
+    transcript: { request: "broken" },
+    adapter: {
+      name: "broken",
+      models: [],
+      start: () => {
+        throw new Error("Failed to start");
+      },
+    },
+  });
+  expect(attempt.status).toBe("error");
+  const events = await listAttemptEvents(db, attempt.id);
+  expect(events.map((e) => e.kind)).toEqual([
+    "run.start",
+    "agent.error",
+    "run.finish",
+  ]);
+  expect(events[1]!.data).toMatchObject({ message: "Error: Failed to start" });
+});
+
+it("keeps raw provider payloads in the database and records aborted runs", async () => {
+  const raw: RunEvent = {
+    type: "provider",
+    stream: "stdout",
+    data: {
+      type: "item.updated",
+      item: { result: { content: [{ text: "full response" }] } },
+    },
+  };
+  const { db, project, adapter, options } = await setup([
+    raw,
+    { type: "done", reason: "aborted" },
+  ]);
+  const delivered: RunEvent[] = [];
+  const attempt = await runAttempt(
+    {
+      db,
+      projectId: project.id,
+      adapter,
+      title: "abort",
+      options,
+      maxTokens: 100,
+      transcript: { request: "abort" },
+    },
+    (event) => {
+      delivered.push(event);
+    },
+  );
+  expect(attempt.status).toBe("aborted");
+  const events = await listAttemptEvents(db, attempt.id);
+  expect(events).toContainEqual(
+    expect.objectContaining({ kind: "agent.provider", data: raw }),
+  );
+  expect(events.at(-1)!.data).toMatchObject({ status: "aborted" });
+  expect(delivered).toEqual([{ type: "done", reason: "aborted" }]);
 });
 
 it("stops a run that passes its token budget", async () => {
@@ -89,4 +161,28 @@ it("ends aborted when the signal fires", async () => {
   });
 
   expect(attempt.status).toBe("aborted");
+});
+
+it("keeps a completed Codex run done when its final usage exceeds the budget", async () => {
+  const { db, project, adapter, options } = await setup([
+    ...mapCodexLine({
+      type: "turn.completed",
+      usage: { input_tokens: 1_330_301, output_tokens: 6_287 },
+    }),
+  ]);
+
+  const attempt = await runAttempt({
+    db,
+    adapter,
+    projectId: project.id,
+    title: "/reset",
+    options,
+    maxTokens: 1_000_000,
+  });
+
+  expect(attempt).toMatchObject({
+    status: "done",
+    inputTokens: 1_330_301,
+    outputTokens: 6_287,
+  });
 });

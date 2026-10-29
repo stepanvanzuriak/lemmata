@@ -18,11 +18,17 @@ import {
   type ChatDeps,
 } from "../chat.js";
 import { validate } from "../validate.js";
-import { createAdapter } from "runner";
+import { enabledModels } from "../providers.js";
+import { readSettings } from "./settings.js";
 
 const chatSchema = z.object({
   text: z.string().trim().min(1),
   model: z.string().trim().min(1).nullish(),
+});
+
+const messagesQuery = z.object({
+  limit: z.coerce.number().int().positive().max(200).optional(),
+  before: z.string().min(1).optional(),
 });
 
 const agentSchema = z.object({
@@ -65,12 +71,19 @@ export function chatRoutes(deps: ChatDeps) {
     .post("/canvases/:id/chat/abort", (c) =>
       c.json({ aborted: abortRuns(c.req.param("id"), c.req.query("agent")) }),
     )
-    .get("/models", (c) =>
-      c.json((deps.adapter?.() ?? createAdapter("claude")).models),
+    .get("/models", async (c) =>
+      c.json(
+        deps.adapter
+          ? await deps.adapter().models
+          : await enabledModels(await readSettings(deps.workspaceDir)),
+      ),
     )
     .get("/canvases/:id/runs", (c) => c.json(activeRuns(c.req.param("id"))))
-    .get("/canvases/:id/messages", async (c) =>
-      c.json(await listMessages(db, c.req.param("id"))),
+    .get(
+      "/canvases/:id/messages",
+      validate("query", messagesQuery),
+      async (c) =>
+        c.json(await listMessages(db, c.req.param("id"), c.req.valid("query"))),
     )
     .get("/canvases/:id/agents", async (c) =>
       c.json(await listAgents(db, c.req.param("id"))),

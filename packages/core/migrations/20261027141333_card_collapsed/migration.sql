@@ -1,0 +1,1 @@
+ALTER TABLE `canvas_node` ADD `collapsed` integer DEFAULT false NOT NULL;

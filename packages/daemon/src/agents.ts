@@ -1,5 +1,5 @@
 import { updateNode, type AgentRole, type CanvasAgent, type Db } from "core";
-import type { CanvasDetail, CanvasNode } from "shared";
+import { settleReady, type CanvasDetail, type CanvasNode } from "shared";
 import { findCard } from "./cards/find.js";
 import { fieldsOf } from "./cards/types.js";
 
@@ -71,12 +71,37 @@ function batchTask(command: Command, detail: CanvasDetail) {
   return `Work through these open hypotheses one at a time, in order: ${list}. For each, prefer a computation that could settle or sharpen it over restating an approach that already failed on the canvas. Stop after these ${labels.length}, then say in one line per hypothesis what changed.`;
 }
 
-function taskFor(command: Command, target: CanvasNode) {
+/** The hypothesis an attack hangs from: the card that links to it. */
+export function attackParent(
+  detail: Pick<CanvasDetail, "nodes" | "edges">,
+  attack: CanvasNode,
+) {
+  const edge = detail.edges.find((e) => e.toNode === attack.id);
+
+  return detail.nodes.find(
+    (n) => n.id === edge?.fromNode && n.kind === "hypothesis",
+  );
+}
+
+function attackTask(target: CanvasNode, detail?: CanvasDetail) {
+  const parent = detail && attackParent(detail, target);
+  const on = parent ? ` on ${describeTarget(parent)}` : "";
+
+  return `Carry out the attack ${describeTarget(target)}${on}: work through the argument on its card, with checks on the canvas. The attack exists to settle that hypothesis, so do not weaken or rewrite the hypothesis to fit the attack. Mark the attack worked with update_card only when the argument is complete and its checks pass, then settle the hypothesis as supported or refuted accordingly; when the attack fails, mark it failed and say on the card where and why it breaks. If the failure suggests another route, add it as a new attack linked to the hypothesis.`;
+}
+
+function taskFor(command: Command, target: CanvasNode, detail?: CanvasDetail) {
   if (command.role === "referee") {
     return `Referee ${describeTarget(target)}: check the argument and its links, and report gaps as notes.`;
   }
+  if (target.kind === "attack") {
+    return attackTask(target, detail);
+  }
   if (target.kind === "goal") {
     return `Split the goal ${describeTarget(target)} into hypotheses on the canvas.`;
+  }
+  if (detail && target.kind === "hypothesis" && settleReady(target, detail)) {
+    return `${describeTarget(target)} is ready to settle: every hypothesis it depends on is decided. Do not create attacks. Check that the combined argument holds and settle it with update_card (supported or refuted) after its checks pass; if a part turns out to be flawed, reopen that part with update_card status open.`;
   }
   return `Work on ${describeTarget(target)}: prove or refute it, with checks on the canvas.`;
 }
@@ -90,7 +115,7 @@ export function expandCommand(
   const task =
     detail && isBatch(command)
       ? batchTask(command, detail)
-      : taskFor(command, target);
+      : taskFor(command, target, detail);
 
   if (!command.instructions) {
     return task;
@@ -105,7 +130,8 @@ export function findTarget(detail: CanvasDetail, command: Command) {
 
 export class ConflictError extends Error {
   constructor(
-    public readonly code: "claimed" | "busy" | "no_agent" | "no_target",
+    public readonly code:
+      "claimed" | "busy" | "no_agent" | "no_target" | "no_provider",
     message: string,
   ) {
     super(message);
@@ -113,11 +139,11 @@ export class ConflictError extends Error {
   }
 }
 
-/** Marks a hypothesis as being worked on by an agent. */
+/** Marks a hypothesis or attack as being worked on by an agent. */
 export async function claim(db: Db, node: CanvasNode, agent: CanvasAgent) {
   const p = node.payload as { status?: string; claimedBy?: string };
 
-  if (node.kind !== "hypothesis") {
+  if (node.kind !== "hypothesis" && node.kind !== "attack") {
     return;
   }
   if (p.claimedBy && p.claimedBy !== agent.id) {

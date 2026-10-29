@@ -1,6 +1,6 @@
 [package]
 name = "lemmata-desktop"
-version = "0.1.0"
+version = "0.2.0"
 description = "Lemmata: a local research canvas where AI agents work on problems with you"
 authors = ["Stepan Vanzuriak"]
 license = "MIT"
