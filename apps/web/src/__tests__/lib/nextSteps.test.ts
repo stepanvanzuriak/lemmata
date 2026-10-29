@@ -106,3 +106,38 @@ it("a statement checked only by a literature card is not a gap", () => {
     "/prover goal",
   ]);
 });
+
+it("offers to fetch a paper card that has no source yet", () => {
+  const nodes = [
+    node("g", "goal", { status: "open" }),
+    node("p1", "arxiv", { title: "Few ordinary lines", arxivId: "1208.0053" }),
+    node("p2", "arxiv", { title: "Read already", source: { sections: [] } }),
+  ];
+
+  expect(
+    nextSteps({ nodes, edges: [] }, []).filter((s) => s.kind === "fetch"),
+  ).toEqual([
+    { kind: "fetch", label: 'Fetch "Few ordinary lines"', nodeId: "p1" },
+  ]);
+});
+
+it("offers open attacks to the prover, ahead of untried hypotheses", () => {
+  const nodes = [
+    node("g", "goal", { status: "open" }),
+    node("h1", "hypothesis", { label: "H1", status: "open" }),
+    node("a1", "attack", { label: "A1", status: "open" }),
+    node("a2", "attack", { label: "A2", status: "failed" }),
+  ];
+  const edges = [
+    edge("h1", "a1", "depends-on"),
+    edge("h1", "a2", "depends-on"),
+  ];
+  const labels = (messages: ChatMessage[]) =>
+    nextSteps({ nodes, edges }, messages).map((s) => s.label);
+
+  expect(labels([])).toEqual(["/prover A1", "/prover H1", "/literature H1"]);
+  expect(labels([asked("/prover A1", "a1")])).toEqual([
+    "/prover H1",
+    "/literature H1",
+  ]);
+});

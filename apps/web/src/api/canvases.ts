@@ -78,8 +78,44 @@ export async function saveNodePositions({
   await api.patch(`/canvases/${canvasId}/nodes`, { nodes });
 }
 
+export async function setNodeCollapsed({
+  id,
+  collapsed,
+}: {
+  id: string;
+  collapsed: boolean;
+}) {
+  const { data } = await api.patch<CanvasNode>(`/nodes/${id}/collapsed`, {
+    collapsed,
+  });
+  return data;
+}
+
 export async function runNode(id: string) {
   const { data } = await api.post<CanvasNode>(`/nodes/${id}/run`);
+
+  return data;
+}
+
+export async function addPaper({
+  canvasId,
+  arxivId,
+  connectFrom,
+}: {
+  canvasId: string;
+  arxivId: string;
+  connectFrom?: string;
+}) {
+  const { data } = await api.post<CanvasNode>(`/canvases/${canvasId}/papers`, {
+    arxivId,
+    connectFrom,
+  });
+
+  return data;
+}
+
+export async function fetchPaperSource(id: string) {
+  const { data } = await api.post<CanvasNode>(`/nodes/${id}/source`);
 
   return data;
 }
@@ -186,8 +222,72 @@ export function useSaveNodePositions(canvasId: string) {
   );
 }
 
+export function useSetNodeCollapsed(canvasId: string) {
+  const queryClient = useQueryClient();
+  const queryKey = canvasKey(canvasId);
+  const mutationKey = ["canvas-collapse", canvasId];
+  return useMutation({
+    mutationKey,
+    scope: { id: `canvas-collapse-${canvasId}` },
+    mutationFn: setNodeCollapsed,
+    onMutate: async ({ id, collapsed }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient
+        .getQueryData<CanvasDetail>(queryKey)
+        ?.nodes.find((node) => node.id === id)?.collapsed;
+      queryClient.setQueryData<CanvasDetail>(
+        queryKey,
+        (detail) =>
+          detail && {
+            ...detail,
+            nodes: detail.nodes.map((node) =>
+              node.id === id ? { ...node, collapsed } : node,
+            ),
+          },
+      );
+      return { previous };
+    },
+    onError: (_, { id }, context) => {
+      if (
+        context?.previous !== undefined &&
+        queryClient.isMutating({ mutationKey }) === 1
+      ) {
+        queryClient.setQueryData<CanvasDetail>(
+          queryKey,
+          (detail) =>
+            detail && {
+              ...detail,
+              nodes: detail.nodes.map((node) =>
+                node.id === id
+                  ? { ...node, collapsed: context.previous! }
+                  : node,
+              ),
+            },
+        );
+      }
+    },
+    onSettled: () => {
+      if (queryClient.isMutating({ mutationKey }) === 1) {
+        return queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
+}
+
 export function useRunNode(canvasId: string) {
   return useCanvasMutation(canvasId, runNode);
+}
+
+export function useAddPaper(canvasId: string) {
+  return useCanvasMutation(
+    canvasId,
+    (input: { arxivId: string; connectFrom?: string }) =>
+      addPaper({ canvasId, ...input }),
+  );
+}
+
+export function useFetchPaperSource(canvasId: string) {
+  return useCanvasMutation(canvasId, fetchPaperSource);
 }
 
 export function useDeleteNode(canvasId: string) {

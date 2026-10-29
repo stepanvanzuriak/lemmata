@@ -304,6 +304,42 @@ it("resets to key points: archives everything that was there, and labels resolve
   expect((await messages())[0]).toBe("start");
 });
 
+it("finishes reset archiving when completed usage exceeds the token cap", async () => {
+  const { chat, detail } = await setup(async (client, options) => [
+    ...(await script(client, options)),
+    ...(options.prompt.startsWith("Reset this canvas")
+      ? [
+          {
+            type: "usage" as const,
+            messageId: "codex-final",
+            final: true,
+            usage: {
+              input: 1_330_301,
+              output: 6_287,
+              cacheRead: 0,
+              cacheWrite: 0,
+            },
+          },
+        ]
+      : []),
+  ]);
+  await chat("start");
+  const events = await chat("/reset");
+
+  expect(events.at(-1)).toMatchObject({ type: "done", status: "done" });
+  expect(events.some((e) => e.type === "warning")).toBe(false);
+  const visible = (await detail()).nodes.filter(
+    (n) => !(n.payload as { archived?: unknown }).archived,
+  );
+  expect(
+    visible.map((n) => (n.payload as { title: string }).title).sort(),
+  ).toEqual([
+    "Canvas summary",
+    "Orchard",
+    "Quadratic many rich lines, sharpened",
+  ]);
+});
+
 it("gives a prover that changed nothing one more turn in the same session", async () => {
   results.length = 0;
   const { app, agent, base, chat, detail } = await setup(script);

@@ -5,6 +5,23 @@ the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-29
+
+### Added
+
+- Direct literature: paper cards from an arXiv id or link, source fetch and cache, and a `read_paper` tool so agents
+  read a paper section by section instead of only its abstract.
+- Literature cards with a verdict and suggestions on a hypothesis, and a literature check.
+- Attack cards for recorded attempts on a hypothesis, and a Toolbox card that collects reusable Python and Lean helpers
+  with searchable indexes.
+- Codex as a second agent provider, enabled independently of Claude Code, with a model choice per Prover or Referee.
+- Plots in Python cards.
+
+### Changed
+
+- Canvas cards split into per-kind components; the canvas MCP tools were refactored and the card payload updated.
+- Chat panel and Lean prompt updates, and a fix for resolving notes.
+
 ## [0.1.0] - 2026-10-20
 
 First public release.
@@ -21,5 +38,6 @@ First public release.
 - Desktop app (Tauri) for Linux, macOS and Windows that runs its own daemon.
 - Landing page on Vercel.
 
-[Unreleased]: https://github.com/stepanvanzuriak/lemmata/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/stepanvanzuriak/lemmata/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/stepanvanzuriak/lemmata/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/stepanvanzuriak/lemmata/releases/tag/v0.1.0

@@ -4,6 +4,7 @@ import type {
   CardRun,
   LiteraturePayload,
   NodeKind,
+  PaperPayload,
   Resolved,
 } from "shared";
 
@@ -11,6 +12,8 @@ export type CardFields = Partial<BasePayload> & {
   label?: string;
   status?: string;
   source?: string;
+  python?: string;
+  lean?: string;
   run?: CardRun;
   resolved?: Resolved | null;
 };
@@ -20,12 +23,16 @@ export const fieldsOf = (node: CanvasNode) => node.payload as CardFields;
 export const literatureOf = (node: CanvasNode) =>
   node.payload as Partial<LiteraturePayload>;
 
+export const paperOf = (node: CanvasNode) =>
+  node.payload as Partial<PaperPayload>;
+
 export const isArchived = (node: CanvasNode) =>
   Boolean(fieldsOf(node).archived);
 
 export const KIND_LABELS: Record<NodeKind, string> = {
   goal: "Goal",
   hypothesis: "Hypothesis",
+  attack: "Attack",
   statement: "Statement",
   note: "Note",
   memory: "Memory",
@@ -33,13 +40,16 @@ export const KIND_LABELS: Record<NodeKind, string> = {
   literature: "Literature",
   python: "Python",
   lean: "Lean",
+  toolbox: "Toolbox",
 };
 
 export const CREATABLE_KINDS = [
   "statement",
   "hypothesis",
+  "attack",
   "python",
   "lean",
+  "toolbox",
   "note",
 ] as const satisfies readonly NodeKind[];
 

@@ -1,6 +1,12 @@
 import { addEdge, addNode, updateNode, type Db } from "core";
-import type { CanvasNode, EdgeKind, NodeKind } from "shared";
+import {
+  settleReady,
+  type CanvasNode,
+  type EdgeKind,
+  type NodeKind,
+} from "shared";
 import { findCard } from "./find.js";
+import { validateCardLatex } from "./latex.js";
 import { unpassedChecks } from "./gating.js";
 import { loadDetail, toCanvasNode } from "./load.js";
 import { freeSpot } from "./place.js";
@@ -18,10 +24,12 @@ export const MAX_NEW_CARDS = 8;
 export const CREATABLE_KINDS = [
   "statement",
   "hypothesis",
+  "attack",
   "python",
   "lean",
   "note",
   "memory",
+  "toolbox",
 ] as const satisfies readonly NodeKind[];
 
 export type NewCard = Omit<CardFields, "agentId"> & {
@@ -33,17 +41,20 @@ export type NewCard = Omit<CardFields, "agentId"> & {
 const STATUSES: Partial<Record<NodeKind, string[]>> = {
   goal: ["open", "proved", "disproved"],
   hypothesis: ["open", "supported", "refuted"],
+  attack: ["open", "worked", "failed"],
 };
 
 const nameOf = (card: CanvasNode) =>
   fieldsOf(card).label ?? `"${fieldsOf(card).title ?? card.id}"`;
 
-function nextLabel(nodes: CanvasNode[]) {
+/** Hypotheses are H1, H2, ...; attacks are A1, A2, ... */
+function nextLabel(nodes: CanvasNode[], prefix: "H" | "A") {
+  const pattern = new RegExp(`^${prefix}(\\d+)$`);
   const numbers = nodes
-    .map((n) => Number(fieldsOf(n).label?.match(/^H(\d+)$/)?.[1]))
+    .map((n) => Number(fieldsOf(n).label?.match(pattern)?.[1]))
     .filter(Number.isFinite);
 
-  return `H${Math.max(0, ...numbers) + 1}`;
+  return `${prefix}${Math.max(0, ...numbers) + 1}`;
 }
 
 function defaultEdge(kind: NodeKind): EdgeKind {
@@ -70,6 +81,11 @@ export async function createCards(
     );
   }
 
+  // Validate the whole batch before writing any cards so a retry is safe.
+  for (const card of cards) {
+    validateCardLatex(card);
+  }
+
   const detail = await loadDetail(db, run.canvasId);
   const nodes = [...detail.nodes];
   const created: CanvasNode[] = [];
@@ -87,12 +103,28 @@ export async function createCards(
         `No card matches connectFrom "${parentRef}". Use an id, "goal", a label like H2, or an exact title.`,
       );
     }
+    if (
+      kind === "attack" &&
+      parent.kind === "hypothesis" &&
+      settleReady(parent, { nodes, edges: detail.edges })
+    ) {
+      throw new ToolRefusal(
+        `${nameOf(parent)} is ready to settle, so it takes no new attacks. Prove or refute it with update_card, or reopen a flawed part first.`,
+      );
+    }
+    if (kind === "toolbox" && nodes.some((node) => node.kind === "toolbox")) {
+      throw new ToolRefusal(
+        "This canvas already has a toolbox card. Update it instead.",
+      );
+    }
 
-    const isHypothesis = kind === "hypothesis";
+    const labelled = kind === "hypothesis" || kind === "attack";
     const payload = withoutEmpty({
       ...fields,
-      label: isHypothesis ? (fields.label ?? nextLabel(nodes)) : fields.label,
-      status: isHypothesis ? "open" : undefined,
+      label: labelled
+        ? (fields.label ?? nextLabel(nodes, kind === "attack" ? "A" : "H"))
+        : fields.label,
+      status: labelled ? "open" : undefined,
       agentId: run.author.agentId,
       author:
         fields.author ??
@@ -101,11 +133,11 @@ export async function createCards(
     const row = await addNode(db, {
       canvasId: run.canvasId,
       kind,
-      ...freeSpot(
+      ...(await freeSpot(
         nodes.filter((n) => !isArchived(n)),
         parent,
         kind,
-      ),
+      )),
       payload,
       createdBy: "ai",
     });
@@ -144,6 +176,9 @@ export async function updateCard(
     throw new ToolRefusal("Nothing to change: pass at least one field.");
   }
 
+  // Only the fields being written: old cards with bad math stay editable.
+  validateCardLatex(patch);
+
   const right = editRight(card, run.author);
 
   if (right === "none") {
@@ -154,6 +189,14 @@ export async function updateCard(
   if (right === "status" && keys.some((key) => key !== "status")) {
     throw new ToolRefusal(`You may only change the status of ${nameOf(card)}.`);
   }
+  if (
+    right === "body" &&
+    keys.some((key) => !["status", "text", "markdown"].includes(key))
+  ) {
+    throw new ToolRefusal(
+      `You may only change the status, text and markdown of ${nameOf(card)}.`,
+    );
+  }
   if (patch.status !== undefined) {
     const allowed = STATUSES[card.kind];
 
@@ -162,6 +205,15 @@ export async function updateCard(
         allowed
           ? `Status of a ${card.kind} must be one of: ${allowed.join(", ")}.`
           : `A ${card.kind} card has no status.`,
+      );
+    }
+  }
+  if (card.kind === "attack" && patch.status === "worked") {
+    const pending = unpassedChecks(detail, card);
+
+    if (pending.length > 0) {
+      throw new ToolRefusal(
+        `${nameOf(card)} cannot be marked worked yet: ${pending.map(nameOf).join(", ")} ${pending.length > 1 ? "have" : "has"} not passed. Run them with run_card first.`,
       );
     }
   }

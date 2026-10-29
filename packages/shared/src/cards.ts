@@ -1,13 +1,15 @@
 export type NodeKind =
   | "goal"
   | "hypothesis"
+  | "attack"
   | "statement"
   | "note"
   | "memory"
   | "arxiv"
   | "literature"
   | "python"
-  | "lean";
+  | "lean"
+  | "toolbox";
 
 export type Archived = {
   at: string;
@@ -23,6 +25,7 @@ export type Resolved = {
 
 export type BasePayload = {
   title: string;
+  tags?: string[];
   text?: string;
   markdown?: string;
   author?: string;
@@ -32,6 +35,8 @@ export type BasePayload = {
 export type GoalPayload = BasePayload & {
   kind: "goal";
   status: "open" | "proved" | "disproved";
+  /** The user dismissed the "Ready to settle" suggestion. */
+  settleDismissed?: boolean;
 };
 
 export type HypothesisPayload = BasePayload & {
@@ -42,6 +47,18 @@ export type HypothesisPayload = BasePayload & {
   claimedBy?: string;
   claimedByRole?: "prover" | "referee";
   settledBy?: string;
+  /** The user dismissed the "Ready to settle" suggestion. */
+  settleDismissed?: boolean;
+};
+
+/** One concrete route to a hypothesis: an argument or construction to try. */
+export type AttackPayload = BasePayload & {
+  kind: "attack";
+  label: string;
+  status: "open" | "claimed" | "worked" | "failed";
+  agentId?: string;
+  claimedBy?: string;
+  claimedByRole?: "prover" | "referee";
 };
 
 export type RunOutput = {
@@ -82,10 +99,19 @@ export type CodePayload = BasePayload & {
   kind: "python" | "lean";
   source: string;
   run?: CardRun;
+  /** Epoch ms when the current run started; set only while it executes. */
+  runningSince?: number;
+};
+
+/** Canvas-wide reusable Python and Lean snippets. A canvas has at most one. */
+export type ToolboxPayload = BasePayload & {
+  kind: "toolbox";
+  python?: string;
+  lean?: string;
 };
 
 export type PlainPayload = BasePayload & {
-  kind: "statement" | "note" | "memory" | "arxiv";
+  kind: "statement" | "note" | "memory";
   resolved?: Resolved | null;
 };
 
@@ -98,6 +124,21 @@ export type Paper = {
   url: string;
   relevance?: string;
   dismissed?: boolean;
+};
+
+export type PaperPayload = BasePayload & {
+  kind: "arxiv";
+  arxivId: string;
+  authors?: string[];
+  published?: string;
+  abstract?: string;
+  url?: string;
+  source?: {
+    fetchedAt: string;
+    file: string;
+    bytes: number;
+    sections: { index: number; title: string }[];
+  };
 };
 
 export const LITERATURE_VERDICTS = [
@@ -123,6 +164,9 @@ export type LiteraturePayload = BasePayload & {
 export type NodePayload =
   | GoalPayload
   | HypothesisPayload
+  | AttackPayload
   | CodePayload
+  | ToolboxPayload
   | PlainPayload
-  | LiteraturePayload;
+  | LiteraturePayload
+  | PaperPayload;

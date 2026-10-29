@@ -6,6 +6,7 @@ const STDERR_TAIL = 2048;
 const KILL_AFTER_MS = 2000;
 
 export type CliProcessOptions = {
+  captureRawEvents?: boolean;
   command: string;
   args: string[];
   cwd: string;
@@ -56,6 +57,7 @@ export function runCliProcess({
   cwd,
   env = {},
   parseLine,
+  captureRawEvents = false,
 }: CliProcessOptions): RunHandle {
   const events = channel<RunEvent>();
   let stderr = "";
@@ -80,13 +82,23 @@ export function runCliProcess({
       return;
     }
     try {
-      parseLine(JSON.parse(line)).forEach(emit);
+      const json: unknown = JSON.parse(line);
+      if (captureRawEvents) {
+        emit({ type: "provider", stream: "stdout", data: json });
+      }
+      parseLine(json).forEach(emit);
     } catch {
       // Not JSON: CLIs sometimes print plain warnings.
+      if (captureRawEvents) {
+        emit({ type: "provider", stream: "stdout", data: line });
+      }
     }
   });
 
   child.stderr.on("data", (chunk: Buffer) => {
+    if (captureRawEvents) {
+      emit({ type: "provider", stream: "stderr", data: chunk.toString() });
+    }
     stderr = (stderr + chunk.toString()).slice(-STDERR_TAIL);
   });
 

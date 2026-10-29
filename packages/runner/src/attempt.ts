@@ -1,5 +1,6 @@
 import {
   addAttemptUsage,
+  addAttemptEvent,
   finishAttempt,
   setAttemptSession,
   startAttempt,
@@ -12,6 +13,7 @@ import type {
   RunEvent,
   AgentAdapter,
   StartOptions,
+  RunHandle,
 } from "./runner.js";
 
 export type RunAttemptOptions = {
@@ -23,7 +25,9 @@ export type RunAttemptOptions = {
   options: StartOptions;
   maxTokens: number;
   signal?: AbortSignal;
-  onStart?: (attempt: Attempt) => void;
+  onStart?: (attempt: Attempt) => void | Promise<void>;
+  /** Present only for development runs. Never include credentials here. */
+  transcript?: Record<string, unknown>;
 };
 
 const STATUS: Record<DoneReason, Exclude<AttemptStatus, "running">> = {
@@ -44,6 +48,7 @@ export async function runAttempt(
     maxTokens,
     signal,
     onStart,
+    transcript,
   }: RunAttemptOptions,
   onEvent: (event: RunEvent) => void | Promise<void> = () => {},
 ): Promise<Attempt> {
@@ -51,31 +56,56 @@ export async function runAttempt(
     projectId,
     canvasId,
     title,
-    model: options.model?.id,
+    model: `${adapter.name}:${options.model?.id ?? ""}`,
   });
-  onStart?.(row);
-  const handle = adapter.start(options);
+  let handle: RunHandle | undefined;
   let spent = 0;
   let reason: DoneReason = "completed";
   let overBudget = false;
 
   const abort = () => {
-    handle.abort().catch(() => {});
+    handle?.abort().catch(() => {});
   };
-  signal?.addEventListener("abort", abort, { once: true });
-  if (signal?.aborted) {
-    abort();
-  }
+
+  const record = async (kind: string, data: unknown) => {
+    if (transcript) {
+      await addAttemptEvent(db, row.id, kind, data);
+    }
+  };
+  const emit = async (event: RunEvent) => {
+    await record(`agent.${event.type}`, event);
+    if (event.type !== "provider") {
+      await onEvent(event);
+    }
+  };
 
   try {
+    await onStart?.(row);
+    await record("run.start", {
+      ...transcript,
+      prompt: options.prompt,
+      systemPromptAddendum: options.systemPromptAddendum,
+      resumeSessionId: options.resumeSessionId,
+      model: row.model,
+      cwd: options.cwd,
+      maxTokens,
+      maxTurns: options.maxTurns,
+    });
+    handle = adapter.start(
+      transcript ? { ...options, captureRawEvents: true } : options,
+    );
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) {
+      abort();
+    }
     for await (const event of handle.events) {
       if (event.type === "done") {
         reason = overBudget ? "budget" : event.reason;
-        await onEvent({ type: "done", reason });
+        await emit({ type: "done", reason });
         break;
       }
 
-      await onEvent(event);
+      await emit(event);
 
       if (event.type === "session") {
         await setAttemptSession(db, row.id, event.sessionId);
@@ -85,18 +115,23 @@ export async function runAttempt(
         const { input, output, cacheRead, cacheWrite } = event.usage;
         spent += input + output + cacheRead + cacheWrite;
 
-        if (spent > maxTokens && !overBudget) {
+        if (spent > maxTokens && !overBudget && !event.final) {
           overBudget = true;
           await handle.abort();
         }
       }
     }
   } catch (error) {
-    await onEvent({ type: "error", message: String(error) });
     reason = "error";
+    await emit({ type: "error", message: String(error) });
   } finally {
     signal?.removeEventListener("abort", abort);
   }
 
-  return finishAttempt(db, row.id, STATUS[reason]);
+  const finished = await finishAttempt(db, row.id, STATUS[reason]);
+  await record("run.finish", {
+    status: finished.status,
+    finishedAt: finished.finishedAt,
+  });
+  return finished;
 }

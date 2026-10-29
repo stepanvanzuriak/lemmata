@@ -1,9 +1,24 @@
 import { expect, it } from "vitest";
 import { createCards, updateCard } from "../../cards/apply.js";
+import { describeOne } from "../../cards/describe.js";
 import { loadDetail } from "../../cards/load.js";
 import { settleNudge } from "../../cards/goal.js";
 import { freeSpot } from "../../cards/place.js";
 import { canvasSetup } from "./helpers.js";
+
+it("validates all agent cards before saving any of the batch", async () => {
+  const { db, run } = await canvasSetup();
+  const before = await loadDetail(db, run.canvasId);
+  await expect(
+    createCards(db, run, [
+      { kind: "statement", title: "Valid", text: "$x^2$" },
+      { kind: "statement", title: "Broken", markdown: "$\\frac{1}{$" },
+    ]),
+  ).rejects.toThrow("Invalid LaTeX in markdown");
+  const after = await loadDetail(db, run.canvasId);
+  expect(after.nodes).toEqual(before.nodes);
+  expect(after.edges).toEqual(before.edges);
+});
 
 it("creates linked cards with labels and ai ownership", async () => {
   const { db, run } = await canvasSetup();
@@ -68,7 +83,7 @@ it("nudges once the last depends-on hypothesis is supported", async () => {
   );
 });
 
-it("places five cards under one parent without overlap", async () => {
+it("places five cards near one parent without overlap", async () => {
   const { db, run } = await canvasSetup();
   const cards = await createCards(
     db,
@@ -78,13 +93,18 @@ it("places five cards under one parent without overlap", async () => {
       title: `S${i}`,
     })),
   );
-  const ys = cards.map((c) => c.y).sort((a, b) => a - b);
-
-  for (let i = 1; i < ys.length; i++) {
-    expect(ys[i]! - ys[i - 1]!).toBeGreaterThanOrEqual(150);
+  for (const [index, card] of cards.entries()) {
+    expect(Math.abs(card.y)).toBeLessThanOrEqual(200);
+    for (const other of cards.slice(index + 1)) {
+      expect(
+        card.x + 300 <= other.x ||
+          other.x + 300 <= card.x ||
+          card.y + 150 <= other.y ||
+          other.y + 150 <= card.y,
+      ).toBe(true);
+    }
   }
-  expect(new Set(cards.map((c) => c.x)).size).toBe(1);
-  expect(freeSpot([], undefined, "note")).toEqual({ x: 0, y: 0 });
+  expect(await freeSpot([], undefined, "note")).toEqual({ x: 0, y: 0 });
 });
 
 it("rejects an unknown parent and an empty batch", async () => {
@@ -108,4 +128,55 @@ it("nudges to settle a hypothesis once its sub-lemma is supported", async () => 
 
   expect(nudge).toContain('update_card({ id: "H1", status: "supported" })');
   expect(nudge).not.toContain('id: "goal"');
+});
+
+it("persists topic tags and exposes them to agents", async () => {
+  const { db, run } = await canvasSetup();
+  const [card] = await createCards(db, run, [
+    { kind: "statement", title: "Lemma", tags: ["Number theory"] },
+  ]);
+  expect(card!.payload.tags).toEqual(["Number theory"]);
+  const updated = await updateCard(db, run, card!.id, {
+    tags: ["Graph theory"],
+  });
+  const detail = await loadDetail(db, run.canvasId);
+  expect(describeOne(updated, detail, run.author)).toContain(
+    "topics: Graph theory",
+  );
+  const cleared = await updateCard(db, run, card!.id, { tags: [] });
+  expect(cleared.payload.tags).toEqual([]);
+});
+
+it("refuses attacks on a hypothesis that is ready to settle", async () => {
+  const { db, run } = await canvasSetup();
+  await createCards(db, run, [
+    { kind: "hypothesis", title: "Whole" },
+    { kind: "hypothesis", title: "Part", connectFrom: "H1" },
+  ]);
+  await createCards(db, run, [
+    { kind: "attack", title: "Early", connectFrom: "H1" },
+  ]);
+  await updateCard(db, run, "H2", { status: "supported" });
+
+  await expect(
+    createCards(db, run, [
+      { kind: "attack", title: "Late", connectFrom: "H1" },
+    ]),
+  ).rejects.toThrow("ready to settle");
+
+  await updateCard(db, run, "H2", { status: "open" });
+  await expect(
+    createCards(db, run, [
+      { kind: "attack", title: "Again", connectFrom: "H1" },
+    ]),
+  ).resolves.toHaveLength(1);
+});
+
+it("rejects broken LaTeX in an updated title", async () => {
+  const { db, run } = await canvasSetup();
+  await createCards(db, run, [{ kind: "statement", title: "Lemma" }]);
+
+  await expect(
+    updateCard(db, run, "Lemma", { title: "Bound $\\frac{1}{$" }),
+  ).rejects.toThrow("Invalid LaTeX in title");
 });

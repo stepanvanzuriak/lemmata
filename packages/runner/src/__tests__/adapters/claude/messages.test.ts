@@ -57,3 +57,12 @@ it("skips unknown lines", () => {
   expect(mapClaudeLine("nonsense", seen)).toEqual([]);
   expect(mapClaudeLine({ type: "something_new" }, seen)).toEqual([]);
 });
+
+it("ends a run that hit its turn limit as over budget", () => {
+  expect(
+    mapClaudeLine(
+      { type: "result", subtype: "error_max_turns" },
+      new Set<string>(),
+    ),
+  ).toEqual([{ type: "done", reason: "budget" }]);
+});

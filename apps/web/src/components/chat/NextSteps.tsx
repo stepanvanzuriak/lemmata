@@ -1,10 +1,13 @@
 import { Button } from "@heroui/react";
 import type { CanvasDetail, ChatMessage, UpdateNodeRequest } from "shared";
-import { useRunNode, useUpdateNode } from "../../api/canvases";
+import {
+  useFetchPaperSource,
+  useRunNode,
+  useUpdateNode,
+} from "../../api/canvases";
 import { nextSteps, type NextStep } from "../../lib/nextSteps";
 import { Markdown } from "../common/Markdown";
 
-/** Buttons for the next moves after the last reply, so the conversation never stalls. */
 export function NextSteps({
   canvasId,
   detail,
@@ -18,6 +21,7 @@ export function NextSteps({
 }) {
   const run = useRunNode(canvasId);
   const update = useUpdateNode(canvasId);
+  const fetchSource = useFetchPaperSource(canvasId);
   const steps = nextSteps(detail, messages);
 
   if (steps.length === 0) {
@@ -31,6 +35,9 @@ export function NextSteps({
         break;
       case "run":
         run.mutate(step.nodeId);
+        break;
+      case "fetch":
+        fetchSource.mutate(step.nodeId);
         break;
       case "settle":
         update.mutate({
@@ -56,6 +63,7 @@ export function NextSteps({
           className="h-7 max-w-full px-2.5 text-xs"
           isPending={
             (step.kind === "run" && run.isPending) ||
+            (step.kind === "fetch" && fetchSource.isPending) ||
             (step.kind === "settle" && update.isPending)
           }
           onPress={() => take(step)}

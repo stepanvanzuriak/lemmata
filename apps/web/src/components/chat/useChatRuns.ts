@@ -15,6 +15,7 @@ export type LiveRun = {
   text: string;
   tokens: number;
   tool: string | null;
+  toolInput: string | null;
   notes: string[];
   cards: string[];
 };
@@ -76,6 +77,7 @@ export function useChatRuns(
                 text: "",
                 tokens: 0,
                 tool: null,
+                toolInput: null,
                 notes: [],
                 cards: [],
               },
@@ -85,7 +87,11 @@ export function useChatRuns(
             update(key, (run) => ({ ...run, text: run.text + event.text }));
             break;
           case "tool_use":
-            update(key, (run) => ({ ...run, tool: event.name }));
+            update(key, (run) => ({
+              ...run,
+              tool: event.name,
+              toolInput: event.input ?? null,
+            }));
             break;
           case "usage":
             update(key, (run) => ({ ...run, tokens: event.tokens }));

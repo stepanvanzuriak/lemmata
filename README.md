@@ -7,18 +7,19 @@ or as a desktop app, using the Claude Code CLI for the agents.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/canvas-dark.png">
-  <img alt="A Lemmata canvas for Fermat's two-squares theorem: the Prover has split the goal into three hypotheses, proved H1 with Wilson's theorem and a passing Python check, and the Referee has accepted the proof in the chat panel." src="docs/images/canvas-light.png">
+  <img alt="A Lemmata canvas for Erdős problem 588: a goal fans out into hypotheses and failed attack cards, next to a Toolbox card, a progress summary and the Prover and Referee chat panel." src="docs/images/canvas-light.png">
 </picture>
 
-_A Prover and a Referee (both on Claude Haiku) working on Fermat's two-squares theorem._
+_A Prover (Claude Haiku) and a Referee (Codex) working on Erdős problem 588._
 
 ## What works today
 
 - **Canvas:** goal, hypothesis, statement, note, Python and Lean cards with LaTeX, connected by typed edges
   (depends on, tested by, used by, checked by, refuted by).
 - **Checks:** run Python and Lean cards locally and see the output on the card.
-- **Agents:** add a Prover or Referee per canvas, pick the model, and send `/prover goal` or `/referee H1` from the chat
+- **Agents:** enable Claude Code and Codex independently in Settings, pick a model per Prover or Referee (including different providers), and send `/prover goal` or `/referee H1` from the chat
   or from a card. Their cards appear on the canvas as they work.
+- **Literature:** add an arXiv paper as a card, fetch its source and let agents read it section by section.
 - **Progress:** hypothesis and goal statuses, plus a panel counting settled hypotheses, passed checks and referee issues.
 - **Research memory:** agents save dead ends and facts per project and read them at the start of every run; you can pin,
   edit and add entries on the Memory page.

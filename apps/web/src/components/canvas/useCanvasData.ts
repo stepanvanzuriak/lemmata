@@ -7,7 +7,6 @@ import {
 } from "@xyflow/react";
 import {
   cardStatus,
-  settleReady,
   type CanvasEdge,
   type CanvasGraph,
   type CanvasNode,
@@ -18,7 +17,10 @@ import type { CardFlowNode } from "./cards/CardNode";
 import { toFlowEdge, type CardFlowEdge } from "./edges";
 
 const sameStatus = (a?: CardStatus | null, b?: CardStatus | null) =>
-  a?.tone === b?.tone && a?.label === b?.label && a?.detail === b?.detail;
+  a?.tone === b?.tone &&
+  a?.label === b?.label &&
+  a?.detail === b?.detail &&
+  a?.since === b?.since;
 
 function toFlowNode(
   node: CanvasNode,
@@ -26,18 +28,24 @@ function toFlowNode(
   prev?: CardFlowNode,
 ): CardFlowNode {
   const status = cardStatus(node, graph);
-  const ready = settleReady(node, graph);
   const unchanged =
     prev &&
     prev.data.node.updatedAt === node.updatedAt &&
-    prev.data.ready === ready &&
+    prev.data.node.x === node.x &&
+    prev.data.node.y === node.y &&
+    prev.data.node.w === node.w &&
+    prev.data.node.h === node.h &&
+    prev.data.node.collapsed === node.collapsed &&
     sameStatus(prev.data.status, status);
+
+  const serverMoved =
+    !prev || prev.data.node.x !== node.x || prev.data.node.y !== node.y;
 
   return {
     id: node.id,
     type: "card",
-    position: { x: node.x, y: node.y },
-    data: unchanged ? prev.data : { node, status, ready },
+    position: serverMoved ? { x: node.x, y: node.y } : prev.position,
+    data: unchanged ? prev.data : { node, status },
     selected: prev?.selected,
     deletable: node.kind !== "goal",
   };
@@ -128,7 +136,11 @@ export function useCanvasData(id: string) {
 
   return {
     query,
-    detail: query.data,
+    detail: query.data && {
+      ...query.data,
+      nodes: nodes.map(({ data }) => data.node),
+      edges: edges.flatMap(({ data }) => (data ? [data.edge] : [])),
+    },
     nodes,
     edges,
     onNodesChange,

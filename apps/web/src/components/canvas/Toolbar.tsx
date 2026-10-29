@@ -4,7 +4,9 @@ import clsx from "clsx";
 import {
   BookOpen,
   ArrowRotateLeft,
+  ArrowDownToLine,
   BroomMotion,
+  FilePlus,
   LayoutCellsLarge,
   Sticker,
 } from "@gravity-ui/icons";
@@ -22,6 +24,11 @@ const TOOLS: { kind: CreatableKind; label: string; icon: ReactNode }[] = [
     icon: <span className="text-[17px] font-semibold">H</span>,
   },
   {
+    kind: "attack",
+    label: "Add attack",
+    icon: <span className="text-[17px] font-semibold">A</span>,
+  },
+  {
     kind: "python",
     label: "Add Python cell",
     icon: <span className="font-mono text-[13px]">py</span>,
@@ -30,6 +37,11 @@ const TOOLS: { kind: CreatableKind; label: string; icon: ReactNode }[] = [
     kind: "lean",
     label: "Add Lean check",
     icon: <span className="text-lg">⊢</span>,
+  },
+  {
+    kind: "toolbox",
+    label: "Add toolbox",
+    icon: <span className="font-mono text-[11px]">py/λ</span>,
   },
   {
     kind: "note",
@@ -76,14 +88,20 @@ export function Toolbar({
   onCleanup,
   onReset,
   onLiterature,
+  onAddPaper,
+  onExport,
   isPending,
+  hasToolbox,
 }: {
   onCreate: (kind: CreatableKind) => void;
   onTidy: VoidFunction;
   onCleanup?: VoidFunction;
   onReset?: VoidFunction;
   onLiterature?: VoidFunction;
+  onAddPaper?: VoidFunction;
+  onExport?: VoidFunction;
   isPending?: boolean;
+  hasToolbox?: boolean;
 }) {
   return (
     <ToolbarRoot
@@ -97,7 +115,7 @@ export function Toolbar({
             isIconOnly
             aria-label={label}
             variant="ghost"
-            isDisabled={isPending}
+            isDisabled={isPending || (kind === "toolbox" && hasToolbox)}
             className="size-11 rounded-lg text-lm-ink2"
             onPress={() => onCreate(kind)}
           >
@@ -137,6 +155,22 @@ export function Toolbar({
         onPress={() => onLiterature?.()}
       >
         <BookOpen width={18} height={18} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Add paper"
+        hint="Add an arXiv paper by id or link, attached to the selected card or the goal"
+        isDisabled={!onAddPaper}
+        onPress={() => onAddPaper?.()}
+      >
+        <FilePlus width={18} height={18} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Export to LaTeX"
+        hint="Export the canvas as it is now to a .tex file"
+        isDisabled={!onExport}
+        onPress={() => onExport?.()}
+      >
+        <ArrowDownToLine width={18} height={18} aria-hidden="true" />
       </ActionButton>
     </ToolbarRoot>
   );

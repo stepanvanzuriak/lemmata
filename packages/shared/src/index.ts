@@ -1,3 +1,4 @@
+export { parseArxivId } from "./arxiv.js";
 export type {
   Project,
   CreateProjectInput,
@@ -17,6 +18,8 @@ export type {
   HypothesisPayload,
   LeanDiagnostic,
   LiteraturePayload,
+  PaperPayload,
+  ToolboxPayload,
   LiteratureVerdict,
   NodeKind,
   NodePayload,
@@ -64,3 +67,4 @@ export type {
   UpdateMemoryRequest,
 } from "./memory.js";
 export type { Settings } from "./settings.js";
+export type { DebugAttempt, DebugEvent, DebugEventPage } from "./debug.js";

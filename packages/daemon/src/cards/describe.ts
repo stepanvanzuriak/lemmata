@@ -11,9 +11,9 @@ const FULL_CHARS = 8_000;
 const DETAIL_CHARS = 1_500;
 const BRIEF_CHARS = 200;
 
-type Level = "full" | "detail" | "brief" | "title";
+type Level = "complete" | "full" | "detail" | "brief" | "title";
 
-const clip = (text: string, max: number) =>
+export const clip = (text: string, max: number) =>
   text.length > max
     ? `${text.slice(0, max)}... [${text.length - max} more chars]`
     : text;
@@ -97,6 +97,7 @@ function describeCard(
     p.label,
     `"${p.title ?? ""}"`,
     status && `status: ${status.label}`,
+    p.tags?.length && `topics: ${p.tags.join(", ")}`,
     isResolved(card) && "resolved",
     `you may change: ${editRight(card, author)}`,
   ]
@@ -107,10 +108,15 @@ function describeCard(
     return head;
   }
 
-  const max = { full: FULL_CHARS, detail: DETAIL_CHARS, brief: BRIEF_CHARS }[
-    level
-  ];
+  const max = {
+    complete: Infinity,
+    full: FULL_CHARS,
+    detail: DETAIL_CHARS,
+    brief: BRIEF_CHARS,
+  }[level];
   const lines = [head];
+  // Source and run output are bulky; only the cards in focus carry them, get_card reads the rest.
+  const bulky = level === "full" || level === "complete";
 
   if (p.text) {
     lines.push(`  text: ${clip(p.text, max)}`);
@@ -118,10 +124,18 @@ function describeCard(
   if (p.markdown && level !== "brief") {
     lines.push(`  markdown: ${clip(p.markdown, max)}`);
   }
-  if (p.source && level !== "brief") {
+  if (p.source && bulky) {
     lines.push(`  source:\n${clip(p.source, max)}`);
   }
-  lines.push(...runLines(card, max));
+  if (card.kind === "toolbox" && bulky) {
+    if (p.python) {
+      lines.push(`  reusable Python:\n${clip(p.python, max)}`);
+    }
+    if (p.lean) {
+      lines.push(`  reusable Lean:\n${clip(p.lean, max)}`);
+    }
+  }
+  lines.push(...runLines(card, bulky ? max : BRIEF_CHARS));
   lines.push(...literatureLines(card, level));
 
   return lines.join("\n");
@@ -137,7 +151,6 @@ function describeLinks(detail: CanvasDetail): string[] {
   });
 }
 
-/** The canvas without archived cards and their links. */
 export function visibleDetail(detail: CanvasDetail): CanvasDetail {
   const nodes = detail.nodes.filter((n) => !isArchived(n));
   const ids = new Set(nodes.map((n) => n.id));
@@ -149,7 +162,6 @@ export function visibleDetail(detail: CanvasDetail): CanvasDetail {
   };
 }
 
-/** Focus cards in full, their neighbours in detail, others brief, titles only past the budget. */
 export function describeCanvas(
   full: CanvasDetail,
   author: Author,
@@ -230,7 +242,7 @@ export function describeOne(
   const archived = fieldsOf(card).archived;
 
   return [
-    describeCard(card, detail, author, "full"),
+    describeCard(card, detail, author, "complete"),
     archived &&
       `  archived${archived.reason ? `: ${archived.reason}` : ""} (hidden from the canvas)`,
     "Links:",

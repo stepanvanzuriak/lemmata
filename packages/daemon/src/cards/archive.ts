@@ -32,11 +32,18 @@ export function keepReason(
   if (card.kind === "goal") {
     return "the goal stays";
   }
+  if (card.kind === "toolbox") {
+    return "the toolbox is shared canvas infrastructure; use delete_toolbox if it is no longer useful";
+  }
   if (card.createdBy === "user") {
     return "it is the user's card";
   }
   if (card.kind === "hypothesis" && status !== "refuted") {
     return `it is ${status ?? "open"}; only refuted hypotheses are archived`;
+  }
+
+  if (card.kind === "attack" && status !== "failed") {
+    return `it is ${status ?? "open"}; only failed attacks are archived`;
   }
 
   const backs = neighbours(detail, card).find(
@@ -53,7 +60,6 @@ export function keepReason(
   return null;
 }
 
-/** Archives cards without the keep rules; a reset hides everything it replaced. */
 export async function archiveNodes(
   db: Db,
   ids: string[],

@@ -23,11 +23,13 @@ export {
   addNode,
   updateNode,
   updateNodePositions,
+  setNodeCollapsed,
   deleteNode,
   addEdge,
   deleteEdge,
   parsePayload,
   GoalNodeError,
+  UniqueToolboxError,
   NotFoundError,
   type CanvasDetail,
   type NodeInput,
@@ -43,6 +45,7 @@ export {
 } from "./db/schema.js";
 export { searchProjects } from "./search.js";
 export { ulid, isoNow } from "./ids.js";
+export { addAttemptEvent, listAttemptEvents } from "./transcripts.js";
 
 export const MIGRATIONS_FOLDER = fileURLToPath(
   new URL("../migrations", import.meta.url),

@@ -18,6 +18,9 @@ export function useUpdateSettings() {
   return useMutation({
     mutationFn: async (patch: Partial<Settings>) =>
       (await api.patch<Settings>("/settings", patch)).data,
-    onSuccess: (settings) => queryClient.setQueryData(settingsKey, settings),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(settingsKey, settings);
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+    },
   });
 }

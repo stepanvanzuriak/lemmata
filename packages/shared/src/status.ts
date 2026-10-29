@@ -1,9 +1,14 @@
-import type { CardRun } from "./cards.js";
+import type { CardRun, PaperPayload } from "./cards.js";
 import type { CanvasDetail, CanvasNode } from "./canvas.js";
 
 export type Tone = "ok" | "bad" | "warn" | "work" | "idle";
 
-export type CardStatus = { tone: Tone; label: string; detail?: string };
+export type CardStatus = {
+  tone: Tone;
+  label: string;
+  detail?: string;
+  since?: number;
+};
 
 export type CanvasGraph = Pick<CanvasDetail, "nodes" | "edges">;
 
@@ -11,9 +16,11 @@ type StatusFields = {
   status?: string;
   archived?: unknown;
   resolved?: unknown;
+  settleDismissed?: boolean;
   verdict?: string;
   author?: string;
   run?: CardRun;
+  runningSince?: number;
   claimedByRole?: string;
 };
 
@@ -25,8 +32,11 @@ const roleName = (role?: string) =>
 const CHECK_KINDS = new Set(["python", "lean"]);
 
 function runStatus(node: CanvasNode): CardStatus {
-  const run = fields(node).run;
+  const { run, runningSince } = fields(node);
 
+  if (runningSince) {
+    return { tone: "work", label: "Running", since: runningSince };
+  }
   if (!run) {
     return { tone: "idle", label: "Not run" };
   }
@@ -113,7 +123,12 @@ const HYPOTHESIS_STATUS: Record<string, CardStatus> = {
   refuted: { tone: "bad", label: "Refuted" },
 };
 
-/** An open hypothesis whose parts already decide it says so on the card. */
+const ATTACK_STATUS: Record<string, CardStatus> = {
+  open: { tone: "idle", label: "Untried" },
+  worked: { tone: "ok", label: "Worked" },
+  failed: { tone: "bad", label: "Failed" },
+};
+
 function readyStatus(node: CanvasNode, graph: CanvasGraph): CardStatus | null {
   const ready = settleReady(node, graph);
 
@@ -144,6 +159,14 @@ export function cardStatus(
         HYPOTHESIS_STATUS[status ?? "open"] ??
         HYPOTHESIS_STATUS.open!
       );
+    case "attack":
+      if (status === "claimed") {
+        return {
+          tone: "work",
+          label: `${roleName(fields(node).claimedByRole)} working`,
+        };
+      }
+      return ATTACK_STATUS[status ?? "open"] ?? ATTACK_STATUS.open!;
     case "python":
     case "lean":
       return runStatus(node);
@@ -166,6 +189,13 @@ export function cardStatus(
       }
       return { tone: "warn", label: "Referee" };
     }
+    case "arxiv": {
+      const arxivPayload = node.payload as PaperPayload;
+      if (arxivPayload.source) {
+        return { tone: "ok", label: "Source read" };
+      }
+      return { tone: "idle", label: "Abstract only" };
+    }
     default:
       return null;
   }
@@ -174,7 +204,7 @@ export function cardStatus(
 /**
  * What the linked hypotheses already decide for a goal or an open hypothesis: refuted when a
  * refuted-by hypothesis is supported, supported when every depends-on hypothesis is. Null when
- * they decide nothing yet, or the card is settled. Archived links do not count.
+ * they decide nothing yet, the card is settled, or the user dismissed the suggestion. Archived links do not count.
  */
 export function settleReady(
   card: CanvasNode,
@@ -186,6 +216,9 @@ export function settleReady(
     return null;
   }
   if (status && status !== "open" && status !== "claimed") {
+    return null;
+  }
+  if (fields(card).settleDismissed) {
     return null;
   }
 
