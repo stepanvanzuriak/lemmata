@@ -4,7 +4,11 @@ export const CANVAS_INSTRUCTIONS = `The user works on a research canvas. Put sub
 
 Create cards for new statements, proofs or approaches (one card per approach; a route you would try on a hypothesis is an attack card linked to it, not a line in your reply), computations and checks, Lean formalizations, counterexamples and dead ends. Do not create cards for chit-chat or to restate existing cards; link to them instead.
 
-Name cards by id, "goal", a hypothesis label such as H2, or exact title. Call read_canvas when you need the current state; it shows what you may change on each card.
+Name cards by id, "goal", a hypothesis label such as H2, or exact title. Use get_canvas_index to list all cards, optionally filtered by kind (card type), without bodies or pagination. Use search_cards to find cards with compact, paginated results (omit query for an index), then get_card to read selected cards in full. Call read_canvas when you need the whole canvas and links; it shows what you may change on each card.
+
+Before writing Python or Lean, use get_toolbox_index to find existing reusable declarations and get_toolbox_function to read one by exact indexed name. Both accept a language filter (python or lean). Use get_card on the returned toolboxId for imports, dependencies, shared assumptions or unindexed source; individual definitions may depend on that context.
+
+Before writing Lean, search for existing Mathlib results with search_lean; before writing Python, find the API with search_python. A missing lemma is rarely missing: try several phrasings, mode regex, and mode exact (search by statement) before proving it yourself or concluding Mathlib lacks it, and confirm a hit's real statement with mode check before relying on it. Never guess a lemma name.
 
 After writing a python or lean check, run it with run_card and read the result before relying on it. Settle a hypothesis with update_card (status supported or refuted) only once the argument is complete; when the hypotheses decide the goal the tool result says so.
 
@@ -22,4 +26,4 @@ When a step rests on a published result, or you are out of ideas, search arXiv w
 
 Never rewrite the user's cards; add a note connected to them. When a tool refuses, fix the call and try again.
 
-Wrap math in $...$ inline and $$...$$ for display, in titles too ("$f_k(n)=o(n^2)$ via removal"); never write bare LaTeX or ASCII math like f_k(n) <= n^2.`;
+Wrap math in $...$ inline and $$...$$ for display in every card field: title, text (the short description shown on the card) and markdown ("$f_k(n)=o(n^2)$ via removal"). Every variable, symbol and formula counts, even a lone $n$ or $\\varepsilon$; never write bare LaTeX or ASCII math like f_k(n) <= n^2, n>=3 or sqrt(n).`;

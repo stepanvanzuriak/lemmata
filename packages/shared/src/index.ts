@@ -67,3 +67,4 @@ export type {
   UpdateMemoryRequest,
 } from "./memory.js";
 export type { Settings } from "./settings.js";
+export type { DebugAttempt, DebugEvent, DebugEventPage } from "./debug.js";

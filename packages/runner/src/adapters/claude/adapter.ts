@@ -12,9 +12,9 @@ export type ClaudeAdapterOptions = {
 export class ClaudeAdapter implements AgentAdapter {
   readonly name = "claude";
   readonly models = [
-    { id: "haiku", label: "Haiku" },
-    { id: "sonnet", label: "Sonnet" },
-    { id: "opus", label: "Opus" },
+    { id: "haiku", label: "Haiku 5.5" },
+    { id: "sonnet", label: "Sonnet 5.5" },
+    { id: "opus", label: "Opus 5.5" },
   ];
 
   constructor(private readonly config: ClaudeAdapterOptions = {}) {}
@@ -29,6 +29,7 @@ export class ClaudeAdapter implements AgentAdapter {
       cwd: options.cwd,
       env,
       parseLine: (json) => mapClaudeLine(json, seen),
+      captureRawEvents: options.captureRawEvents,
     });
   }
 }

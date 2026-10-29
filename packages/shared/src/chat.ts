@@ -26,7 +26,7 @@ export type RunInfo = {
 export type ChatEvent =
   | { type: "user"; message: ChatMessage; run: RunInfo }
   | { type: "text"; text: string }
-  | { type: "tool_use"; name: string }
+  | { type: "tool_use"; name: string; input?: string }
   | { type: "usage"; tokens: number }
   | { type: "cards"; nodes: CanvasNode[]; edges: CanvasEdge[] }
   | { type: "memory"; saved: number }

@@ -41,6 +41,17 @@ export const router = createBrowserRouter([
               fullBleed: true,
             } satisfies RouteHandle,
           },
+          ...(import.meta.env.DEV
+            ? [
+                {
+                  path: "canvas/:id/debug",
+                  lazy: async () => ({
+                    Component: (await import("../pages/Debug")).DebugPage,
+                  }),
+                  handle: { title: "Agent transcripts" } satisfies RouteHandle,
+                },
+              ]
+            : []),
           placeholder("sessions", "Sessions"),
           placeholder("notebook", "Notebook"),
           {

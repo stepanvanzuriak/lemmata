@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "LEMMATA_TOKEN=dev-token tsx watch src/cli.ts serve .dev-workspace --no-open --origin http://localhost:5173 --origin http://127.0.0.1:5173",
+    "dev": "NODE_ENV=development LEMMATA_TOKEN=dev-token tsx watch src/cli.ts serve .dev-workspace --no-open --origin http://localhost:5173 --origin http://127.0.0.1:5173",
     "lemmata": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "mcp-smoke": "tsx scripts/mcp-smoke.ts"
@@ -16,10 +16,13 @@
     "core": "workspace:*",
     "fast-xml-parser": "^5.11.2",
     "hono": "^4.13.13",
+    "katex": "^0.19.0",
     "nanotar": "^0.3.0",
     "open": "^11.0.4",
+    "remark-parse": "^11.0.0",
     "runner": "workspace:*",
     "shared": "workspace:*",
+    "unified": "^11.0.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {

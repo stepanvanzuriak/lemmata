@@ -18,6 +18,7 @@ export class CodexAdapter implements AgentAdapter {
       args: codexArgs(options),
       cwd: options.cwd,
       parseLine: mapCodexLine,
+      captureRawEvents: options.captureRawEvents,
     });
   }
 }

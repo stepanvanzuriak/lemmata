@@ -18,19 +18,24 @@ export function CodeCard({ node, status }: CardProps) {
       status={status}
       className="w-72.5 gap-0 overflow-hidden border-lm-line"
     >
-      <Header
+      <div
         className={clsx(
-          "border-b border-lm-hair px-3.5 py-2.5",
+          "flex min-w-0 flex-col gap-1 border-b border-lm-hair px-3.5 py-2.5",
           isPython ? "text-lm-teal-ink" : "text-lm-muted",
         )}
-        meta={
-          <Markdown inline className="font-mono">
-            {p.title || ""}
-          </Markdown>
-        }
       >
-        {isPython ? "Python" : "Lean check"}
-      </Header>
+        <Header className="whitespace-nowrap">
+          {isPython ? "Python" : "Lean check"}
+        </Header>
+        {p.title && (
+          <Markdown
+            inline
+            className="line-clamp-2 font-mono text-xs text-lm-muted"
+          >
+            {p.title}
+          </Markdown>
+        )}
+      </div>
       <pre className="m-0 max-h-40 overflow-hidden bg-lm-code px-3.5 py-2.5 font-mono text-[11.5px] leading-[1.6] whitespace-pre-wrap text-lm-code-fg">
         {p.source || " "}
       </pre>

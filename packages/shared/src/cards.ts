@@ -25,6 +25,7 @@ export type Resolved = {
 
 export type BasePayload = {
   title: string;
+  tags?: string[];
   text?: string;
   markdown?: string;
   author?: string;
@@ -34,6 +35,8 @@ export type BasePayload = {
 export type GoalPayload = BasePayload & {
   kind: "goal";
   status: "open" | "proved" | "disproved";
+  /** The user dismissed the "Ready to settle" suggestion. */
+  settleDismissed?: boolean;
 };
 
 export type HypothesisPayload = BasePayload & {
@@ -44,6 +47,8 @@ export type HypothesisPayload = BasePayload & {
   claimedBy?: string;
   claimedByRole?: "prover" | "referee";
   settledBy?: string;
+  /** The user dismissed the "Ready to settle" suggestion. */
+  settleDismissed?: boolean;
 };
 
 /** One concrete route to a hypothesis: an argument or construction to try. */

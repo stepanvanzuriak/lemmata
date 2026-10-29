@@ -22,11 +22,30 @@ export async function addMessage(
   return row!;
 }
 
-export function listMessages(db: Db, canvasId: string): Promise<ChatMessage[]> {
-  return db.query.chatMessage.findMany({
-    where: { canvasId, archivedBy: { isNull: true } },
-    orderBy: { createdAt: "asc" },
+/** All visible messages, oldest first; with `limit`, the newest ones (before the message id `before`). */
+export async function listMessages(
+  db: Db,
+  canvasId: string,
+  page: { limit?: number; before?: string } = {},
+): Promise<ChatMessage[]> {
+  if (page.limit === undefined) {
+    return db.query.chatMessage.findMany({
+      where: { canvasId, archivedBy: { isNull: true } },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  const rows = await db.query.chatMessage.findMany({
+    where: {
+      canvasId,
+      archivedBy: { isNull: true },
+      ...(page.before ? { id: { lt: page.before } } : {}),
+    },
+    orderBy: { createdAt: "desc", id: "desc" },
+    limit: page.limit,
   });
+
+  return rows.reverse();
 }
 
 /** Hides the chat before `before` (a message id), so a reset starts a fresh conversation. */
@@ -76,9 +95,11 @@ export async function lastSessionId(
   agentId: string | null,
   target: string | null,
   provider?: string,
+  /** Ignore sessions older than this: the provider's prompt cache has expired and resuming rewrites it all. */
+  maxAgeMs?: number,
 ): Promise<string | null> {
   const [row] = await db
-    .select({ sessionId: attempt.sessionId })
+    .select({ sessionId: attempt.sessionId, startedAt: attempt.startedAt })
     .from(chatMessage)
     .innerJoin(attempt, eq(chatMessage.attemptId, attempt.id))
     .where(
@@ -96,6 +117,14 @@ export async function lastSessionId(
     )
     .orderBy(desc(chatMessage.createdAt))
     .limit(1);
+
+  if (
+    row &&
+    maxAgeMs !== undefined &&
+    Date.now() - Date.parse(row.startedAt) > maxAgeMs
+  ) {
+    return null;
+  }
 
   return row?.sessionId ?? null;
 }

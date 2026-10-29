@@ -21,6 +21,19 @@ yarn dev        # daemon on 127.0.0.1:4317 and the web app on http://localhost:5
 Agents need the [Claude Code](https://docs.claude.com/en/docs/claude-code) CLI. Python and Lean checks need `uv` and
 `lean`, and the tests do not depend on any of them.
 
+### Agent transcripts
+
+`yarn dev` enables database recording of agent runs. Open **Debug transcripts** in a canvas's chat header
+or visit `/canvas/<canvas-id>/debug` to inspect tasks such as `/prover H32`. Each attempt records its original
+request, effective prompt, provider events, messages, command executions, MCP requests and responses, errors,
+and final status. Events are ordered and stored without truncating their payloads; expand an event to read it.
+The page refreshes automatically and lets you load additional pages of events.
+
+Recording and the authenticated `/api/debug` endpoints require the daemon's `NODE_ENV=development`.
+The debug page and link are included only by the frontend development server. Production runs do not record
+transcripts. Previously recorded data stays in the workspace database across restarts; older runs cannot be
+reconstructed retroactively.
+
 ## Before you open a pull request
 
 ```sh

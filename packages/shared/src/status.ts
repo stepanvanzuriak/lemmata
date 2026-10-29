@@ -16,6 +16,7 @@ type StatusFields = {
   status?: string;
   archived?: unknown;
   resolved?: unknown;
+  settleDismissed?: boolean;
   verdict?: string;
   author?: string;
   run?: CardRun;
@@ -203,7 +204,7 @@ export function cardStatus(
 /**
  * What the linked hypotheses already decide for a goal or an open hypothesis: refuted when a
  * refuted-by hypothesis is supported, supported when every depends-on hypothesis is. Null when
- * they decide nothing yet, or the card is settled. Archived links do not count.
+ * they decide nothing yet, the card is settled, or the user dismissed the suggestion. Archived links do not count.
  */
 export function settleReady(
   card: CanvasNode,
@@ -215,6 +216,9 @@ export function settleReady(
     return null;
   }
   if (status && status !== "open" && status !== "claimed") {
+    return null;
+  }
+  if (fields(card).settleDismissed) {
     return null;
   }
 

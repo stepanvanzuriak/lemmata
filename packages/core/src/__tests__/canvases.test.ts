@@ -1,4 +1,7 @@
 import { expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { openDb } from "../db/index.js";
 import {
   addEdge,
@@ -11,6 +14,7 @@ import {
   listCanvases,
   updateNode,
   updateNodePositions,
+  setNodeCollapsed,
 } from "../canvases.js";
 import { MIGRATIONS_FOLDER } from "../index.js";
 import { createProject } from "../projects.js";
@@ -85,6 +89,61 @@ it("adds, merges, moves and deletes nodes", async () => {
 it("refuses to delete the goal node", async () => {
   const { db, goal } = await setup();
   await expect(deleteNode(db, goal.id)).rejects.toBeInstanceOf(GoalNodeError);
+});
+
+it("persists collapsed cards across database reopen without changing content or hiding children", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "lemmata-collapse-"));
+  const url = `file:${join(folder, "workspace.db")}`;
+  let db = await openDb(url, MIGRATIONS_FOLDER);
+  try {
+    const project = await createProject(db, {
+      title: "Goal",
+      statement: "Prove it",
+    });
+    const [canvas] = await listCanvases(db, project.id);
+    const goal = (await getCanvas(db, canvas!.id))!.nodes[0]!;
+    const child = await addNode(db, {
+      canvasId: canvas!.id,
+      kind: "hypothesis",
+      payload: { title: "Child" },
+    });
+    await addEdge(db, {
+      canvasId: canvas!.id,
+      fromNode: goal.id,
+      toNode: child.id,
+      kind: "depends-on",
+    });
+    expect(goal.collapsed).toBe(false);
+    await setNodeCollapsed(db, goal.id, true);
+    await setNodeCollapsed(db, child.id, true);
+    db.$client.close();
+    db = await openDb(url, MIGRATIONS_FOLDER);
+    const loaded = (await getCanvas(db, canvas!.id))!;
+    expect(loaded.nodes).toHaveLength(2);
+    expect(loaded.edges).toHaveLength(1);
+    expect(loaded.nodes.find(({ id }) => id === goal.id)).toMatchObject({
+      collapsed: true,
+      payload: goal.payload,
+      updatedAt: goal.updatedAt,
+    });
+    expect(loaded.nodes.find(({ id }) => id === child.id)?.collapsed).toBe(
+      true,
+    );
+    await updateNode(db, goal.id, { text: "Updated by an agent" });
+    expect(
+      (await getCanvas(db, canvas!.id))!.nodes.find(({ id }) => id === goal.id)
+        ?.collapsed,
+    ).toBe(true);
+    await setNodeCollapsed(db, goal.id, false);
+    expect(
+      (await getCanvas(db, canvas!.id))!.nodes.find(({ id }) => id === goal.id)
+        ?.collapsed,
+    ).toBe(false);
+    expect(await setNodeCollapsed(db, "missing", true)).toBeUndefined();
+  } finally {
+    db.$client.close();
+    await rm(folder, { recursive: true, force: true });
+  }
 });
 
 it("does not insert a duplicate edge", async () => {

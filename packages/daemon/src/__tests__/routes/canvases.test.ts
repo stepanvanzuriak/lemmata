@@ -38,6 +38,28 @@ async function setup(arxiv?: ArxivClient) {
   return { app, project, canvas: canvas!, goal, detail };
 }
 
+it("stores collapse and expand state in the canvas response and validates input", async () => {
+  const { app, goal, detail } = await setup();
+  const endpoint = `/api/nodes/${goal.id}/collapsed`;
+  for (const collapsed of [true, false]) {
+    const response = await app.request(endpoint, send("PATCH", { collapsed }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).collapsed).toBe(collapsed);
+    expect((await detail()).nodes[0]!.collapsed).toBe(collapsed);
+  }
+  expect(
+    (await app.request(endpoint, send("PATCH", { collapsed: "true" }))).status,
+  ).toBe(400);
+  expect(
+    (
+      await app.request(
+        "/api/nodes/missing/collapsed",
+        send("PATCH", { collapsed: true }),
+      )
+    ).status,
+  ).toBe(404);
+});
+
 it("lists a project's canvases and returns the detail with a parsed goal", async () => {
   const { goal } = await setup();
 
@@ -104,6 +126,21 @@ it("adds, updates, moves and deletes a node", async () => {
   const deleted = await app.request(`/api/nodes/${node.id}`, send("DELETE"));
   expect(deleted.status).toBe(200);
   expect((await detail()).nodes).toHaveLength(1);
+});
+
+it("allows users to create cards with broken LaTeX", async () => {
+  const { app, canvas } = await setup();
+  const payload = {
+    title: "$\\broken",
+    text: "$\\frac{1}{$",
+    markdown: "$$unclosed",
+  };
+  const response = await app.request(
+    `/api/canvases/${canvas.id}/nodes`,
+    send("POST", { kind: "statement", payload }),
+  );
+  expect(response.status).toBe(201);
+  expect(await response.json()).toMatchObject({ createdBy: "user", payload });
 });
 
 it("rejects an unknown node kind", async () => {

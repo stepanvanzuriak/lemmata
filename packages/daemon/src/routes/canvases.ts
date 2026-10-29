@@ -20,6 +20,7 @@ import {
   restoreMessages,
   updateNode,
   updateNodePositions,
+  setNodeCollapsed,
 } from "core";
 import type { CanvasDetail, CanvasNode, NodeKind, Toolchain } from "shared";
 import { ArxivError, type ArxivClient } from "../arxiv/arxiv.js";
@@ -251,6 +252,21 @@ export function canvasRoutes(
           : await restoreMessages(db, detail.canvas.id, by);
 
         return c.json({ restored, messages }, 200);
+      },
+    )
+    .patch(
+      "/nodes/:id/collapsed",
+      validate("json", z.object({ collapsed: z.boolean() })),
+      async (c) => {
+        const node = await setNodeCollapsed(
+          db,
+          c.req.param("id"),
+          c.req.valid("json").collapsed,
+        );
+        if (!node) {
+          return c.json({ error: "node not found" }, 404);
+        }
+        return c.json(toNode(node), 200);
       },
     )
     .patch("/nodes/:id", validate("json", payload), async (c) => {

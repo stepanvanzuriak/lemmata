@@ -12,6 +12,7 @@ export async function testApp(
   workspaceDir = "/tmp/ws",
   adapter?: () => AgentAdapter,
   arxiv: ArxivClient = offlineArxiv,
+  devMode = false,
 ) {
   return createApp({
     db: await openDb(":memory:", MIGRATIONS_FOLDER),
@@ -26,6 +27,7 @@ export async function testApp(
     staticDir,
     adapter,
     arxiv,
+    devMode,
   });
 }
 

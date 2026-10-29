@@ -5,6 +5,7 @@ export type McpServer = {
 };
 
 export type StartOptions = {
+  captureRawEvents?: boolean;
   cwd: string;
   prompt: string;
   resumeSessionId?: string;
@@ -28,6 +29,7 @@ export type Usage = {
 export type DoneReason = "completed" | "aborted" | "budget" | "error";
 
 export type RunEvent =
+  | { type: "provider"; stream: "stdout" | "stderr"; data: unknown }
   | { type: "session"; sessionId: string }
   | { type: "text"; text: string }
   | { type: "tool_use"; id: string; name: string; input: unknown }

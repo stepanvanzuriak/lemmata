@@ -7,7 +7,6 @@ import {
 } from "@xyflow/react";
 import {
   cardStatus,
-  settleReady,
   type CanvasEdge,
   type CanvasGraph,
   type CanvasNode,
@@ -29,11 +28,14 @@ function toFlowNode(
   prev?: CardFlowNode,
 ): CardFlowNode {
   const status = cardStatus(node, graph);
-  const ready = settleReady(node, graph);
   const unchanged =
     prev &&
     prev.data.node.updatedAt === node.updatedAt &&
-    prev.data.ready === ready &&
+    prev.data.node.x === node.x &&
+    prev.data.node.y === node.y &&
+    prev.data.node.w === node.w &&
+    prev.data.node.h === node.h &&
+    prev.data.node.collapsed === node.collapsed &&
     sameStatus(prev.data.status, status);
 
   const serverMoved =
@@ -43,7 +45,7 @@ function toFlowNode(
     id: node.id,
     type: "card",
     position: serverMoved ? { x: node.x, y: node.y } : prev.position,
-    data: unchanged ? prev.data : { node, status, ready },
+    data: unchanged ? prev.data : { node, status },
     selected: prev?.selected,
     deletable: node.kind !== "goal",
   };
@@ -134,7 +136,11 @@ export function useCanvasData(id: string) {
 
   return {
     query,
-    detail: query.data,
+    detail: query.data && {
+      ...query.data,
+      nodes: nodes.map(({ data }) => data.node),
+      edges: edges.flatMap(({ data }) => (data ? [data.edge] : [])),
+    },
     nodes,
     edges,
     onNodesChange,

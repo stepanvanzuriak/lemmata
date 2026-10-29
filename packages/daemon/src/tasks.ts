@@ -54,7 +54,7 @@ export function taskPrompt(
     curator:
       "Tidy this canvas: merge the notes on each hypothesis into one summary, archive dead ends, and write the Canvas summary.",
     reset:
-      "Reset this canvas to its key points: write the few cards a fresh start needs. When you finish, every other card is archived.",
+      "Reset this canvas to its key points: write a few short cards with the essential results, open gaps and one next step, without the research history or citation trails. When you finish, every other non-goal, non-toolbox card is archived.",
   };
   const prompt = prompts[task.role];
 

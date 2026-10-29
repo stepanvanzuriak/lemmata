@@ -25,7 +25,7 @@ export function Card({
   return (
     <article
       className={clsx(
-        "box-border flex flex-col gap-2 rounded-xl border",
+        "box-border flex min-w-0 flex-col gap-2 overflow-hidden rounded-xl border [overflow-wrap:anywhere]",
         tint,
         className,
       )}

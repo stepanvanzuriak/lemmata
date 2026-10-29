@@ -62,11 +62,11 @@ export async function addPaper(
   const row = await addNode(db, {
     canvasId: run.canvasId,
     kind: "arxiv",
-    ...freeSpot(
+    ...(await freeSpot(
       detail.nodes.filter((n) => !isArchived(n)),
       parent,
       "arxiv",
-    ),
+    )),
     payload:
       by === "user"
         ? payload

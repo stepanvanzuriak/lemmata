@@ -65,6 +65,8 @@ export function mapCodexLine(value: unknown): RunEvent[] {
     case "turn.completed": {
       const usage = object(value.usage) ? value.usage : {};
       const events: RunEvent[] = [];
+      // Codex counts cached tokens inside input_tokens.
+      const cached = Number(usage.cached_input_tokens ?? 0);
       if (
         typeof usage.input_tokens === "number" ||
         typeof usage.output_tokens === "number"
@@ -74,9 +76,9 @@ export function mapCodexLine(value: unknown): RunEvent[] {
           final: true,
           messageId: String(value.thread_id ?? Date.now()),
           usage: {
-            input: Number(usage.input_tokens ?? 0),
+            input: Math.max(Number(usage.input_tokens ?? 0) - cached, 0),
             output: Number(usage.output_tokens ?? 0),
-            cacheRead: 0,
+            cacheRead: cached,
             cacheWrite: 0,
           },
         });

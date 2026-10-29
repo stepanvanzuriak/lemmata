@@ -67,7 +67,7 @@ it("offers models from both enabled providers and routes roles independently", a
   const models = await (await app.request("/api/models", json("GET"))).json();
   expect(models).toContainEqual({
     id: "claude:sonnet",
-    label: "Claude Code · Sonnet",
+    label: "Claude Code · Sonnet 5.5",
   });
   expect(models).toContainEqual({
     id: "codex:gpt-test",

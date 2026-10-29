@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Modal, ToggleButton, ToggleButtonGroup } from "@heroui/react";
-import type { CanvasNode, CardFigure } from "shared";
+import type { CanvasNode, CardFigure, LeanDiagnostic } from "shared";
 import { useRunNode } from "../../api/canvases";
 import { Figure } from "./Figure";
 import { fieldsOf } from "./kinds";
@@ -23,6 +23,21 @@ function Output({ label, text }: { label: string; text: string }) {
 }
 
 type Mode = "view" | "angles";
+
+function Diagnostic({ diagnostic: d }: { diagnostic: LeanDiagnostic }) {
+  return (
+    <div className="rounded-lg border border-lm-line px-3 py-2 font-mono text-xs whitespace-pre-wrap">
+      <span
+        className={
+          d.severity === "error" ? "text-lm-danger" : "text-lm-warn-ink"
+        }
+      >
+        {d.line}:{d.column} {d.severity}
+      </span>{" "}
+      {d.message}
+    </div>
+  );
+}
 
 function FigureItem({
   nodeId,
@@ -106,6 +121,13 @@ export function RunPanel({
 }) {
   const runNode = useRunNode(canvasId);
   const { run } = fieldsOf(node);
+  const warnings =
+    node.kind === "lean"
+      ? (run?.diagnostics ?? []).filter((d) => d.severity === "warning")
+      : [];
+  const diagnostics = (run?.diagnostics ?? []).filter(
+    (d) => node.kind !== "lean" || d.severity !== "warning",
+  );
 
   return (
     <section className="flex flex-col gap-3" aria-label="Run">
@@ -129,21 +151,21 @@ export function RunPanel({
       </div>
       {run && (
         <>
-          {run.diagnostics?.map((d, index) => (
-            <div
-              key={index}
-              className="rounded-lg border border-lm-line px-3 py-2 font-mono text-xs whitespace-pre-wrap"
-            >
-              <span
-                className={
-                  d.severity === "error" ? "text-lm-danger" : "text-lm-warn-ink"
-                }
-              >
-                {d.line}:{d.column} {d.severity}
-              </span>{" "}
-              {d.message}
-            </div>
+          {diagnostics.map((d, index) => (
+            <Diagnostic key={index} diagnostic={d} />
           ))}
+          {warnings.length > 0 && (
+            <details className="min-w-0 rounded-lg border border-lm-line">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-lm-warn-ink select-none">
+                Warnings ({warnings.length})
+              </summary>
+              <div className="flex flex-col gap-2 px-3 pb-3">
+                {warnings.map((d, index) => (
+                  <Diagnostic key={index} diagnostic={d} />
+                ))}
+              </div>
+            </details>
+          )}
           {run.axioms && run.axioms.length > 0 && (
             <div className="text-xs text-lm-muted">
               Axioms: <span className="font-mono">{run.axioms.join(", ")}</span>

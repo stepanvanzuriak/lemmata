@@ -17,10 +17,12 @@ import { chatRoutes } from "./routes/chat.js";
 import { figureRoutes } from "./routes/figures.js";
 import { memoryRoutes } from "./routes/memory.js";
 import { settingsRoutes } from "./routes/settings.js";
+import { debugRoutes } from "./routes/debug.js";
 import type { AgentAdapter } from "runner";
 import { HttpArxivClient, type ArxivClient } from "./arxiv/arxiv.js";
 
 export type AppOptions = {
+  devMode?: boolean;
   db: Db;
   security: SecurityOptions;
   workspaceDir: string;
@@ -38,10 +40,11 @@ export function createApp({
   staticDir,
   adapter,
   arxiv = new HttpArxivClient(),
+  devMode = process.env.NODE_ENV === "development",
 }: AppOptions) {
   const app = new Hono()
     .use("*", hostAndOrigin(security))
-    .all("/mcp", mcpHandler({ db, workspaceDir, toolchain, arxiv }))
+    .all("/mcp", mcpHandler({ db, workspaceDir, toolchain, arxiv, devMode }))
     .use("/api/*", requireToken(security))
     .get("/api/health", (c) => c.json({ ok: true }))
     .route("/api/projects", projectRoutes(db))
@@ -60,6 +63,7 @@ export function createApp({
         arxiv,
         adapter,
         port: () => security.port,
+        devMode,
       }),
     )
     .route(
@@ -71,6 +75,12 @@ export function createApp({
       }),
     )
     .notFound((c) => c.json({ error: "not found" }, 404));
+
+  if (devMode) {
+    app.route("/api/debug", debugRoutes(db));
+  } else {
+    app.all("/api/debug/*", (c) => c.json({ error: "not found" }, 404));
+  }
 
   if (staticDir) {
     app.get("*", ...serveWeb(staticDir));

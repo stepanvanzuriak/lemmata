@@ -62,11 +62,11 @@ export async function literatureCardFor(
   const row = await addNode(db, {
     canvasId: ref.canvasId,
     kind: "literature",
-    ...freeSpot(
+    ...(await freeSpot(
       detail.nodes.filter((n) => !isArchived(n)),
       ref,
       "literature",
-    ),
+    )),
     payload: {
       title: `Literature: ${fieldsOf(ref).label ?? fieldsOf(ref).title ?? "goal"}`,
       target: ref.id,

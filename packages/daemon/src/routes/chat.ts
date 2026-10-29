@@ -26,6 +26,11 @@ const chatSchema = z.object({
   model: z.string().trim().min(1).nullish(),
 });
 
+const messagesQuery = z.object({
+  limit: z.coerce.number().int().positive().max(200).optional(),
+  before: z.string().min(1).optional(),
+});
+
 const agentSchema = z.object({
   role: z.enum(AGENT_ROLES),
   model: z.string().trim().min(1).nullish(),
@@ -74,8 +79,11 @@ export function chatRoutes(deps: ChatDeps) {
       ),
     )
     .get("/canvases/:id/runs", (c) => c.json(activeRuns(c.req.param("id"))))
-    .get("/canvases/:id/messages", async (c) =>
-      c.json(await listMessages(db, c.req.param("id"))),
+    .get(
+      "/canvases/:id/messages",
+      validate("query", messagesQuery),
+      async (c) =>
+        c.json(await listMessages(db, c.req.param("id"), c.req.valid("query"))),
     )
     .get("/canvases/:id/agents", async (c) =>
       c.json(await listAgents(db, c.req.param("id"))),

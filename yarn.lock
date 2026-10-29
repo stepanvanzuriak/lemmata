@@ -3235,11 +3235,14 @@ __metadata:
     core: "workspace:*"
     fast-xml-parser: "npm:^5.11.2"
     hono: "npm:^4.13.13"
+    katex: "npm:^0.19.0"
     nanotar: "npm:^0.3.0"
     open: "npm:^11.0.4"
+    remark-parse: "npm:^11.0.0"
     runner: "workspace:*"
     shared: "workspace:*"
     tsx: "npm:^4.23.0"
+    unified: "npm:^11.0.5"
     zod: "npm:^4.6.7"
   languageName: unknown
   linkType: soft
@@ -4559,6 +4562,13 @@ __metadata:
   dependencies:
     hermes-estree: "npm:0.25.1"
   checksum: 10c0/3abaa4c6f1bcc25273f267297a89a4904963ea29af19b8e4f6eabe04f1c2c7e9abd7bfc4730ddb1d58f2ea04b6fee74053d8bddb5656ec6ebf6c79cc8d14202c
+  languageName: node
+  linkType: hard
+
+"highlight.js@npm:^11.12.0":
+  version: 11.12.0
+  resolution: "highlight.js@npm:11.12.0"
+  checksum: 10c0/c62ebfad125b541790412374a15ae1ca15a45fdfac0fae2b5c96b6a10dc8d5d15380adf748584fb08cfeb4db2b3a749a170e2afd0b640e9fad86445b1c435777
   languageName: node
   linkType: hard
 
@@ -6539,6 +6549,7 @@ __metadata:
   dependencies:
     "@typescript/native": "npm:typescript@^7.0.2"
     core: "workspace:*"
+    elkjs: "npm:^0.12.0"
   languageName: unknown
   linkType: soft
 
@@ -6896,7 +6907,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unified@npm:^11.0.0":
+"unified@npm:^11.0.0, unified@npm:^11.0.5":
   version: 11.0.5
   resolution: "unified@npm:11.0.5"
   dependencies:
@@ -7208,7 +7219,7 @@ __metadata:
     babel-plugin-react-compiler: "npm:^1.0.0"
     clsx: "npm:^2.1.1"
     date-fns: "npm:^4.4.0"
-    elkjs: "npm:^0.12.0"
+    highlight.js: "npm:^11.12.0"
     katex: "npm:^0.19.0"
     lodash: "npm:^4.18.1"
     react: "npm:^19.2.8"

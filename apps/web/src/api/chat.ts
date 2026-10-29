@@ -68,11 +68,20 @@ export const messagesKey = (canvasId: string) =>
 export const agentsKey = (canvasId: string) =>
   ["canvas", canvasId, "agents"] as const;
 
+export const MESSAGE_PAGE = 50;
+
+export const fetchMessages = async (canvasId: string, before?: string) =>
+  (
+    await api.get<ChatMessage[]>(`/canvases/${canvasId}/messages`, {
+      params: { limit: MESSAGE_PAGE, before },
+    })
+  ).data;
+
+/** The newest page of the chat; older pages come from `fetchMessages`. */
 export function useMessages(canvasId: string) {
   return useQuery({
     queryKey: messagesKey(canvasId),
-    queryFn: async () =>
-      (await api.get<ChatMessage[]>(`/canvases/${canvasId}/messages`)).data,
+    queryFn: () => fetchMessages(canvasId),
   });
 }
 

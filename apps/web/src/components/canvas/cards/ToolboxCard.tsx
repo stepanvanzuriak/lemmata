@@ -1,3 +1,4 @@
+import { Markdown } from "../../common/Markdown";
 import { fieldsOf } from "../kinds";
 import { Card, Header, Secondary, type CardProps } from "./Card";
 
@@ -16,7 +17,7 @@ export function ToolboxCard({ node }: CardProps) {
         Toolbox
       </Header>
       <div className="px-3.5 pt-2 font-serif text-[15px]">
-        {p.title || "Toolbox"}
+        <Markdown inline>{p.title || "Toolbox"}</Markdown>
       </div>
       {p.text && (
         <div className="px-3.5 pt-1 pb-2">

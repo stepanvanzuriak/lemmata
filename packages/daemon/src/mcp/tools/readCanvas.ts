@@ -8,7 +8,7 @@ export const registerReadCanvas: RegisterTool = (server, { run, detail }) => {
     "read_canvas",
     {
       description:
-        "List every card (id, kind, status, what you may change) and the links. Pass focus to see some cards in full.",
+        "Read the whole canvas: cards, their content, status, what you may change, and links. Pass focus to see some cards in full. Use search_cards for a compact index or targeted search.",
       inputSchema: { focus: z.array(cardRef).optional() },
     },
     ({ focus }) =>

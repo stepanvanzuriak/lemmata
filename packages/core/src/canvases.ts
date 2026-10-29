@@ -218,6 +218,24 @@ export async function updateNode(
   });
 }
 
+export function setNodeCollapsed(
+  db: Db,
+  id: string,
+  collapsed: boolean,
+): Promise<CanvasNode | undefined> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(canvasNode)
+      .set({ collapsed })
+      .where(eq(canvasNode.id, id))
+      .returning();
+    if (row) {
+      await touchCanvas(tx, row.canvasId, isoNow());
+    }
+    return row;
+  });
+}
+
 export function updateNodePositions(
   db: Db,
   canvasId: string,

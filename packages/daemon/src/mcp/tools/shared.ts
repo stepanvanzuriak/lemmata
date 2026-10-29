@@ -9,6 +9,7 @@ import { loadDetail } from "../../cards/load.js";
 import { ToolRefusal, type RunContext } from "../../cards/types.js";
 
 export type ToolDeps = {
+  devMode?: boolean;
   db: Db;
   workspaceDir: string;
   toolchain: Promise<Toolchain>;
@@ -56,6 +57,13 @@ export const cardRef = z
   );
 
 export const cardFields = {
+  tags: z
+    .array(z.string().trim().min(1).max(60))
+    .max(8)
+    .optional()
+    .describe(
+      'Topic tags such as "Number theory" or "Graph theory". Add relevant tags when creating cards; reuse existing topic names. Pass [] to clear.',
+    ),
   title: z
     .string()
     .optional()
@@ -63,7 +71,9 @@ export const cardFields = {
   text: z
     .string()
     .optional()
-    .describe("One or two sentences shown on the card"),
+    .describe(
+      "One or two sentences shown on the card; every formula, symbol or variable in $...$ (e.g. $n \\ge 3$), never plain text like n>=3",
+    ),
   markdown: z
     .string()
     .optional()

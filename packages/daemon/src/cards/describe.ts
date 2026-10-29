@@ -97,6 +97,7 @@ function describeCard(
     p.label,
     `"${p.title ?? ""}"`,
     status && `status: ${status.label}`,
+    p.tags?.length && `topics: ${p.tags.join(", ")}`,
     isResolved(card) && "resolved",
     `you may change: ${editRight(card, author)}`,
   ]
@@ -114,6 +115,8 @@ function describeCard(
     brief: BRIEF_CHARS,
   }[level];
   const lines = [head];
+  // Source and run output are bulky; only the cards in focus carry them, get_card reads the rest.
+  const bulky = level === "full" || level === "complete";
 
   if (p.text) {
     lines.push(`  text: ${clip(p.text, max)}`);
@@ -121,10 +124,10 @@ function describeCard(
   if (p.markdown && level !== "brief") {
     lines.push(`  markdown: ${clip(p.markdown, max)}`);
   }
-  if (p.source && level !== "brief") {
+  if (p.source && bulky) {
     lines.push(`  source:\n${clip(p.source, max)}`);
   }
-  if (card.kind === "toolbox" && level !== "brief") {
+  if (card.kind === "toolbox" && bulky) {
     if (p.python) {
       lines.push(`  reusable Python:\n${clip(p.python, max)}`);
     }
@@ -132,7 +135,7 @@ function describeCard(
       lines.push(`  reusable Lean:\n${clip(p.lean, max)}`);
     }
   }
-  lines.push(...runLines(card, max));
+  lines.push(...runLines(card, bulky ? max : BRIEF_CHARS));
   lines.push(...literatureLines(card, level));
 
   return lines.join("\n");

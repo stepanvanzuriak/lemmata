@@ -1,6 +1,12 @@
 import { addEdge, addNode, updateNode, type Db } from "core";
-import type { CanvasNode, EdgeKind, NodeKind } from "shared";
+import {
+  settleReady,
+  type CanvasNode,
+  type EdgeKind,
+  type NodeKind,
+} from "shared";
 import { findCard } from "./find.js";
+import { validateCardLatex } from "./latex.js";
 import { unpassedChecks } from "./gating.js";
 import { loadDetail, toCanvasNode } from "./load.js";
 import { freeSpot } from "./place.js";
@@ -75,6 +81,11 @@ export async function createCards(
     );
   }
 
+  // Validate the whole batch before writing any cards so a retry is safe.
+  for (const card of cards) {
+    validateCardLatex(card);
+  }
+
   const detail = await loadDetail(db, run.canvasId);
   const nodes = [...detail.nodes];
   const created: CanvasNode[] = [];
@@ -90,6 +101,15 @@ export async function createCards(
     if (!parent) {
       throw new ToolRefusal(
         `No card matches connectFrom "${parentRef}". Use an id, "goal", a label like H2, or an exact title.`,
+      );
+    }
+    if (
+      kind === "attack" &&
+      parent.kind === "hypothesis" &&
+      settleReady(parent, { nodes, edges: detail.edges })
+    ) {
+      throw new ToolRefusal(
+        `${nameOf(parent)} is ready to settle, so it takes no new attacks. Prove or refute it with update_card, or reopen a flawed part first.`,
       );
     }
     if (kind === "toolbox" && nodes.some((node) => node.kind === "toolbox")) {
@@ -113,11 +133,11 @@ export async function createCards(
     const row = await addNode(db, {
       canvasId: run.canvasId,
       kind,
-      ...freeSpot(
+      ...(await freeSpot(
         nodes.filter((n) => !isArchived(n)),
         parent,
         kind,
-      ),
+      )),
       payload,
       createdBy: "ai",
     });
@@ -155,6 +175,9 @@ export async function updateCard(
   if (keys.length === 0) {
     throw new ToolRefusal("Nothing to change: pass at least one field.");
   }
+
+  // Only the fields being written: old cards with bad math stay editable.
+  validateCardLatex(patch);
 
   const right = editRight(card, run.author);
 

@@ -78,6 +78,19 @@ export async function saveNodePositions({
   await api.patch(`/canvases/${canvasId}/nodes`, { nodes });
 }
 
+export async function setNodeCollapsed({
+  id,
+  collapsed,
+}: {
+  id: string;
+  collapsed: boolean;
+}) {
+  const { data } = await api.patch<CanvasNode>(`/nodes/${id}/collapsed`, {
+    collapsed,
+  });
+  return data;
+}
+
 export async function runNode(id: string) {
   const { data } = await api.post<CanvasNode>(`/nodes/${id}/run`);
 
@@ -207,6 +220,58 @@ export function useSaveNodePositions(canvasId: string) {
   return useCanvasMutation(canvasId, (nodes: NodePositionInput[]) =>
     saveNodePositions({ canvasId, nodes }),
   );
+}
+
+export function useSetNodeCollapsed(canvasId: string) {
+  const queryClient = useQueryClient();
+  const queryKey = canvasKey(canvasId);
+  const mutationKey = ["canvas-collapse", canvasId];
+  return useMutation({
+    mutationKey,
+    scope: { id: `canvas-collapse-${canvasId}` },
+    mutationFn: setNodeCollapsed,
+    onMutate: async ({ id, collapsed }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient
+        .getQueryData<CanvasDetail>(queryKey)
+        ?.nodes.find((node) => node.id === id)?.collapsed;
+      queryClient.setQueryData<CanvasDetail>(
+        queryKey,
+        (detail) =>
+          detail && {
+            ...detail,
+            nodes: detail.nodes.map((node) =>
+              node.id === id ? { ...node, collapsed } : node,
+            ),
+          },
+      );
+      return { previous };
+    },
+    onError: (_, { id }, context) => {
+      if (
+        context?.previous !== undefined &&
+        queryClient.isMutating({ mutationKey }) === 1
+      ) {
+        queryClient.setQueryData<CanvasDetail>(
+          queryKey,
+          (detail) =>
+            detail && {
+              ...detail,
+              nodes: detail.nodes.map((node) =>
+                node.id === id
+                  ? { ...node, collapsed: context.previous! }
+                  : node,
+              ),
+            },
+        );
+      }
+    },
+    onSettled: () => {
+      if (queryClient.isMutating({ mutationKey }) === 1) {
+        return queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
 }
 
 export function useRunNode(canvasId: string) {

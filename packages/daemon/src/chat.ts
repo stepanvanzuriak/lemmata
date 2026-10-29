@@ -30,6 +30,7 @@ import { literatureCardFor } from "./cards/literature.js";
 import { isArchived, type Author, type RunContext } from "./cards/types.js";
 import { memoryPreamble } from "./memory.js";
 import { mcpConfigFor, registerRun, unregisterRun } from "./mcp/registry.js";
+import { CANVAS_INSTRUCTIONS } from "./mcp/instructions.js";
 import type { ToolDeps } from "./mcp/tools/index.js";
 import { ROLE_PROMPTS } from "./roles.js";
 import { projectDir } from "./runCard.js";
@@ -41,6 +42,12 @@ export const DEFAULT_MAX_TOKENS = 1_000_000;
 
 /** Model turns per run; every turn re-reads the whole context, so long tool loops cost the most. */
 export const MAX_TURNS = 30;
+
+/** The referee reads and writes a few notes; longer loops only re-read context. */
+const ROLE_MAX_TURNS: Partial<Record<string, number>> = { referee: 12 };
+
+/** Claude's prompt cache lives an hour; resuming an older session re-writes its whole history. */
+const CLAUDE_RESUME_WINDOW_MS = 55 * 60_000;
 
 /** These roles start fresh each run: the canvas holds their state, and a resumed session only piles up old canvas dumps. */
 const FRESH_ROLES = new Set<string>(["prover", "referee"]);
@@ -295,6 +302,7 @@ export async function startChat(
               agent?.id ?? null,
               target?.id ?? null,
               adapter.name,
+              adapter.name === "claude" ? CLAUDE_RESUME_WINDOW_MS : undefined,
             )) ?? undefined);
       const promptFor = () => {
         if (command && target) {
@@ -335,6 +343,17 @@ export async function startChat(
             title: request.text.slice(0, 80),
             maxTokens: agent?.tokenCap ?? DEFAULT_MAX_TOKENS,
             signal: controller.signal,
+            transcript: deps.devMode
+              ? {
+                  request: request.text,
+                  userMessageId: userMessage.id,
+                  role,
+                  agentId: agent?.id,
+                  target: target?.id,
+                  runKey,
+                  mcpInstructions: CANVAS_INSTRUCTIONS,
+                }
+              : undefined,
             onStart: (started) => {
               runContext.attemptId = started.id;
             },
@@ -346,7 +365,7 @@ export async function startChat(
                 ? { provider: adapter.name, id: modelId }
                 : undefined,
               systemPromptAddendum,
-              maxTurns: MAX_TURNS,
+              maxTurns: ROLE_MAX_TURNS[role] ?? MAX_TURNS,
               mcpServers,
             },
           },
@@ -356,7 +375,15 @@ export async function startChat(
               await emit({ type: "text", text: event.text });
             }
             if (event.type === "tool_use") {
-              await emit({ type: "tool_use", name: event.name });
+              await emit({
+                type: "tool_use",
+                name: event.name,
+                input:
+                  event.name === "command_execution" &&
+                  typeof event.input === "string"
+                    ? event.input
+                    : undefined,
+              });
             }
             if (event.type === "tool_result") {
               await emitChanges();

@@ -24,6 +24,7 @@ export class ToolRefusal extends Error {
 
 export type CardFields = {
   title?: string;
+  tags?: string[];
   text?: string;
   markdown?: string;
   label?: string;
