@@ -1,3 +1,15 @@
+import { execFileSync } from "node:child_process";
+
+/** The four-angle strip of a 3D figure is stitched with Pillow, which a bare Python install lacks. */
+export const hasPillow = (() => {
+  try {
+    execFileSync("python3", ["-c", "import PIL"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
 export const STUB_PYPLOT = `
 import sys, types, base64
 _PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")

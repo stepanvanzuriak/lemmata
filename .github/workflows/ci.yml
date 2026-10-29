@@ -27,6 +27,8 @@ jobs:
           key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
           restore-keys: yarn-${{ runner.os }}-
       - run: yarn install --immutable
+      - name: Install Pillow for the 3D figure tests
+        run: python3 -m pip install pillow
       - run: yarn check
       - run: yarn test
       - run: node scripts/version.mjs

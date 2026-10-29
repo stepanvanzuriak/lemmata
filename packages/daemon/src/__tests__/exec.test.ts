@@ -12,7 +12,7 @@ import {
   runProcess,
   runPython,
 } from "../exec.js";
-import { STUB_PYPLOT } from "./helpers/matplotlib.js";
+import { hasPillow, STUB_PYPLOT } from "./helpers/matplotlib.js";
 
 const python = { cmd: "python3", args: [] };
 const hasLean = (() => {
@@ -169,7 +169,7 @@ it("writes nothing when matplotlib was never imported", async () => {
   expect(await readdir(outDir)).toEqual([]);
 });
 
-it("renders a 3D figure from four angles", async () => {
+it.skipIf(!hasPillow)("renders a 3D figure from four angles", async () => {
   const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));
 
   await runPython(`${STUB_PYPLOT}\nplt._plot(1, "3d")`, python, { outDir });
@@ -180,6 +180,27 @@ it("renders a 3D figure from four angles", async () => {
   expect(figures[0]).toMatchObject({ is3d: true, views: "fig-1-views.png" });
   expect(await readdir(outDir)).toContain("fig-1-views.png");
 });
+
+it.skipIf(hasPillow)(
+  "keeps a 3D figure's main image without Pillow",
+  async () => {
+    const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));
+
+    const result = await runPython(
+      `${STUB_PYPLOT}\nplt._plot(1, "3d")`,
+      python,
+      {
+        outDir,
+      },
+    );
+    const figures = JSON.parse(
+      await readFile(join(outDir, "figures.json"), "utf8"),
+    );
+
+    expect(result.stderr).toContain("install Pillow");
+    expect(figures[0]).toMatchObject({ is3d: true, views: null });
+  },
+);
 
 it("keeps the first 8 figures and says so", async () => {
   const outDir = await mkdtemp(join(tmpdir(), "lemmata-fig-"));

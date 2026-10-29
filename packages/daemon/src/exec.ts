@@ -156,7 +156,11 @@ def _save_figures(outdir):
             views = None
             if axes3d:
                 views = f"fig-{n}-views.png"
-                _views(fig, axes3d, os.path.join(outdir, views))
+                try:
+                    _views(fig, axes3d, os.path.join(outdir, views))
+                except ImportError:
+                    views = None
+                    print("3D figures are saved from one angle only: install Pillow for four", file=sys.stderr)
             figures.append({"name": name, "title": _title(fig), "is3d": bool(axes3d), "views": views})
         except Exception as error:
             print(f"could not save figure {n}: {error}", file=sys.stderr)
