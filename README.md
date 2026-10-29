@@ -7,7 +7,7 @@ or as a desktop app, using the Claude Code CLI for the agents.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/canvas-dark.png">
-  <img alt="A Lemmata canvas for Erdős problem 588: a goal fans out into hypotheses and failed attack cards, next to a Toolbox card, a progress summary and the Prover and Referee chat panel." src="docs/images/canvas-light.png">
+  <img alt="A Lemmata canvas for Erdős problem 588: a goal fans out into hypotheses and failed attack cards, next to a Toolbox card, a progress summary and the Prover explaining in the chat panel how it turned a statement into a new hypothesis." src="docs/images/canvas-light.png">
 </picture>
 
 _A Prover (Claude Haiku) and a Referee (Codex) working on Erdős problem 588._
