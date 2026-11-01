@@ -86,7 +86,7 @@ jobs:
       - name: Build the daemon and web bundle
         run: yarn workspace desktop prepare-bundle
       - name: Build and upload the installers
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
