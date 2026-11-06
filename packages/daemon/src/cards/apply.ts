@@ -5,6 +5,8 @@ import {
   type EdgeKind,
   type NodeKind,
 } from "shared";
+import { attackParent } from "../agents.js";
+import { restoreIfArchived } from "./archive.js";
 import { findCard } from "./find.js";
 import { validateCardLatex } from "./latex.js";
 import { unpassedChecks } from "./gating.js";
@@ -44,6 +46,15 @@ const STATUSES: Partial<Record<NodeKind, string[]>> = {
   attack: ["open", "worked", "failed"],
 };
 
+/** Statuses that record progress; moving to one stamps settledAt. A failed attack is not progress. */
+const SETTLED_STATUSES = new Set([
+  "proved",
+  "disproved",
+  "supported",
+  "refuted",
+  "worked",
+]);
+
 const nameOf = (card: CanvasNode) =>
   fieldsOf(card).label ?? `"${fieldsOf(card).title ?? card.id}"`;
 
@@ -74,6 +85,8 @@ export async function createCards(
   db: Db,
   run: RunContext,
   cards: NewCard[],
+  /** Collects explanations of adjustments made to the request, for the agent. */
+  notices: string[] = [],
 ): Promise<CanvasNode[]> {
   if (cards.length === 0 || cards.length > MAX_NEW_CARDS) {
     throw new ToolRefusal(
@@ -88,12 +101,24 @@ export async function createCards(
 
   const detail = await loadDetail(db, run.canvasId);
   const nodes = [...detail.nodes];
+  const edges = [...detail.edges];
   const created: CanvasNode[] = [];
 
   for (const card of cards) {
     const { kind, connectFrom, edgeKind, ...fields } = card;
     const parentRef = connectFrom ?? run.target ?? "goal";
-    const parent = findCard({ nodes }, parentRef);
+    let parent = findCard({ nodes }, parentRef);
+    let redirected: CanvasNode | undefined;
+
+    // A sub-lemma serves the hypothesis, not one route to it: it hangs from the
+    // attack's hypothesis, so it outlives the attack if that fails.
+    if (kind === "hypothesis" && parent?.kind === "attack") {
+      const hypothesis = attackParent({ nodes, edges }, parent);
+      if (hypothesis) {
+        redirected = parent;
+        parent = hypothesis;
+      }
+    }
 
     if (!fields.title?.trim()) {
       throw new ToolRefusal("Every card needs a title.");
@@ -106,7 +131,7 @@ export async function createCards(
     if (
       kind === "attack" &&
       parent.kind === "hypothesis" &&
-      settleReady(parent, { nodes, edges: detail.edges })
+      settleReady(parent, { nodes, edges })
     ) {
       throw new ToolRefusal(
         `${nameOf(parent)} is ready to settle, so it takes no new attacks. Prove or refute it with update_card, or reopen a flawed part first.`,
@@ -130,6 +155,15 @@ export async function createCards(
         fields.author ??
         run.author.role[0]!.toUpperCase() + run.author.role.slice(1),
     });
+    // Hanging new work from a hidden card brings it back.
+    if (await restoreIfArchived(db, parent)) {
+      const shown: CanvasNode = {
+        ...parent,
+        payload: { ...parent.payload, archived: null },
+      };
+      nodes[nodes.indexOf(parent)] = shown;
+      parent = shown;
+    }
     const row = await addNode(db, {
       canvasId: run.canvasId,
       kind,
@@ -143,14 +177,21 @@ export async function createCards(
     });
     const node = toCanvasNode(row);
 
-    await addEdge(db, {
-      canvasId: run.canvasId,
-      fromNode: parent.id,
-      toNode: node.id,
-      kind: edgeKind ?? defaultEdge(kind),
-    });
+    edges.push(
+      await addEdge(db, {
+        canvasId: run.canvasId,
+        fromNode: parent.id,
+        toNode: node.id,
+        kind: edgeKind ?? defaultEdge(kind),
+      }),
+    );
     nodes.push(node);
     created.push(node);
+    if (redirected) {
+      notices.push(
+        `Hypothesis "${fields.title}" hangs from ${nameOf(parent)}, the hypothesis of ${nameOf(redirected)}, not from the attack, so it stays open if the attack fails. Cite it on the attack by its label.`,
+      );
+    }
   }
 
   return created;
@@ -227,6 +268,18 @@ export async function updateCard(
     }
   }
 
-  const row = await updateNode(db, card.id, patch);
+  // Writing to a hidden card brings it back, so the change is visible.
+  if (isArchived(card)) {
+    patch.archived = null;
+  }
+  const settles =
+    patch.status !== undefined &&
+    SETTLED_STATUSES.has(patch.status) &&
+    patch.status !== fieldsOf(card).status;
+  const row = await updateNode(
+    db,
+    card.id,
+    settles ? { ...patch, settledAt: new Date().toISOString() } : patch,
+  );
   return toCanvasNode(row!);
 }

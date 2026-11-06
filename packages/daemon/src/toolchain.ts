@@ -6,13 +6,21 @@ import { join } from "node:path";
 import type { Toolchain } from "shared";
 import type { RunCommand } from "./exec.js";
 
-function version(command: string, args = ["--version"]) {
+function version(
+  command: string,
+  { cwd, timeout = 5000 }: { cwd?: string; timeout?: number } = {},
+) {
   return new Promise<string | null>((done) => {
-    execFile(command, args, { timeout: 5000 }, (error, stdout, stderr) => {
-      const line = `${stdout}${stderr}`.trim().split("\n")[0];
+    execFile(
+      command,
+      ["--version"],
+      { cwd, timeout },
+      (error, stdout, stderr) => {
+        const line = `${stdout}${stderr}`.trim().split("\n")[0];
 
-      done(error || !line ? null : line);
-    });
+        done(error || !line ? null : line);
+      },
+    );
   });
 }
 
@@ -21,7 +29,13 @@ export async function detectToolchain(): Promise<Toolchain> {
     version("claude"),
     version("uv"),
     version("python3"),
-    version("lean"),
+    // An elan channel default (`stable`) is resolved over the network on every
+    // call, which can take well over 5s; the Mathlib project pins its
+    // toolchain, so asking from there is instant and names the Lean checks use.
+    version("lean", {
+      cwd: mathlibInstalled() ? mathlibDir() : undefined,
+      timeout: 30_000,
+    }),
   ]);
 
   return { claude, uv, python, lean };
@@ -65,8 +79,11 @@ const cacheRoot = () =>
 export const mathlibDir = () => join(cacheRoot(), "checks");
 const mathlibReady = () => join(mathlibDir(), ".lemmata-ready");
 
+/** Mathlib is set up for checks, so `lake env lean` works there. */
+export const mathlibInstalled = () => existsSync(mathlibReady());
+
 export function leanCommand(): RunCommand {
-  if (existsSync(mathlibReady())) {
+  if (mathlibInstalled()) {
     return { cmd: "lake", args: ["env", "lean"], cwd: mathlibDir() };
   }
 
@@ -85,7 +102,7 @@ function run(cmd: string, args: string[], cwd: string) {
 }
 
 export async function warmLean(toolchain: Toolchain) {
-  if (!toolchain.lean || existsSync(mathlibReady())) {
+  if (!toolchain.lean || mathlibInstalled()) {
     return;
   }
 

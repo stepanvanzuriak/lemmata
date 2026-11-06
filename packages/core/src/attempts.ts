@@ -71,6 +71,20 @@ export async function finishAttempt(
   return row!;
 }
 
+/**
+ * Marks attempts still recorded as running as aborted. Call only at startup,
+ * before any run starts: their processes died with the previous daemon.
+ */
+export async function abortStaleAttempts(db: Db): Promise<number> {
+  const rows = await db
+    .update(attempt)
+    .set({ status: "aborted", finishedAt: isoNow() })
+    .where(eq(attempt.status, "running"))
+    .returning({ id: attempt.id });
+
+  return rows.length;
+}
+
 export function listAttempts(
   db: Db,
   filter: { projectId?: string; canvasId?: string } = {},

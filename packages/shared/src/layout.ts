@@ -21,6 +21,7 @@ const WIDTH: Record<NodeKind, number> = {
   python: 290,
   lean: 290,
   toolbox: 300,
+  canvas: 320,
 };
 const HEIGHT: Partial<Record<NodeKind, number>> = {
   python: 200,

@@ -1,4 +1,5 @@
 import {
+  type AnySQLiteColumn,
   index,
   integer,
   real,
@@ -29,6 +30,11 @@ export const canvas = sqliteTable(
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
     title: text().notNull().default(""),
+    /** The canvas this one was branched from; null for a canvas made on its own. */
+    parentCanvasId: text("parent_canvas_id").references(
+      (): AnySQLiteColumn => canvas.id,
+      { onDelete: "set null" },
+    ),
     createdAt: text("created_at").notNull().$defaultFn(isoNow),
     updatedAt: text("updated_at").notNull().$defaultFn(isoNow),
   },

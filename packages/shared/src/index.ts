@@ -11,6 +11,7 @@ export { LITERATURE_VERDICTS } from "./cards.js";
 export type {
   Archived,
   BasePayload,
+  CanvasLinkPayload,
   CardFigure,
   CardRun,
   CodePayload,
@@ -25,6 +26,8 @@ export type {
   NodePayload,
   Paper,
   PlainPayload,
+  ProgressItem,
+  CardProgress,
   Resolved,
   RunOutput,
 } from "./cards.js";
@@ -52,6 +55,7 @@ export {
 export type {
   AddAgentRequest,
   CanvasAgent,
+  CardExchange,
   ChatConflict,
   ChatEvent,
   ChatMessage,

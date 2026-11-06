@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   AddAgentRequest,
   CanvasAgent,
+  CardExchange,
   ChatEvent,
   ChatMessage,
   ChatRequest,
@@ -82,6 +83,19 @@ export function useMessages(canvasId: string) {
   return useQuery({
     queryKey: messagesKey(canvasId),
     queryFn: () => fetchMessages(canvasId),
+  });
+}
+
+/** Under the canvas key, so a finished run refreshes it. */
+export const exchangesKey = (canvasId: string, nodeId: string) =>
+  ["canvas", canvasId, "exchanges", nodeId] as const;
+
+/** Earlier chat runs that targeted or changed a card, oldest first. */
+export function useCardExchanges(canvasId: string, nodeId: string) {
+  return useQuery({
+    queryKey: exchangesKey(canvasId, nodeId),
+    queryFn: async () =>
+      (await api.get<CardExchange[]>(`/nodes/${nodeId}/exchanges`)).data,
   });
 }
 

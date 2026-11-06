@@ -1,6 +1,6 @@
 import { addNode, updateNode } from "core";
 import { expect, it } from "vitest";
-import { createCards } from "../../cards/apply.js";
+import { createCards, updateCard } from "../../cards/apply.js";
 import { archiveCards } from "../../cards/archive.js";
 import { describeCanvas } from "../../cards/describe.js";
 import { loadDetail } from "../../cards/load.js";
@@ -53,4 +53,46 @@ it("archives dead ends and keeps what still matters", async () => {
   expect(text).toContain("2 archived cards are hidden");
   expect(text).not.toContain("Dead route");
   expect(text).not.toContain("H1 attempt 1");
+});
+
+it("restores an archived card when an agent updates it or adds cards under it", async () => {
+  const { db, run } = await canvasSetup({ role: "prover", agentId: "a1" });
+  const [attack, other] = await createCards(db, run, [
+    { kind: "attack", title: "Old route" },
+    { kind: "attack", title: "Older route" },
+  ]);
+  const hide = {
+    archived: { at: "2026-01-01", reason: "reset to key points" },
+  };
+  await updateNode(db, attack!.id, hide);
+  await updateNode(db, other!.id, hide);
+
+  const updated = await updateCard(db, run, "A1", { markdown: "reused" });
+  expect(updated.payload.archived).toBeNull();
+
+  await createCards(db, run, [
+    { kind: "python", title: "check", source: "", connectFrom: "A2" },
+  ]);
+  const detail = await loadDetail(db, run.canvasId);
+  expect(
+    detail.nodes.find((n) => n.id === other!.id)!.payload.archived,
+  ).toBeNull();
+});
+
+it("leaves an archived card hidden when a refused call names it", async () => {
+  const { db, run } = await canvasSetup({ role: "prover", agentId: "a1" });
+  const [attack] = await createCards(db, run, [
+    { kind: "attack", title: "Old route" },
+  ]);
+  await updateNode(db, attack!.id, {
+    archived: { at: "2026-01-01", reason: "reset" },
+  });
+
+  await expect(
+    createCards(db, run, [{ kind: "note", title: " ", connectFrom: "A1" }]),
+  ).rejects.toThrow("Every card needs a title");
+  const detail = await loadDetail(db, run.canvasId);
+  expect(
+    detail.nodes.find((n) => n.id === attack!.id)!.payload.archived,
+  ).toBeTruthy();
 });

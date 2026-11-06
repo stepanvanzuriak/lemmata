@@ -91,6 +91,14 @@ export async function setNodeCollapsed({
   return data;
 }
 
+export async function branchNode(id: string) {
+  const { data } = await api.post<{ canvas: Canvas; moved: string[] }>(
+    `/nodes/${id}/branch`,
+  );
+
+  return data;
+}
+
 export async function runNode(id: string) {
   const { data } = await api.post<CanvasNode>(`/nodes/${id}/run`);
 
@@ -310,4 +318,19 @@ export function useRestoreNodes(canvasId: string) {
     (filter: { ids?: string[]; by?: string } = {}) =>
       restoreNodes({ canvasId, ...filter }),
   );
+}
+
+export function useBranchNode(canvasId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: branchNode,
+    onSuccess: ({ canvas }) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: canvasKey(canvasId) }),
+        queryClient.invalidateQueries({
+          queryKey: canvasesKey(canvas.projectId),
+        }),
+      ]),
+  });
 }

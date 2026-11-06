@@ -5,6 +5,7 @@ import {
   addAgent,
   AGENT_ROLES,
   listAgents,
+  listCardExchanges,
   listMessages,
   removeAgent,
   updateAgent,
@@ -85,6 +86,16 @@ export function chatRoutes(deps: ChatDeps) {
       async (c) =>
         c.json(await listMessages(db, c.req.param("id"), c.req.valid("query"))),
     )
+    .get("/nodes/:id/exchanges", async (c) => {
+      const node = await db.query.canvasNode.findFirst({
+        where: { id: c.req.param("id") },
+      });
+
+      if (!node) {
+        return c.json({ error: "node not found" }, 404);
+      }
+      return c.json(await listCardExchanges(db, node.canvasId, node.id));
+    })
     .get("/canvases/:id/agents", async (c) =>
       c.json(await listAgents(db, c.req.param("id"))),
     )

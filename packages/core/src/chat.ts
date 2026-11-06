@@ -1,6 +1,23 @@
-import { and, desc, eq, isNotNull, isNull, lt, like } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  like,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { Db } from "./db/index.js";
-import { attempt, chatMessage, type ChatMessage } from "./db/schema.js";
+import {
+  attempt,
+  chatMessage,
+  type CardExchange,
+  type ChatMessage,
+} from "./db/schema.js";
 import { isoNow } from "./ids.js";
 
 export async function addMessage(
@@ -127,4 +144,91 @@ export async function lastSessionId(
   }
 
   return row?.sessionId ?? null;
+}
+
+const sameRun = (agentId: string | null, target: string | null) =>
+  and(
+    agentId ? eq(chatMessage.agentId, agentId) : isNull(chatMessage.agentId),
+    target ? eq(chatMessage.target, target) : isNull(chatMessage.target),
+  );
+
+const runKey = (m: ChatMessage) => `${m.agentId ?? ""}|${m.target ?? ""}`;
+
+/**
+ * Every chat exchange about a card, oldest first: runs that targeted it and runs that changed it.
+ * Includes messages a reset archived, since the history is still worth searching.
+ */
+export async function listCardExchanges(
+  db: Db,
+  canvasId: string,
+  cardId: string,
+): Promise<CardExchange[]> {
+  const rows = (await db
+    .select()
+    .from(chatMessage)
+    .where(
+      and(
+        eq(chatMessage.canvasId, canvasId),
+        or(
+          eq(chatMessage.target, cardId),
+          sql`exists (select 1 from json_each(${chatMessage.cards}) where value = ${cardId})`,
+        ),
+      ),
+    )
+    .orderBy(asc(chatMessage.createdAt))) as ChatMessage[];
+
+  // A reply that changed the card while targeting another one: bring in the request that started it.
+  const seen = new Set(rows.map((m) => m.id));
+  for (const reply of rows.filter(
+    (m) => m.role === "assistant" && m.target !== cardId,
+  )) {
+    const [request] = (await db
+      .select()
+      .from(chatMessage)
+      .where(
+        and(
+          eq(chatMessage.canvasId, canvasId),
+          eq(chatMessage.role, "user"),
+          sameRun(reply.agentId, reply.target),
+          lte(chatMessage.createdAt, reply.createdAt),
+        ),
+      )
+      .orderBy(desc(chatMessage.createdAt))
+      .limit(1)) as ChatMessage[];
+
+    if (request && !seen.has(request.id)) {
+      seen.add(request.id);
+      rows.push(request);
+    }
+  }
+
+  // Ids are not ordered within a millisecond; a request always comes before its reply.
+  rows.sort(
+    (a, b) =>
+      a.createdAt.localeCompare(b.createdAt) ||
+      Number(a.role === "assistant") - Number(b.role === "assistant"),
+  );
+
+  // One run per (agent, target) at a time, so a reply answers the latest open request with that key.
+  const open = new Map<string, CardExchange>();
+  const exchanges: CardExchange[] = [];
+
+  for (const message of rows) {
+    const key = runKey(message);
+    if (message.role === "user") {
+      const exchange = { request: message, reply: null };
+      open.set(key, exchange);
+      exchanges.push(exchange);
+      continue;
+    }
+    const exchange = open.get(key);
+    if (exchange) {
+      exchange.reply = message;
+      open.delete(key);
+    } else {
+      exchanges.push({ request: null, reply: message });
+    }
+  }
+
+  return exchanges;
 }

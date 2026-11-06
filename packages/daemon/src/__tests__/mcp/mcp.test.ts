@@ -102,12 +102,54 @@ it("lists tools for a live secret", async () => {
     "remember",
     "resolve_note",
     "run_card",
+    "search_card_history",
     "search_cards",
     "search_lean",
     "search_literature",
+    "search_project_cards",
     "search_python",
     "update_card",
+    "update_progress",
   ]);
+});
+
+it("search_project_cards finds cards on every canvas of the project", async () => {
+  const { app, canvas, secret } = await setup();
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+  const other = (await (
+    await app.request(`/api/projects/${canvas.projectId}/canvases`, {
+      method: "POST",
+      headers: authed({ "content-type": "application/json" }),
+      body: JSON.stringify({ title: "Branch" }),
+    })
+  ).json()) as Canvas;
+  await app.request(`/api/canvases/${other.id}/nodes`, {
+    method: "POST",
+    headers: authed({ "content-type": "application/json" }),
+    body: JSON.stringify({
+      kind: "note",
+      payload: { title: "Elsewhere lemma" },
+    }),
+  });
+  await call(client, "create_cards", {
+    cards: [{ kind: "note", title: "Here lemma", text: "x" }],
+  });
+
+  const own = await call(client, "search_cards", { query: "lemma" });
+  expect(JSON.parse(textOf(own)).total).toBe(1);
+  const result = await call(client, "search_project_cards", {
+    query: "lemma",
+  });
+  expect(result.isError).toBeFalsy();
+  const found = JSON.parse(textOf(result));
+  expect(found.total).toBe(2);
+  expect(
+    found.cards.map((c: { canvasId: string }) => c.canvasId).sort(),
+  ).toEqual([canvas.id, other.id].sort());
 });
 
 it("indexes all canvas cards by type and reports LaTeX errors to agents", async () => {
@@ -528,4 +570,75 @@ it("refuses read_paper on a card that is not a paper", async () => {
 
   expect(result.isError).toBe(true);
   expect(textOf(result)).toContain("not a paper");
+});
+
+it("tells agents when updating or linking a card restored it from the archive", async () => {
+  const { app, secret } = await setup();
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+  await call(client, "create_cards", {
+    cards: [
+      { kind: "note", title: "Old note" },
+      { kind: "note", title: "Older note" },
+      { kind: "hypothesis", title: "Claim" },
+    ],
+  });
+  await call(client, "archive_cards", {
+    ids: ["Old note", "Older note"],
+    reason: "superseded",
+  });
+
+  const linked = await call(client, "connect_cards", {
+    from: "H1",
+    to: "Old note",
+    kind: "depends-on",
+  });
+  expect(textOf(linked)).toContain('Restored "Old note" from the archive');
+
+  const updated = await call(client, "update_card", {
+    id: "Older note",
+    markdown: "still relevant",
+  });
+  expect(textOf(updated)).toContain("restored and visible again");
+  const again = await call(client, "update_card", {
+    id: "Older note",
+    markdown: "still relevant, twice",
+  });
+  expect(textOf(again)).not.toContain("restored");
+});
+
+it("updates one markdown section without resending the card", async () => {
+  const { app, secret } = await setup();
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+  await call(client, "create_cards", {
+    cards: [
+      {
+        kind: "hypothesis",
+        title: "Claim",
+        markdown: "Long argument.\n\n## Progress\nold",
+      },
+    ],
+  });
+
+  const updated = await call(client, "update_card", {
+    id: "H1",
+    section: { heading: "Progress", content: "**Next** step two" },
+  });
+  expect(updated.isError).toBeFalsy();
+  expect(textOf(await call(client, "get_card", { id: "H1" }))).toContain(
+    "Long argument.\n\n## Progress\n\n**Next** step two",
+  );
+  const both = await call(client, "update_card", {
+    id: "H1",
+    markdown: "x",
+    section: { heading: "Progress", content: "y" },
+  });
+  expect(both.isError).toBe(true);
 });

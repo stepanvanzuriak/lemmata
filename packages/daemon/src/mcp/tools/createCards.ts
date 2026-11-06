@@ -34,13 +34,15 @@ export const registerCreateCards: RegisterTool = (server, { db, run }) => {
     },
     ({ cards }) =>
       guard(async () => {
-        const created = await createCards(db, run, cards);
-        return created
-          .map(
+        const notices: string[] = [];
+        const created = await createCards(db, run, cards, notices);
+        return [
+          ...created.map(
             (c) =>
               `Created ${c.kind} [${c.id}]${fieldsOf(c).label ? ` ${fieldsOf(c).label}` : ""} "${fieldsOf(c).title}"`,
-          )
-          .join("\n");
+          ),
+          ...notices,
+        ].join("\n");
       }),
   );
 };

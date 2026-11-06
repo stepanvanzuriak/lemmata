@@ -303,3 +303,47 @@ it("refuses a bad or unknown paper and a source for another card", async () => {
     (await app.request("/api/nodes/nope/source", send("POST"))).status,
   ).toBe(404);
 });
+
+it("branches a card into a new linked canvas", async () => {
+  const { app, project, canvas, goal, detail } = await setup();
+  const node = (await (
+    await app.request(
+      `/api/canvases/${canvas.id}/nodes`,
+      send("POST", { kind: "hypothesis", payload: { title: "Split me" } }),
+    )
+  ).json()) as CanvasNode;
+  await app.request(
+    `/api/canvases/${canvas.id}/edges`,
+    send("POST", { fromNode: goal.id, toNode: node.id, kind: "depends-on" }),
+  );
+
+  const response = await app.request(
+    `/api/nodes/${node.id}/branch`,
+    send("POST"),
+  );
+  expect(response.status).toBe(201);
+  const { canvas: created } = await response.json();
+  expect(created.parentCanvasId).toBe(canvas.id);
+  const source = await detail();
+  expect(source.nodes.map((n) => n.kind)).toEqual(["goal", "canvas"]);
+  expect(source.nodes[1]!.payload).toMatchObject({ canvasId: created.id });
+  expect(source.edges.map((e) => [e.fromNode, e.toNode])).toEqual([
+    [goal.id, source.nodes[1]!.id],
+  ]);
+  const moved = (await (
+    await app.request(`/api/canvases/${created.id}`, send("GET"))
+  ).json()) as CanvasDetail;
+  expect(moved.nodes.map((n) => [n.id, n.kind])).toEqual([[node.id, "goal"]]);
+
+  const list = (await (
+    await app.request(`/api/canvases?projectId=${project.id}`, send("GET"))
+  ).json()) as Canvas[];
+  expect(list).toHaveLength(2);
+
+  expect(
+    (await app.request(`/api/nodes/${goal.id}/branch`, send("POST"))).status,
+  ).toBe(400);
+  expect(
+    (await app.request("/api/nodes/missing/branch", send("POST"))).status,
+  ).toBe(404);
+});

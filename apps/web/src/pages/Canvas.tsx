@@ -1,6 +1,8 @@
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useParams } from "react-router";
+import { createPortal } from "react-dom";
+import { CRUMB_SLOT_ID } from "../components/common/NavBar";
+import { Link, Navigate, useLocation, useParams } from "react-router";
 import {
   Background,
   BackgroundVariant,
@@ -12,10 +14,11 @@ import {
   type Connection,
 } from "@xyflow/react";
 import { Button } from "@heroui/react";
-import type { AddNodeRequest, CanvasNode, EdgeKind } from "shared";
+import type { AddNodeRequest, Canvas, CanvasNode, EdgeKind } from "shared";
 import {
   useAddEdge,
   useAddNode,
+  useCanvas,
   useCanvases,
   useCreateCanvas,
   useDeleteEdge,
@@ -108,6 +111,39 @@ function literatureRef(selected?: CanvasNode) {
   return fieldsOf(selected).label ?? selected.id;
 }
 
+function CanvasCrumb({ canvas }: { canvas: Canvas }) {
+  const siblings = useCanvases(canvas.projectId);
+  const parent = siblings.data?.find(({ id }) => id === canvas.parentCanvasId);
+  const parentDetail = useCanvas(canvas.parentCanvasId ?? "");
+  const marker = parentDetail.data?.nodes.find(
+    ({ kind, payload }) =>
+      kind === "canvas" &&
+      (payload as { canvasId?: string }).canvasId === canvas.id,
+  );
+
+  return (
+    <div className="flex items-center gap-2 text-sm text-lm-muted">
+      <Link to={paths.project(canvas.projectId)}>All canvases</Link>
+      <span aria-hidden="true">/</span>
+      <span className="font-medium text-lm-ink2">
+        {canvas.title || "Main canvas"}
+      </span>
+      {parent && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span>Branched from</span>
+          <Link
+            to={`${paths.canvas}/${parent.id}`}
+            state={marker ? { focusId: marker.id } : undefined}
+          >
+            {parent.title || "Main canvas"}
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
 function CanvasEditor({ canvasId }: { canvasId: string }) {
   const {
     query,
@@ -121,7 +157,13 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
   const { resolved } = useTheme();
   const { screenToFlowPosition, fitView } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    (useLocation().state as { focusId?: string } | null)?.focusId ?? null,
+  );
+  const [crumbSlot, setCrumbSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setCrumbSlot(document.getElementById(CRUMB_SLOT_ID));
+  }, []);
   const [pending, setPending] = useState<Connection | null>(null);
   const [addingPaper, setAddingPaper] = useState(false);
   const collapsedIds = useMemo(
@@ -131,6 +173,22 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
       ),
     [nodes],
   );
+  const { focusId } = (useLocation().state as { focusId?: string }) ?? {};
+  const loaded = Boolean(detail);
+  const panTo = useCallback(
+    (id: string) =>
+      requestAnimationFrame(() =>
+        fitView({ nodes: [{ id }], maxZoom: 1, duration: 300 }),
+      ),
+    [fitView],
+  );
+
+  useEffect(() => {
+    if (focusId && loaded) {
+      panTo(focusId);
+    }
+  }, [focusId, loaded, panTo]);
+
   const { mutate: setCollapsed } = useSetNodeCollapsed(canvasId);
   const toggleChildren = useCallback(
     (id: string) => {
@@ -369,6 +427,11 @@ function CanvasEditor({ canvasId }: { canvasId: string }) {
           fitViewOptions={{ maxZoom: 1 }}
           proOptions={{ hideAttribution: true }}
         >
+          {crumbSlot &&
+            createPortal(
+              <CanvasCrumb canvas={detail.canvas} />,
+              crumbSlot,
+            )}
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
           <Controls showInteractive={false} />
           <LocalMiniMap selectedId={selectedId} />

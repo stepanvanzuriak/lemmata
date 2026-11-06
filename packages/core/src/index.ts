@@ -29,6 +29,8 @@ export {
   deleteEdge,
   parsePayload,
   GoalNodeError,
+  BranchError,
+  branchCanvas,
   UniqueToolboxError,
   NotFoundError,
   type CanvasDetail,
@@ -55,6 +57,7 @@ export {
   addAttemptUsage,
   setAttemptSession,
   finishAttempt,
+  abortStaleAttempts,
   listAttempts,
   attemptTokens,
   type AttemptUsage,
@@ -76,6 +79,7 @@ export {
   addMessage,
   archiveMessages,
   listMessages,
+  listCardExchanges,
   lastSessionId,
   restoreMessages,
 } from "./chat.js";
@@ -83,6 +87,7 @@ export {
   AGENT_ROLES,
   type AgentRole,
   type CanvasAgent,
+  type CardExchange,
   type ChatMessage,
 } from "./db/schema.js";
 export {

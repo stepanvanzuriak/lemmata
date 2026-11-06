@@ -1,4 +1,4 @@
-import type { CanvasNode, Paper } from "shared";
+import type { CanvasNode, CardProgress, Paper } from "shared";
 
 export type AgentRole =
   "assistant" | "prover" | "referee" | "literature" | "curator" | "reset";
@@ -11,6 +11,8 @@ export type RunContext = {
   target?: string;
   focus?: string[];
   attemptId?: string;
+  /** The chat message that started this run. */
+  requestId?: string;
   memorySaved?: number;
   papers?: Map<string, Paper>;
 };
@@ -36,6 +38,8 @@ export type CardFields = {
   agentId?: string;
   archived?: { at: string; by?: string; reason?: string } | null;
   resolved?: { at: string; by?: string; reason?: string } | null;
+  settledAt?: string;
+  progress?: CardProgress;
 };
 
 export const fieldsOf = (node: CanvasNode) => node.payload as CardFields;

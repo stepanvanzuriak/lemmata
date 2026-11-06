@@ -5,6 +5,7 @@ import {
   type LiteraturePayload,
 } from "shared";
 import { editRight } from "./rights.js";
+import { describeProgress } from "./progress.js";
 import { fieldsOf, isArchived, isResolved, type Author } from "./types.js";
 
 const FULL_CHARS = 8_000;
@@ -121,6 +122,10 @@ function describeCard(
   if (p.text) {
     lines.push(`  text: ${clip(p.text, max)}`);
   }
+  // Before the markdown: a long body may be cut off by the agent's tool, its progress should not be.
+  if (p.progress) {
+    lines.push(...describeProgress(p.progress, detail, level === "brief"));
+  }
   if (p.markdown && level !== "brief") {
     lines.push(`  markdown: ${clip(p.markdown, max)}`);
   }
@@ -199,7 +204,7 @@ export function describeCanvas(
   const header = [
     `Canvas "${detail.canvas.title}": ${detail.nodes.length} cards, ${links.length} links.`,
     hidden > 0 &&
-      `${hidden} archived card${hidden > 1 ? "s are" : " is"} hidden; get_card still reads them by id.`,
+      `${hidden} archived card${hidden > 1 ? "s are" : " is"} hidden; get_card still reads them by id, and updating or linking one restores it.`,
     `Name cards by id, "goal", label (H2) or exact title.`,
   ]
     .filter(Boolean)
@@ -244,7 +249,7 @@ export function describeOne(
   return [
     describeCard(card, detail, author, "complete"),
     archived &&
-      `  archived${archived.reason ? `: ${archived.reason}` : ""} (hidden from the canvas)`,
+      `  archived${archived.reason ? `: ${archived.reason}` : ""} (hidden from the canvas; updating it, linking it or adding cards under it restores it)`,
     "Links:",
     ...(links.length ? links : ["- none"]),
   ]

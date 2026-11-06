@@ -32,7 +32,6 @@ import { AgentDialog } from "./AgentDialog";
 import { archivedByRun } from "../canvas/kinds";
 import { CardsChanged } from "./CardsChanged";
 import { CleanupNotice } from "./CleanupNotice";
-import { NextSteps } from "./NextSteps";
 import { ModelSelect } from "./ModelSelect";
 import { useChatRuns, type LiveRun } from "./useChatRuns";
 
@@ -469,17 +468,6 @@ export function ChatPanel({
             </div>
           );
         })}
-        {detail && running.size === 0 && messages.length > 0 && (
-          <NextSteps
-            canvasId={canvasId}
-            detail={detail}
-            messages={messages}
-            onSend={(text) => {
-              stick.current = true;
-              send(text, assistantModel);
-            }}
-          />
-        )}
         {orphans.map((run) => (
           <OrphanRunBubble
             key={run.runKey}

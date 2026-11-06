@@ -1,6 +1,7 @@
 import { isoNow, updateNode, type Db } from "core";
 import type { CanvasDetail, CanvasNode } from "shared";
 import { findCard } from "./find.js";
+import { unpassedChecks } from "./gating.js";
 import { loadDetail } from "./load.js";
 import { fieldsOf, isArchived, ToolRefusal, type RunContext } from "./types.js";
 
@@ -58,6 +59,66 @@ export function keepReason(
     return `it is linked to ${nameOf(backs)}, which is supported`;
   }
   return null;
+}
+
+/**
+ * Brings an archived card back onto the canvas. Agents write to and link cards by
+ * reference even when a reset hid them; leaving such a card hidden would hide
+ * the work too. Returns whether the card was archived.
+ */
+export async function restoreIfArchived(db: Db, card: CanvasNode) {
+  if (!isArchived(card)) {
+    return false;
+  }
+  await updateNode(db, card.id, { archived: null });
+  return true;
+}
+
+/**
+ * When an attack fails, the checks that only it needed and that never passed
+ * (a main claim left with sorry, an unrun or failing check) are archived with it:
+ * left on the canvas they read as open obligations of an abandoned route. Passed
+ * checks stay, since they explain the failure, and so do checks linked to any
+ * other live card.
+ */
+export async function archiveFailedAttackChecks(
+  db: Db,
+  run: RunContext,
+  attack: CanvasNode,
+) {
+  const detail = await loadDetail(db, run.canvasId);
+  const byId = new Map(detail.nodes.map((n) => [n.id, n]));
+  const live = (id: string) => {
+    const node = byId.get(id);
+    return Boolean(
+      node &&
+      !isArchived(node) &&
+      !(node.kind === "attack" && fieldsOf(node).status === "failed"),
+    );
+  };
+  const orphaned = unpassedChecks(detail, attack).filter(
+    (check) =>
+      !isArchived(check) &&
+      !detail.edges.some((e) => {
+        const other =
+          e.fromNode === check.id
+            ? e.toNode
+            : e.toNode === check.id
+              ? e.fromNode
+              : undefined;
+        return other !== undefined && other !== attack.id && live(other);
+      }),
+  );
+
+  await archiveNodes(
+    db,
+    orphaned.map((n) => n.id),
+    {
+      by: run.attemptId,
+      reason: `${fieldsOf(attack).label ?? "the attack"} failed; this check never passed`,
+    },
+  );
+  return orphaned;
 }
 
 export async function archiveNodes(

@@ -9,7 +9,8 @@ export type NodeKind =
   | "literature"
   | "python"
   | "lean"
-  | "toolbox";
+  | "toolbox"
+  | "canvas";
 
 export type Archived = {
   at: string;
@@ -30,6 +31,8 @@ export type BasePayload = {
   markdown?: string;
   author?: string;
   archived?: Archived | null;
+  /** ISO time the card last moved to a settled status (supported, refuted, worked, proved, disproved). */
+  settledAt?: string;
 };
 
 export type GoalPayload = BasePayload & {
@@ -37,6 +40,23 @@ export type GoalPayload = BasePayload & {
   status: "open" | "proved" | "disproved";
   /** The user dismissed the "Ready to settle" suggestion. */
   settleDismissed?: boolean;
+};
+
+/** One result established toward a hypothesis or attack, backed by cards. */
+export type ProgressItem = {
+  text: string;
+  /** Ids of the cards that establish it: passing checks, settled cards or papers. */
+  evidence: string[];
+};
+
+/** Where work on a hypothesis or attack stands; agents replace it as they go. */
+export type CardProgress = {
+  established: ProgressItem[];
+  remaining: string[];
+  next?: string;
+  updatedAt: string;
+  /** When established last gained an item: the attack run budget counts from here. */
+  advancedAt?: string;
 };
 
 export type HypothesisPayload = BasePayload & {
@@ -49,6 +69,7 @@ export type HypothesisPayload = BasePayload & {
   settledBy?: string;
   /** The user dismissed the "Ready to settle" suggestion. */
   settleDismissed?: boolean;
+  progress?: CardProgress;
 };
 
 /** One concrete route to a hypothesis: an argument or construction to try. */
@@ -59,6 +80,7 @@ export type AttackPayload = BasePayload & {
   agentId?: string;
   claimedBy?: string;
   claimedByRole?: "prover" | "referee";
+  progress?: CardProgress;
 };
 
 export type RunOutput = {
@@ -108,6 +130,12 @@ export type ToolboxPayload = BasePayload & {
   kind: "toolbox";
   python?: string;
   lean?: string;
+};
+
+/** Marks where a branch left this canvas; its status follows the branch's goal. */
+export type CanvasLinkPayload = BasePayload & {
+  kind: "canvas";
+  canvasId: string;
 };
 
 export type PlainPayload = BasePayload & {
@@ -167,6 +195,7 @@ export type NodePayload =
   | AttackPayload
   | CodePayload
   | ToolboxPayload
+  | CanvasLinkPayload
   | PlainPayload
   | LiteraturePayload
   | PaperPayload;

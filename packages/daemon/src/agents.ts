@@ -87,7 +87,7 @@ function attackTask(target: CanvasNode, detail?: CanvasDetail) {
   const parent = detail && attackParent(detail, target);
   const on = parent ? ` on ${describeTarget(parent)}` : "";
 
-  return `Carry out the attack ${describeTarget(target)}${on}: work through the argument on its card, with checks on the canvas. The attack exists to settle that hypothesis, so do not weaken or rewrite the hypothesis to fit the attack. Mark the attack worked with update_card only when the argument is complete and its checks pass, then settle the hypothesis as supported or refuted accordingly; when the attack fails, mark it failed and say on the card where and why it breaks. If the failure suggests another route, add it as a new attack linked to the hypothesis.`;
+  return `Carry out the attack ${describeTarget(target)}${on}: work through the argument on its card, with checks on the canvas. The attack exists to settle that hypothesis, so do not weaken or rewrite the hypothesis to fit the attack. Start from the card's progress record if it has one. Mark the attack worked with update_card only when the argument is complete and its checks pass, then settle the hypothesis as supported or refuted accordingly. If the route is blocked (a false step, or a needed lemma that fails or is as hard as the hypothesis), mark it failed and say on the card where and why it breaks; if that suggests another route, add it as a new attack linked to the hypothesis. Otherwise leave it open and record established results, remaining steps and the next step with update_progress, so the next run continues from there.`;
 }
 
 function taskFor(command: Command, target: CanvasNode, detail?: CanvasDetail) {

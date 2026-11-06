@@ -9,6 +9,7 @@ import {
   getCanvas,
   listAgents,
   listCanvases,
+  listCardExchanges,
   listMessages,
   lastSessionId,
   MIGRATIONS_FOLDER,
@@ -107,4 +108,34 @@ it("clears claims and reopens claimed hypotheses", async () => {
     parsePayload(nodes.find((n) => n.id === id)!.payload);
   expect(payload(claimed.id)).toEqual({ title: "H", status: "open" });
   expect(payload(supported.id)).toEqual({ title: "S", status: "supported" });
+});
+
+it("pairs the runs that targeted or changed a card", async () => {
+  const { db, canvasId } = await setup();
+  const prover = await addAgent(db, { canvasId, role: "prover" });
+  const say = (
+    role: "user" | "assistant",
+    text: string,
+    target: string | null,
+    cards: string[] | null = null,
+    agentId: string | null = null,
+  ) => addMessage(db, { canvasId, role, text, target, cards, agentId });
+
+  await say("user", "/prove H1", "h1", null, prover.id);
+  await say("user", "tidy up", null);
+  await say("assistant", "Proved H1.", "h1", ["h1"], prover.id);
+  await say("assistant", "Merged H1 and H2.", null, ["h1", "h2"]);
+  await say("user", "/prove H2", "h2", null, prover.id);
+  await say("assistant", "Proved H2.", "h2", ["h2"], prover.id);
+  await say("user", "/literature H1", "h1");
+
+  const exchanges = await listCardExchanges(db, canvasId, "h1");
+  expect(
+    exchanges.map((e) => [e.request?.text ?? null, e.reply?.text ?? null]),
+  ).toEqual([
+    ["/prove H1", "Proved H1."],
+    ["tidy up", "Merged H1 and H2."],
+    ["/literature H1", null],
+  ]);
+  expect(await listCardExchanges(db, canvasId, "h3")).toEqual([]);
 });

@@ -1,6 +1,7 @@
 import type {
   BasePayload,
   CanvasNode,
+  CardProgress,
   CardRun,
   LiteraturePayload,
   NodeKind,
@@ -16,6 +17,7 @@ export type CardFields = Partial<BasePayload> & {
   lean?: string;
   run?: CardRun;
   resolved?: Resolved | null;
+  progress?: CardProgress;
 };
 
 export const fieldsOf = (node: CanvasNode) => node.payload as CardFields;
@@ -41,6 +43,7 @@ export const KIND_LABELS: Record<NodeKind, string> = {
   python: "Python",
   lean: "Lean",
   toolbox: "Toolbox",
+  canvas: "Branch",
 };
 
 export const CREATABLE_KINDS = [

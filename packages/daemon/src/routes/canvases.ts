@@ -7,6 +7,8 @@ import {
   EDGE_KINDS,
   NODE_CREATORS,
   GoalNodeError,
+  BranchError,
+  branchCanvas,
   UniqueToolboxError,
   NotFoundError,
   addEdge,
@@ -41,6 +43,7 @@ const NODE_KINDS = [
   "python",
   "lean",
   "toolbox",
+  "canvas",
 ] as const satisfies readonly NodeKind[];
 
 const payload = z.record(z.string(), z.unknown());
@@ -277,6 +280,21 @@ export function canvasRoutes(
       }
 
       return c.json(toNode(node), 200);
+    })
+    .post("/nodes/:id/branch", async (c) => {
+      try {
+        const { canvas, moved } = await branchCanvas(db, c.req.param("id"));
+
+        return c.json({ canvas, moved }, 201);
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          return c.json({ error: "node not found" }, 404);
+        }
+        if (error instanceof BranchError) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
     })
     .post("/nodes/:id/run", async (c) => {
       const node = await db.query.canvasNode.findFirst({

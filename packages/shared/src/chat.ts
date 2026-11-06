@@ -1,7 +1,7 @@
-import type { CanvasAgent, ChatMessage } from "core/schema";
+import type { CanvasAgent, CardExchange, ChatMessage } from "core/schema";
 import type { CanvasEdge, CanvasNode } from "./canvas.js";
 
-export type { CanvasAgent, ChatMessage };
+export type { CanvasAgent, CardExchange, ChatMessage };
 
 export type ChatRequest = { text: string; model?: string | null };
 

@@ -18,8 +18,11 @@ import { registerRunCard } from "./runCard.js";
 import { registerSearchLiterature } from "./searchLiterature.js";
 import { registerSearchLibraries } from "./searchLibraries.js";
 import { registerSearchCards } from "./searchCards.js";
+import { registerSearchCardHistory } from "./searchCardHistory.js";
+import { registerSearchProjectCards } from "./searchProjectCards.js";
 import type { RegisterTool, ToolContext, ToolDeps } from "./shared.js";
 import { registerUpdateCard } from "./updateCard.js";
+import { registerUpdateProgress } from "./updateProgress.js";
 import { registerDeleteToolbox } from "./deleteToolbox.js";
 
 export type { ToolDeps } from "./shared.js";
@@ -29,10 +32,13 @@ const TOOLS: RegisterTool[] = [
   registerReadCanvas,
   registerGetCanvasIndex,
   registerSearchCards,
+  registerSearchProjectCards,
   registerGetCard,
+  registerSearchCardHistory,
   registerGetToolbox,
   registerCreateCards,
   registerUpdateCard,
+  registerUpdateProgress,
   registerResolveNote,
   registerConnectCards,
   registerRunCard,

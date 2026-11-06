@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Db } from "./db/index.js";
 import {
   canvas,
@@ -47,6 +47,13 @@ export class UniqueToolboxError extends Error {
   constructor(public readonly canvasId: string) {
     super("This canvas already has a toolbox card");
     this.name = "UniqueToolboxError";
+  }
+}
+
+export class BranchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BranchError";
   }
 }
 
@@ -322,4 +329,174 @@ export async function deleteEdge(
     await touchCanvas(db, row.canvasId, isoNow());
   }
   return row;
+}
+
+/**
+ * Split a card and everything below it (following edges from source to target)
+ * into a new canvas linked back to this one. The cards and the edges between
+ * them move, and a link card takes the card's place here; edges into or out of the card itself move to the link, other edges that crossed the split are dropped, and the toolbox is
+ * copied so both canvases keep theirs. The moved card becomes the new
+ * canvas's goal.
+ */
+export function branchCanvas(
+  db: Db,
+  nodeId: string,
+): Promise<{ canvas: Canvas; moved: string[]; link: string }> {
+  return db.transaction(async (tx) => {
+    const [root] = await tx
+      .select()
+      .from(canvasNode)
+      .where(eq(canvasNode.id, nodeId));
+
+    if (!root) {
+      throw new NotFoundError("node", nodeId);
+    }
+    if (root.kind === "goal" || root.kind === "toolbox") {
+      throw new BranchError(`A ${root.kind} card cannot start a new canvas`);
+    }
+
+    const source = await tx.query.canvas.findFirst({
+      where: { id: root.canvasId },
+      with: { nodes: true, edges: true },
+    });
+    const kinds = new Map(source!.nodes.map((n) => [n.id, n.kind]));
+    const children = new Map<string, string[]>();
+    for (const { fromNode, toNode } of source!.edges) {
+      children.set(fromNode, [...(children.get(fromNode) ?? []), toNode]);
+    }
+
+    const moved = new Set<string>();
+    const pending = [root.id];
+    while (pending.length) {
+      const id = pending.pop()!;
+      const kind = kinds.get(id);
+      if (moved.has(id) || kind === "goal" || kind === "toolbox") {
+        continue;
+      }
+      moved.add(id);
+      pending.push(...(children.get(id) ?? []));
+    }
+
+    const toolbox = source!.nodes.find((n) => n.kind === "toolbox");
+    const now = isoNow();
+    const title = String(parsePayload(root.payload).title ?? "").trim();
+
+    const [created] = await tx
+      .insert(canvas)
+      .values({
+        projectId: source!.projectId,
+        title: title || source!.title,
+        parentCanvasId: source!.id,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    const canvasId = created!.id;
+
+    let newToolboxId: string | undefined;
+    if (toolbox) {
+      [{ id: newToolboxId }] = (await tx
+        .insert(canvasNode)
+        .values({
+          canvasId,
+          kind: "toolbox",
+          x: toolbox.x,
+          y: toolbox.y,
+          w: toolbox.w,
+          h: toolbox.h,
+          collapsed: toolbox.collapsed,
+          payload: toolbox.payload,
+          createdBy: toolbox.createdBy,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning({ id: canvasNode.id })) as [{ id: string }];
+    }
+
+    const [link] = await tx
+      .insert(canvasNode)
+      .values({
+        canvasId: source!.id,
+        kind: "canvas",
+        x: root.x,
+        y: root.y,
+        payload: JSON.stringify({
+          title: title || created!.title,
+          canvasId,
+        }),
+        createdBy: "user",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: canvasNode.id });
+
+    const ids = [...moved];
+    await tx
+      .update(canvasNode)
+      .set({ canvasId })
+      .where(inArray(canvasNode.id, ids));
+
+    for (const edge of source!.edges) {
+      const from = moved.has(edge.fromNode);
+      const to = moved.has(edge.toNode);
+      if (from && to) {
+        await tx
+          .update(canvasEdge)
+          .set({ canvasId })
+          .where(eq(canvasEdge.id, edge.id));
+      } else if (
+        to &&
+        edge.toNode === root.id &&
+        edge.fromNode !== toolbox?.id
+      ) {
+        // Whatever led to the card now leads to its link.
+        await tx
+          .update(canvasEdge)
+          .set({ toNode: link!.id })
+          .where(eq(canvasEdge.id, edge.id));
+      } else if (
+        from &&
+        edge.fromNode === root.id &&
+        edge.toNode !== toolbox?.id
+      ) {
+        // Whatever the card led to is now led to by its link.
+        await tx
+          .update(canvasEdge)
+          .set({ fromNode: link!.id })
+          .where(eq(canvasEdge.id, edge.id));
+      } else if ((from || to) && toolbox && newToolboxId) {
+        const other = from ? edge.toNode : edge.fromNode;
+        if (other === toolbox.id) {
+          await tx
+            .update(canvasEdge)
+            .set({
+              canvasId,
+              ...(from ? { toNode: newToolboxId } : { fromNode: newToolboxId }),
+            })
+            .where(eq(canvasEdge.id, edge.id));
+          continue;
+        }
+        await tx.delete(canvasEdge).where(eq(canvasEdge.id, edge.id));
+      } else if (from || to) {
+        await tx.delete(canvasEdge).where(eq(canvasEdge.id, edge.id));
+      }
+    }
+
+    // The moved card becomes the goal of the new canvas.
+    const { label: _label, ...rootPayload } = parsePayload(root.payload);
+    const status = ["proved", "disproved"].includes(String(rootPayload.status))
+      ? rootPayload.status
+      : "open";
+    await tx
+      .update(canvasNode)
+      .set({
+        kind: "goal",
+        payload: JSON.stringify({ ...rootPayload, status }),
+        updatedAt: now,
+      })
+      .where(eq(canvasNode.id, root.id));
+
+    await touchCanvas(tx, source!.id, now);
+    return { canvas: created!, moved: ids, link: link!.id };
+  });
 }

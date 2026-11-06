@@ -3,6 +3,7 @@ import {
   archiveMessages,
   lastSessionId,
   listAgents,
+  listAttempts,
   type CanvasAgent,
   type ChatMessage,
 } from "core";
@@ -24,6 +25,7 @@ import {
 } from "./agents.js";
 import { describeCanvas } from "./cards/describe.js";
 import { findCard } from "./cards/find.js";
+import { frontierContext, stalledProverRuns } from "./cards/frontier.js";
 import { loadDetail } from "./cards/load.js";
 import { archiveNodes } from "./cards/archive.js";
 import { literatureCardFor } from "./cards/literature.js";
@@ -84,7 +86,7 @@ export function abortRuns(canvasId: string, runKey?: string): number {
 
 /** Sent once, in the same session, when a prover run ends without touching the canvas. */
 export const STUCK_NUDGE =
-  "You changed nothing on the canvas. Do not stop here: follow the rule for when you cannot settle the target, and leave at least one new card (a sub-lemma, a special case, or a check) that a later run can pick up. Then reply in two sentences.";
+  "You changed nothing on the canvas. Record what you learned on the target card: the exact obstruction and the most promising next step. Add a new card only if it is a concrete check or a sub-lemma that is clearly easier than the target; do not add one just to show progress. Then reply in two sentences.";
 
 const staleNotice = (canvas: string) =>
   `This session continues an earlier run, and the canvas has changed since. What you remember of it may be out of date: cards were added and hypotheses settled. This is the canvas now; trust it over your memory.\n\n${canvas}`;
@@ -291,6 +293,7 @@ export async function startChat(
         author,
         target: target?.id,
         focus,
+        requestId: userMessage.id,
       };
 
       const resumeSessionId =
@@ -321,10 +324,23 @@ export async function startChat(
       secret = registerRun(runContext);
 
       const cwd = await projectDir(db, canvasId, deps.workspaceDir);
+      const attempts =
+        role === "prover" ? await listAttempts(db, { canvasId }) : [];
+      const frontier =
+        role === "prover"
+          ? frontierContext(
+              detail,
+              target,
+              stalledProverRuns(detail, attempts),
+              attempts,
+              Boolean(command?.instructions),
+            )
+          : null;
       const systemPromptAddendum = [
         `Project: ${project.title}\n${project.statement}`,
         await memoryPreamble(db, project.id),
         ROLE_PROMPTS[role],
+        frontier,
         // A resumed run already gets the current canvas in its first prompt.
         resumeSessionId
           ? null

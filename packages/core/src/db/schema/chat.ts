@@ -65,3 +65,9 @@ export type AgentRole = (typeof AGENT_ROLES)[number];
 export type ChatMessage = Omit<z.infer<typeof chatMessageSchema>, "cards"> & {
   cards: string[] | null;
 };
+
+/** One agent run as the chat recorded it: the request and the reply (either may be missing). */
+export type CardExchange = {
+  request: ChatMessage | null;
+  reply: ChatMessage | null;
+};

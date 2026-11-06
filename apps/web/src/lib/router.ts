@@ -5,6 +5,7 @@ import { RoutePlaceholder } from "../components/common/RoutePlaceholder";
 import { Settings } from "../pages/Settings";
 import { Workspaces } from "../pages/Workspaces";
 import { MemoryPage } from "../pages/Memory";
+import { ProjectCanvasesPage } from "../pages/ProjectCanvases";
 import { CanvasPage, CanvasRedirect } from "../pages/Canvas";
 
 export type RouteHandle = { title: string; fullBleed?: boolean };
@@ -27,6 +28,11 @@ export const router = createBrowserRouter([
             index: true,
             Component: Workspaces,
             handle: { title: "Workspace" } satisfies RouteHandle,
+          },
+          {
+            path: "projects/:projectId",
+            Component: ProjectCanvasesPage,
+            handle: { title: "Choose a canvas" } satisfies RouteHandle,
           },
           {
             path: "canvas",

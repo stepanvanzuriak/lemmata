@@ -214,21 +214,19 @@ export function AgentActions({
       )}
       {send && AGENT_KINDS.has(node.kind) && (
         <>
-          {node.kind !== "statement" && (
-            <Button
-              size="sm"
-              className={actionClass}
-              variant="secondary"
-              onPress={() => send(`/prover ${ref}`)}
-            >
-              <ProverIcon {...iconProps} />
-              {node.kind === "goal"
-                ? "Split"
-                : node.kind === "attack"
-                  ? "Attack"
-                  : "Prove"}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            className={actionClass}
+            variant="secondary"
+            onPress={() => send(`/prover ${ref}`)}
+          >
+            <ProverIcon {...iconProps} />
+            {node.kind === "goal"
+              ? "Split"
+              : node.kind === "attack"
+                ? "Attack"
+                : "Prove"}
+          </Button>
           {node.kind === "hypothesis" && !ready && (
             <Button
               size="sm"

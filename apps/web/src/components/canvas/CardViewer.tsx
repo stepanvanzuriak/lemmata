@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useNavigate } from "react-router";
 import {
   Button,
   CloseButton,
@@ -12,17 +13,23 @@ import {
 import { Check, ChevronDown, Copy, TrashBin } from "@gravity-ui/icons";
 import type { CanvasNode, UpdateNodeRequest } from "shared";
 import {
+  useBranchNode,
   useCanvas,
   useDeleteNode,
   useRestoreNodes,
   useUpdateNode,
 } from "../../api/canvases";
+import { paths } from "../../lib/paths";
 import { CardTags } from "./CardTags";
 import { CodeBlock, CodeSection } from "../common/CodeBlock";
 import { Markdown } from "../common/Markdown";
 import { fieldsOf, isArchived, KIND_LABELS, paperOf } from "./kinds";
 import { RunPanel } from "./RunPanel";
 import { AgentActions } from "./AgentActions";
+import { CardHistory } from "./CardHistory";
+import { ProgressSection } from "./CardProgress";
+import { workOnStep } from "../../lib/progress";
+import { useChatStore } from "../../stores/chat";
 import { LiteraturePanel } from "./LiteraturePanel";
 import { PaperPanel } from "./PaperPanel";
 
@@ -33,6 +40,7 @@ const STATUSES: Partial<Record<CanvasNode["kind"], string[]>> = {
 };
 
 const READ_ONLY = new Set<CanvasNode["kind"]>([
+  "canvas",
   "memory",
   "arxiv",
   "literature",
@@ -71,8 +79,17 @@ function CopyIdButton({ id }: { id: string }) {
   );
 }
 
-function ReadView({ node, actions }: { node: CanvasNode; actions: ReactNode }) {
+function ReadView({
+  node,
+  nodes,
+  actions,
+}: {
+  node: CanvasNode;
+  nodes: CanvasNode[];
+  actions: ReactNode;
+}) {
   const p = fieldsOf(node);
+  const send = useChatStore((state) => state.send);
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -84,6 +101,13 @@ function ReadView({ node, actions }: { node: CanvasNode; actions: ReactNode }) {
       </div>
       {actions}
       {p.text && <Markdown className="text-sm text-lm-ink2">{p.text}</Markdown>}
+      {p.progress && (
+        <ProgressSection
+          progress={p.progress}
+          nodes={nodes}
+          onWork={send ? (step) => send(workOnStep(node, step)) : undefined}
+        />
+      )}
       {p.markdown && node.kind !== "literature" && (
         <Markdown className="text-sm text-lm-ink2">{p.markdown}</Markdown>
       )}
@@ -217,6 +241,8 @@ export function CardViewer({
   const updateNode = useUpdateNode(canvasId);
   const deleteNode = useDeleteNode(canvasId);
   const restore = useRestoreNodes(canvasId);
+  const branch = useBranchNode(canvasId);
+  const navigate = useNavigate();
   const canvas = useCanvas(canvasId);
   const onCanvas = new Set(
     (canvas.data?.nodes ?? [])
@@ -293,6 +319,25 @@ export function CardViewer({
               Edit
             </Button>
           )}
+          {node.kind !== "goal" &&
+            node.kind !== "toolbox" &&
+            node.kind !== "canvas" && (
+              <Button
+                size="sm"
+                variant="tertiary"
+                className="h-8 min-w-0 px-3 text-sm"
+                aria-label="Move to a new canvas"
+                isPending={branch.isPending}
+                onPress={() =>
+                  branch.mutate(node.id, {
+                    onSuccess: ({ canvas }) =>
+                      navigate(`${paths.canvas}/${canvas.id}`),
+                  })
+                }
+              >
+                New canvas
+              </Button>
+            )}
           {node.kind !== "goal" && (
             <Button
               size="sm"
@@ -341,6 +386,7 @@ export function CardViewer({
       ) : (
         <ReadView
           node={node}
+          nodes={canvas.data?.nodes ?? []}
           actions={<AgentActions canvasId={canvasId} node={node} />}
         />
       )}
@@ -352,6 +398,8 @@ export function CardViewer({
       )}
 
       {node.kind === "arxiv" && <PaperPanel canvasId={canvasId} node={node} />}
+
+      {!editing && <CardHistory canvasId={canvasId} nodeId={node.id} />}
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 import { Markdown } from "../../common/Markdown";
+import { ProgressSummary } from "../CardProgress";
 import { fieldsOf } from "../kinds";
 import { Card, Header, Secondary, StatusChip, type CardProps } from "./Card";
 
@@ -14,6 +15,7 @@ export function AttackCard({ node, status }: CardProps) {
         <Markdown inline>{p.title || "Untitled"}</Markdown>
       </div>
       <Secondary>{p.text}</Secondary>
+      <ProgressSummary progress={p.progress} />
       <StatusChip status={status} />
     </Card>
   );

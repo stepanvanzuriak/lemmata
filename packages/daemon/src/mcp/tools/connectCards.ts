@@ -1,5 +1,6 @@
 import { addEdge, EDGE_KINDS } from "core";
 import { z } from "zod";
+import { restoreIfArchived } from "../../cards/archive.js";
 import { fieldsOf, ToolRefusal } from "../../cards/types.js";
 import { cardRef, guard, type RegisterTool } from "./shared.js";
 
@@ -29,7 +30,20 @@ export const registerConnectCards: RegisterTool = (
           toNode: target.id,
           kind,
         });
-        return `Linked "${fieldsOf(source).title}" ${kind} "${fieldsOf(target).title}".`;
+        // A link to a hidden card would be invisible; bring the card back.
+        const restored = [];
+        for (const card of [source, target]) {
+          if (await restoreIfArchived(db, card)) {
+            restored.push(`"${fieldsOf(card).title}"`);
+          }
+        }
+        return [
+          `Linked "${fieldsOf(source).title}" ${kind} "${fieldsOf(target).title}".`,
+          restored.length > 0 &&
+            `Restored ${restored.join(" and ")} from the archive; ${restored.length > 1 ? "they are" : "it is"} visible again.`,
+        ]
+          .filter(Boolean)
+          .join("\n");
       }),
   );
 };

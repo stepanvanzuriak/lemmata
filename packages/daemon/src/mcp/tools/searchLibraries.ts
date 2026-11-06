@@ -23,7 +23,7 @@ import {
   pythonIndex,
   searchPython,
 } from "../../search/pythonIndex.js";
-import { leanCommand, mathlibDir } from "../../toolchain.js";
+import { leanCommand, mathlibDir, mathlibInstalled } from "../../toolchain.js";
 import { guard, type RegisterTool } from "./shared.js";
 
 const SKIPPED_PACKAGES = new Set(["Cli", "importGraph", "proofwidgets"]);
@@ -61,8 +61,11 @@ async function limited<T>(work: () => Promise<T>): Promise<T> {
 async function findLeanRoots(): Promise<LeanRoot[]> {
   const roots: LeanRoot[] = [];
   const packages = join(mathlibDir(), ".lake", "packages");
+  // From the Mathlib project, so the core sources match the pinned toolchain
+  // and elan skips its network lookup of a channel default.
   const prefix = await runProcess("lean", ["--print-prefix"], {
-    timeoutMs: 10_000,
+    cwd: mathlibInstalled() ? mathlibDir() : undefined,
+    timeoutMs: 30_000,
   });
 
   if (prefix.exitCode === 0) {
@@ -76,6 +79,37 @@ async function findLeanRoots(): Promise<LeanRoot[]> {
     }
   }
   return roots;
+}
+
+const GREP_LINE_CHARS = 240;
+
+/** Source lines matching the pattern, as `Module:line: text`, stopping once `wanted` are found. */
+export async function grepSources(
+  files: { module: string; path: string }[],
+  pattern: RegExp,
+  wanted: number,
+) {
+  const lines: string[] = [];
+
+  for (let i = 0; i < files.length && lines.length <= wanted; i += 64) {
+    const batch = await Promise.all(
+      files.slice(i, i + 64).map(async (file) => ({
+        file,
+        text: await readFile(file.path, "utf8").catch(() => ""),
+      })),
+    );
+
+    for (const { file, text } of batch) {
+      text.split("\n").forEach((line, at) => {
+        if (lines.length <= wanted && pattern.test(line)) {
+          lines.push(
+            `${file.module}:${at + 1}: ${line.trim().slice(0, GREP_LINE_CHARS)}`,
+          );
+        }
+      });
+    }
+  }
+  return { lines: lines.slice(0, wanted), more: lines.length > wanted };
 }
 
 const describe = (e: LeanEntry) =>
@@ -120,7 +154,9 @@ export const registerSearchLibraries: RegisterTool = (
         "mode module: find files by path or module docstring (`Analysis SpecialFunctions Log`), then query their contents with the module's name as a name-mode word.",
         "mode check: pass an exact declaration name; Lean prints its real elaborated type (`#check @name`) with implicit arguments, after instances and notation are resolved. Use it to confirm a hit before relying on it.",
         "mode exact or apply: pass a goal as a Lean proposition (e.g. `∀ a b : ℕ, a + b = b + a`); runs `exact?` or `apply?` against all of Mathlib, which finds lemmas by statement rather than by name. Slow (up to a few minutes); results are suggestions to verify with run_card.",
-        "mode source: pass an exact declaration name; returns its file, line and source text (the proof too, up to 150 lines), so you can read how Mathlib proves something or what a definition unfolds to. You cannot read files yourself; use this instead of shell commands.",
+        "mode source: pass an exact declaration name; returns its file, line and source text (the proof too, up to 150 lines), so you can read how Mathlib proves something or what a definition unfolds to.",
+        "mode grep: a JavaScript regular expression tested against every source line, proofs and comments included, for text the declaration index does not cover (a tactic call, a notation, a pattern inside proofs). Returns module, line and the matching line; follow up with mode source.",
+        "Use these modes rather than shell commands on the library files: they search the same sources the checks build against.",
         "Results list kind, qualified name, module, line, signature and docstring, 25 per page (use offset). The scan is textual; a declaration made by a macro may be missing, so confirm absence with mode exact or check before giving up.",
       ].join(" "),
       inputSchema: {
@@ -134,6 +170,7 @@ export const registerSearchLibraries: RegisterTool = (
             "check",
             "exact",
             "apply",
+            "grep",
           ])
           .default("name"),
         kind: z
@@ -155,7 +192,7 @@ export const registerSearchLibraries: RegisterTool = (
           .trim()
           .optional()
           .describe(
-            "Only declarations whose module starts with this prefix, e.g. Mathlib.Analysis (name and regex modes).",
+            "Only declarations whose module starts with this prefix, e.g. Mathlib.Analysis (name, regex and grep modes).",
           ),
         limit: z.number().int().min(1).max(100).default(25),
         offset: z.number().int().min(0).default(0),
@@ -164,7 +201,9 @@ export const registerSearchLibraries: RegisterTool = (
     },
     ({ query, mode, kind, module, limit, offset }) =>
       guard(async () => {
-        if (!(await toolchain).lean) {
+        // Checks run through `lake env lean` once Mathlib is set up, so that
+        // is enough even if the startup probe of `lean` failed.
+        if (!(await toolchain).lean && !mathlibInstalled()) {
           throw new ToolRefusal("Lean is not installed on this machine.");
         }
         if (mode === "source") {
@@ -226,6 +265,32 @@ export const registerSearchLibraries: RegisterTool = (
           throw new ToolRefusal(
             "No Lean sources found. Mathlib is not installed yet; search again after the first Lean check has finished setting it up.",
           );
+        }
+        if (mode === "grep") {
+          let pattern: RegExp;
+          try {
+            pattern = new RegExp(query);
+          } catch (error) {
+            throw new ToolRefusal(
+              `Invalid regular expression: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+          const { lines, more } = await grepSources(
+            index.files.filter((f) => !module || f.module.startsWith(module)),
+            pattern,
+            offset + limit,
+          );
+
+          if (lines.length === 0) {
+            return `No source line matches /${query}/${module ? ` in ${module}` : ""}.`;
+          }
+          return [
+            `Lines matching /${query}/${more || lines.length > limit ? `; showing ${offset + 1}-${Math.min(lines.length, offset + limit)}` : ""}:`,
+            ...lines.slice(offset, offset + limit),
+            ...(more
+              ? [`More results: call again with offset ${offset + limit}.`]
+              : []),
+          ].join("\n");
         }
         if (mode === "module") {
           const modules = searchModules(index, query);

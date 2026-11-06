@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { openDb } from "../db/index.js";
 import {
   addEdge,
+  BranchError,
+  branchCanvas,
   addNode,
   createCanvas,
   deleteEdge,
@@ -178,4 +180,61 @@ it("deleting a node removes its edges", async () => {
 
   await deleteNode(db, n.id);
   expect((await getCanvas(db, c.id))!.edges).toHaveLength(0);
+});
+
+it("branching moves a card with its descendants to a linked canvas and copies the toolbox", async () => {
+  const { db, c, goal } = await setup();
+  const node = (kind: string, title: string) =>
+    addNode(db, { canvasId: c.id, kind, payload: { title } });
+  const root = await node("hypothesis", "Root");
+  const child = await node("attack", "Child");
+  const other = await node("hypothesis", "Other");
+  const toolbox = await node("toolbox", "Tools");
+  const link = (fromNode: string, toNode: string) =>
+    addEdge(db, { canvasId: c.id, fromNode, toNode, kind: "depends-on" });
+  await link(goal.id, root.id);
+  await link(root.id, child.id);
+  await link(goal.id, other.id);
+  await link(toolbox.id, child.id);
+  await link(root.id, goal.id);
+
+  const { canvas, moved } = await branchCanvas(db, root.id);
+  expect(canvas.parentCanvasId).toBe(c.id);
+  expect(canvas.title).toBe("Root");
+  expect(moved.sort()).toEqual([root.id, child.id].sort());
+
+  const source = (await getCanvas(db, c.id))!;
+  const linkCard = source.nodes.find((n) => n.kind === "canvas")!;
+  expect(JSON.parse(linkCard.payload)).toEqual({
+    title: "Root",
+    canvasId: canvas.id,
+  });
+  expect(source.nodes.map((n) => n.id).sort()).toEqual(
+    [goal.id, other.id, toolbox.id, linkCard.id].sort(),
+  );
+  // edges into and out of root now use the link; toolbox -> child is gone from here.
+  expect(source.edges.map((e) => [e.fromNode, e.toNode]).sort()).toEqual(
+    [
+      [goal.id, linkCard.id],
+      [goal.id, other.id],
+      [linkCard.id, goal.id],
+    ].sort(),
+  );
+
+  const branch = (await getCanvas(db, canvas.id))!;
+  const kinds = branch.nodes.map((n) => n.kind).sort();
+  expect(kinds).toEqual(["attack", "goal", "toolbox"]);
+  expect(branch.nodes.find((n) => n.kind === "goal")!.id).toBe(root.id);
+  const copied = branch.nodes.find((n) => n.kind === "toolbox")!;
+  expect(copied.id).not.toBe(toolbox.id);
+  expect(copied.payload).toBe(toolbox.payload);
+  expect(
+    branch.edges.some((e) => e.fromNode === copied.id && e.toNode === child.id),
+  ).toBe(true);
+  expect(branch.edges).toHaveLength(2);
+});
+
+it("branching refuses goal cards", async () => {
+  const { db, goal } = await setup();
+  await expect(branchCanvas(db, goal.id)).rejects.toBeInstanceOf(BranchError);
 });

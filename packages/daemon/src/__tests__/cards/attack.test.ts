@@ -1,11 +1,26 @@
+import { addEdge, updateNode, type Db } from "core";
 import { expect, it } from "vitest";
 import { attackParent, expandCommand, parseCommand } from "../../agents.js";
 import { createCards, updateCard } from "../../cards/apply.js";
-import { archiveCards } from "../../cards/archive.js";
+import {
+  archiveCards,
+  archiveFailedAttackChecks,
+} from "../../cards/archive.js";
 import { findCard } from "../../cards/find.js";
 import { loadDetail } from "../../cards/load.js";
 import { editRight } from "../../cards/rights.js";
+import type { RunContext } from "../../cards/types.js";
 import { canvasSetup } from "./helpers.js";
+
+async function connectH1(db: Db, run: RunContext, id: string) {
+  const detail = await loadDetail(db, run.canvasId);
+  await addEdge(db, {
+    canvasId: run.canvasId,
+    fromNode: findCard(detail, "H1")!.id,
+    toNode: id,
+    kind: "tested-by",
+  });
+}
 
 async function withAttack() {
   const setup = await canvasSetup({ role: "prover" });
@@ -90,4 +105,89 @@ it("archives only failed attacks", async () => {
 
   const failed = await archiveCards(db, curator, [a.id], "dead end");
   expect(failed.archived.map((n) => n.id)).toEqual([a.id]);
+});
+
+it("hangs a hypothesis created under an attack from the attack's hypothesis", async () => {
+  const { db, run } = await canvasSetup({ role: "prover", agentId: "a1" });
+  const [h1] = await createCards(db, run, [
+    { kind: "hypothesis", title: "Main" },
+  ]);
+  const [attack] = await createCards(db, run, [
+    { kind: "attack", title: "Route", connectFrom: "H1" },
+  ]);
+  const notices: string[] = [];
+
+  const [lemma, check] = await createCards(
+    db,
+    { ...run, target: attack!.id },
+    [
+      { kind: "hypothesis", title: "Local lemma" },
+      {
+        kind: "lean",
+        title: "Local lemma statement",
+        source: "",
+        connectFrom: "H2",
+      },
+    ],
+    notices,
+  );
+  const { edges } = await loadDetail(db, run.canvasId);
+
+  expect(edges).toContainEqual(
+    expect.objectContaining({
+      fromNode: h1!.id,
+      toNode: lemma!.id,
+      kind: "depends-on",
+    }),
+  );
+  expect(
+    edges.some((e) => e.fromNode === attack!.id && e.toNode === lemma!.id),
+  ).toBe(false);
+  expect(edges).toContainEqual(
+    expect.objectContaining({
+      fromNode: lemma!.id,
+      toNode: check!.id,
+      kind: "tested-by",
+    }),
+  );
+  expect(notices).toEqual([expect.stringContaining("not from the attack")]);
+});
+
+it("archives the never-passed checks that only a failed attack needed", async () => {
+  const { db, run } = await canvasSetup({ role: "prover", agentId: "a1" });
+  await createCards(db, run, [{ kind: "hypothesis", title: "Main" }]);
+  const [attack] = await createCards(db, run, [
+    { kind: "attack", title: "Route", connectFrom: "H1" },
+  ]);
+  const [obligation, passed, shared] = await createCards(db, run, [
+    { kind: "lean", title: "Main claim", source: "sorry", connectFrom: "A1" },
+    { kind: "python", title: "Diagnostic", source: "", connectFrom: "A1" },
+    { kind: "python", title: "Also for H1", source: "", connectFrom: "A1" },
+  ]);
+  await updateNode(db, passed!.id, {
+    run: {
+      ok: true,
+      output: {
+        stdout: "",
+        stderr: "",
+        exitCode: 0,
+        timedOut: false,
+        durationMs: 1,
+      },
+      badge: "Passed",
+      runAt: "2026-01-01",
+    },
+  });
+  await connectH1(db, run, shared!.id);
+  const failed = await updateCard(db, run, "A1", { status: "failed" });
+
+  const dropped = await archiveFailedAttackChecks(db, run, failed);
+  expect(dropped.map((c) => c.id)).toEqual([obligation!.id]);
+  const detail = await loadDetail(db, run.canvasId);
+  const archived = (id: string) =>
+    Boolean(detail.nodes.find((n) => n.id === id)!.payload.archived);
+  expect(archived(obligation!.id)).toBe(true);
+  expect(archived(passed!.id)).toBe(false);
+  expect(archived(shared!.id)).toBe(false);
+  expect(archived(attack!.id)).toBe(false);
 });

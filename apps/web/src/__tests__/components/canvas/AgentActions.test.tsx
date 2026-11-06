@@ -49,6 +49,7 @@ it("keeps the hypothesis hover actions available in the expanded view with their
 it.each([
   ["goal", "Split", "/prover goal"],
   ["attack", "Attack", "/prover H1"],
+  ["statement", "Prove", "/prover H1"],
   ["statement", "Referee", "/referee H1"],
 ] as const)("preserves the %s action in the viewer", (kind, label, command) => {
   render(<AgentActions canvasId="c" node={node(kind)} />);

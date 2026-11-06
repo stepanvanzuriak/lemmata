@@ -127,7 +127,7 @@ export function Sidebar() {
           variant="tertiary"
           className="ml-auto bg-transparent font-mono text-[11px] text-lm-nav-muted"
         >
-          v0.1
+          v{__APP_VERSION__}
         </Chip>
         <Button
           isIconOnly

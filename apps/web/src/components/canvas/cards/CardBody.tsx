@@ -1,5 +1,6 @@
 import { AttackCard } from "./AttackCard";
 import type { CardProps } from "./Card";
+import { CanvasLinkCard } from "./CanvasLinkCard";
 import { CodeCard } from "./CodeCard";
 import { DefaultCard } from "./DefaultCard";
 import { GoalCard } from "./GoalCard";
@@ -31,6 +32,8 @@ export function CardBody(props: CardProps) {
       return <MemoryCard {...props} />;
     case "toolbox":
       return <ToolboxCard {...props} />;
+    case "canvas":
+      return <CanvasLinkCard {...props} />;
     case "arxiv":
       return <PaperCard {...props} />;
     default:

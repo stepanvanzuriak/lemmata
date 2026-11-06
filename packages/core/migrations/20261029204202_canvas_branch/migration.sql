@@ -1,0 +1,1 @@
+ALTER TABLE `canvas` ADD `parent_canvas_id` text REFERENCES canvas(id) ON DELETE SET NULL;

@@ -327,3 +327,50 @@ it("saves what the agent remembers and shows it to the next run", async () => {
     "Research memory for this project:\n- [dead-end] Induction on K loses a factor of K.",
   );
 });
+
+it("links chat runs to the cards they changed and lets agents search them", async () => {
+  const { app, chat } = await setup(async (client, options) => {
+    if (options.prompt === "make hypotheses") {
+      return createThenReply(client, options);
+    }
+    const result = await callTool(client, "search_card_history", {
+      id: "H1",
+      query: "two HYPOTHESES",
+    });
+    return [{ type: "text", text: textOf(result) }];
+  });
+  const { events } = await chat("make hypotheses");
+  const created = events.find((e) => e.type === "cards") as Extract<
+    ChatEvent,
+    { type: "cards" }
+  >;
+  const h1 = created.nodes[0]!;
+
+  const res = await app.request(`/api/nodes/${h1.id}/exchanges`, json("GET"));
+  expect(res.status).toBe(200);
+  expect(await res.json()).toMatchObject([
+    {
+      request: { role: "user", text: "make hypotheses" },
+      reply: { role: "assistant", text: "Adding two hypotheses. Done." },
+    },
+  ]);
+
+  const search = await chat("what happened to H1?");
+  const done = search.events.at(-1) as Extract<ChatEvent, { type: "done" }>;
+  const found = JSON.parse(done.message!.text);
+  // The asking run is left out; only the earlier one matches.
+  expect(found).toMatchObject({
+    card: h1.id,
+    total: 1,
+    exchanges: [
+      {
+        agent: "assistant",
+        request: "make hypotheses",
+        reply: "Adding two hypotheses. Done.",
+      },
+    ],
+  });
+
+  const missing = await app.request("/api/nodes/nope/exchanges", json("GET"));
+  expect(missing.status).toBe(404);
+});
