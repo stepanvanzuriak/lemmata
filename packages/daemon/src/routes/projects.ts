@@ -10,7 +10,10 @@ import {
   updateProject,
 } from "core";
 import { validate } from "../validate.js";
+import { join } from "node:path";
 import { exportProject } from "../export.js";
+import { ImportError, importProject } from "../import.js";
+import { resolvePath } from "./fs.js";
 
 /** ASCII fallback plus the UTF-8 name (RFC 6266), so non-Latin titles survive. */
 function contentDisposition(fileName: string) {
@@ -20,51 +23,88 @@ function contentDisposition(fileName: string) {
 }
 
 export function projectRoutes(db: Db, workspaceDir: string) {
-  return new Hono()
-    .get("/", async (c) => c.json(await listProjects(db)))
-    .get("/:id", async (c) => {
-      const project = await getProject(db, c.req.param("id"));
+  return (
+    new Hono()
+      .get("/", async (c) => c.json(await listProjects(db)))
+      .get("/:id", async (c) => {
+        const project = await getProject(db, c.req.param("id"));
 
-      if (!project) {
-        return c.json({ error: "project not found" }, 404);
-      }
+        if (!project) {
+          return c.json({ error: "project not found" }, 404);
+        }
 
-      return c.json(project, 200);
-    })
-    .get("/:id/export", async (c) => {
-      const archive = await exportProject(db, c.req.param("id"), workspaceDir);
+        return c.json(project, 200);
+      })
+      .get("/:id/export", async (c) => {
+        const archive = await exportProject(
+          db,
+          c.req.param("id"),
+          workspaceDir,
+        );
 
-      if (!archive) {
-        return c.json({ error: "project not found" }, 404);
-      }
+        if (!archive) {
+          return c.json({ error: "project not found" }, 404);
+        }
 
-      return c.body(archive.bytes, 200, {
-        "content-type": "application/zip",
-        "content-disposition": contentDisposition(archive.fileName),
-        "cache-control": "no-store",
-      });
-    })
-    .post("/", validate("json", createProjectSchema), async (c) => {
-      const project = await createProject(db, c.req.valid("json"));
+        return c.body(archive.stream, 200, {
+          "content-type": "application/zip",
+          "content-disposition": contentDisposition(archive.fileName),
+          "cache-control": "no-store",
+        });
+      })
+      // The archive is the raw request body; `parent` and `name` give the folder to create for it.
+      .post("/import", async (c) => {
+        const name = c.req.query("name")?.trim() ?? "";
+        const body = c.req.raw.body;
 
-      return c.json(project, 201);
-    })
-    .patch("/:id", validate("json", updateProjectSchema), async (c) => {
-      const project = await updateProject(
-        db,
-        c.req.param("id"),
-        c.req.valid("json"),
-      );
+        if (!name || /[/\\]/.test(name) || name === "." || name === "..") {
+          return c.json(
+            { error: "folder name is required, without slashes" },
+            400,
+          );
+        }
 
-      return c.json(project, 200);
-    })
-    .delete("/:id", async (c) => {
-      const project = await deleteProject(db, c.req.param("id"));
+        if (!body) {
+          return c.json({ error: "no .lemmata file was sent" }, 400);
+        }
 
-      if (!project) {
-        return c.json({ error: "project not found" }, 404);
-      }
+        try {
+          const project = await importProject(db, body, {
+            dir: join(resolvePath(c.req.query("parent")), name),
+            workspaceDir,
+          });
 
-      return c.json(project, 200);
-    });
+          return c.json(project, 201);
+        } catch (error) {
+          if (error instanceof ImportError) {
+            return c.json({ error: error.message }, 400);
+          }
+
+          throw error;
+        }
+      })
+      .post("/", validate("json", createProjectSchema), async (c) => {
+        const project = await createProject(db, c.req.valid("json"));
+
+        return c.json(project, 201);
+      })
+      .patch("/:id", validate("json", updateProjectSchema), async (c) => {
+        const project = await updateProject(
+          db,
+          c.req.param("id"),
+          c.req.valid("json"),
+        );
+
+        return c.json(project, 200);
+      })
+      .delete("/:id", async (c) => {
+        const project = await deleteProject(db, c.req.param("id"));
+
+        if (!project) {
+          return c.json({ error: "project not found" }, 404);
+        }
+
+        return c.json(project, 200);
+      })
+  );
 }

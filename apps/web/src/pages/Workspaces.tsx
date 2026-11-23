@@ -10,6 +10,7 @@ import { paths } from "../lib/paths";
 import { KindChip } from "../components/memory/MemoryRow";
 import { ProjectSearch } from "../components/project/ProjectSearch";
 import { NewProjectDialog } from "../components/project/NewProjectDialog";
+import { ImportProjectDialog } from "../components/project/ImportProjectDialog";
 import { Markdown } from "../components/common/Markdown";
 import { Empty, ErrorNote, Loading } from "../components/common/State";
 
@@ -140,6 +141,7 @@ export function Workspaces() {
               Projects
             </Typography>
             <NewProjectDialog />
+            <ImportProjectDialog />
             <Button
               isIconOnly
               size="sm"

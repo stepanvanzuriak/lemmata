@@ -10,7 +10,7 @@ const mkdirSchema = z.object({
   path: z.string().trim().min(1, "path is required"),
 });
 
-function resolvePath(input: string | undefined) {
+export function resolvePath(input: string | undefined) {
   const raw = input?.trim();
 
   if (!raw || raw === "~") {

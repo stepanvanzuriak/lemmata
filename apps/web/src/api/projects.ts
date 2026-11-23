@@ -52,6 +52,24 @@ export async function exportProject(project: Project) {
   URL.revokeObjectURL(url);
 }
 
+/** Creates a project from a `.lemmata` file in a new folder `name` under `parent`. */
+export async function importProject({
+  file,
+  parent,
+  name,
+}: {
+  file: File;
+  parent: string;
+  name: string;
+}) {
+  const { data } = await api.post<Project>("/projects/import", file, {
+    params: { parent, name },
+    headers: { "content-type": "application/octet-stream" },
+  });
+
+  return data;
+}
+
 export const projectsKey = ["projects"] as const;
 
 export function useCreateProject() {
@@ -90,4 +108,13 @@ export function useUpdateProject() {
 
 export function useExportProject() {
   return useMutation({ mutationFn: exportProject });
+}
+
+export function useImportProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: importProject,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey }),
+  });
 }
