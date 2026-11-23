@@ -17,6 +17,7 @@ export type RunCardOptions = {
   workspaceDir: string;
   toolchain: Promise<Toolchain>;
   isolated: boolean;
+  signal?: AbortSignal;
 };
 
 export async function projectDir(
@@ -82,6 +83,9 @@ function pythonBadge(output: RunOutput, figures: number) {
   const suffix =
     figures > 0 ? ` · ${figures} figure${figures > 1 ? "s" : ""}` : "";
 
+  if (output.stopped) {
+    return `Stopped${suffix}`;
+  }
   if (output.timedOut) {
     return `Timed out${suffix}`;
   }
@@ -97,6 +101,9 @@ function leanBadge(output: RunOutput, report: LeanReport, found: boolean) {
 
   if (!found) {
     return "Lean not found";
+  }
+  if (output.stopped) {
+    return "Stopped";
   }
   if (output.timedOut) {
     return "Timed out";
@@ -121,7 +128,7 @@ async function runPythonCard(
   source: string,
   cwd: string,
   nodeId: string,
-  { toolchain, isolated, workspaceDir }: RunCardOptions,
+  { toolchain, isolated, workspaceDir, signal }: RunCardOptions,
   toolbox?: string,
 ): Promise<CardRun> {
   const outDir = figuresDir(workspaceDir, nodeId);
@@ -132,13 +139,13 @@ async function runPythonCard(
   const output = await runPython(
     source,
     pythonCommand(await toolchain),
-    { cwd, isolated, outDir },
+    { cwd, isolated, outDir, signal },
     toolbox,
   );
   const figures = await readFigures(outDir);
 
   return {
-    ok: !output.timedOut && output.exitCode === 0,
+    ok: !output.timedOut && !output.stopped && output.exitCode === 0,
     output,
     badge: pythonBadge(output, figures.length),
     runAt: isoNow(),
@@ -149,19 +156,20 @@ async function runPythonCard(
 async function runLeanCard(
   source: string,
   cwd: string,
-  { workspaceDir, isolated }: RunCardOptions,
+  { workspaceDir, isolated, signal }: RunCardOptions,
   toolbox?: string,
 ): Promise<CardRun> {
   const { output, report, found } = await runLean(
     source,
     join(workspaceDir, ".lemmata", "lean"),
-    { cwd, isolated },
+    { cwd, isolated, signal },
     leanCommand(),
     toolbox,
   );
   const ok =
     found &&
     !output.timedOut &&
+    !output.stopped &&
     output.exitCode === 0 &&
     !report.diagnostics.some((d) => d.severity === "error") &&
     !report.hasSorry &&
@@ -176,28 +184,69 @@ async function runLeanCard(
   };
 }
 
+export type RunnableKind = "python" | "lean";
+
+export async function canvasToolbox(
+  db: Db,
+  canvasId: string,
+  kind: RunnableKind,
+) {
+  const card = await db.query.canvasNode.findFirst({
+    where: { canvasId, kind: "toolbox" },
+  });
+  return card ? String(parsePayload(card.payload)[kind] ?? "") : "";
+}
+
+/**
+ * Runs source the way a card on the canvas runs: project dir as cwd, the
+ * canvas toolbox (or `toolbox` when given) importable. Nothing is saved;
+ * python figures land in `figuresDir(workspaceDir, figuresKey)`.
+ */
+export async function runSource(
+  db: Db,
+  input: {
+    canvasId: string;
+    kind: RunnableKind;
+    source: string;
+    figuresKey: string;
+    toolbox?: string;
+  },
+  options: RunCardOptions,
+): Promise<CardRun> {
+  const cwd = await projectDir(db, input.canvasId, options.workspaceDir);
+  const toolbox =
+    input.toolbox ?? (await canvasToolbox(db, input.canvasId, input.kind));
+
+  return input.kind === "python"
+    ? runPythonCard(input.source, cwd, input.figuresKey, options, toolbox)
+    : runLeanCard(input.source, cwd, options, toolbox);
+}
+
 async function runCardNodeNow(
   db: Db,
   node: CanvasNode,
   options: RunCardOptions,
 ): Promise<CanvasNode | undefined> {
-  const source = String(parsePayload(node.payload).source ?? "");
-  const cwd = await projectDir(db, node.canvasId, options.workspaceDir);
+  if (options.signal?.aborted) {
+    // Stopped while it waited behind an earlier run of the same card.
+    return db.query.canvasNode.findFirst({ where: { id: node.id } });
+  }
 
-  const toolboxCard = await db.query.canvasNode.findFirst({
-    where: { canvasId: node.canvasId, kind: "toolbox" },
-  });
-  const toolbox = toolboxCard
-    ? String(parsePayload(toolboxCard.payload)[node.kind] ?? "")
-    : "";
+  const source = String(parsePayload(node.payload).source ?? "");
 
   await updateNode(db, node.id, { runningSince: Date.now() });
 
   try {
-    const run =
-      node.kind === "python"
-        ? await runPythonCard(source, cwd, node.id, options, toolbox)
-        : await runLeanCard(source, cwd, options, toolbox);
+    const run = await runSource(
+      db,
+      {
+        canvasId: node.canvasId,
+        kind: node.kind as RunnableKind,
+        source,
+        figuresKey: node.id,
+      },
+      options,
+    );
 
     return await updateNode(db, node.id, { run, runningSince: undefined });
   } catch (error) {
@@ -207,6 +256,23 @@ async function runCardNodeNow(
 }
 
 const queues = new Map<string, Promise<unknown>>();
+const stoppers = new Map<string, Set<AbortController>>();
+
+/** Stops the card's running run and drops its queued ones. Returns how many it stopped. */
+export function stopCardRun(nodeId: string): number {
+  const controllers = stoppers.get(nodeId);
+
+  if (!controllers) {
+    return 0;
+  }
+  for (const controller of controllers) {
+    controller.abort();
+  }
+  stoppers.delete(nodeId);
+  return controllers.size;
+}
+
+export const isCardRunning = (nodeId: string) => stoppers.has(nodeId);
 
 /** Runs of one card go one after another: they share a figures folder that each run empties first. */
 export function runCardNode(
@@ -214,10 +280,27 @@ export function runCardNode(
   node: CanvasNode,
   options: RunCardOptions,
 ): Promise<CanvasNode | undefined> {
+  const controller = new AbortController();
+  const controllers = stoppers.get(node.id) ?? new Set<AbortController>();
+  const forward = () => controller.abort();
+
+  controllers.add(controller);
+  stoppers.set(node.id, controllers);
+  options.signal?.addEventListener("abort", forward, { once: true });
+
   const previous = queues.get(node.id) ?? Promise.resolve();
   const next = previous
     .catch(() => {})
-    .then(() => runCardNodeNow(db, node, options));
+    .then(() =>
+      runCardNodeNow(db, node, { ...options, signal: controller.signal }),
+    )
+    .finally(() => {
+      options.signal?.removeEventListener("abort", forward);
+      controllers.delete(controller);
+      if (controllers.size === 0 && stoppers.get(node.id) === controllers) {
+        stoppers.delete(node.id);
+      }
+    });
   const tail = next.catch(() => {});
 
   queues.set(node.id, tail);

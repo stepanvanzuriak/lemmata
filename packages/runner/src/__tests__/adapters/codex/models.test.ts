@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 import { listCodexModels } from "../../../adapters/codex/models.js";
 import { codexArgs } from "../../../adapters/codex/args.js";
+import { MCP_TOOL_TIMEOUT_MS } from "../../../runner.js";
 
 const fake = fileURLToPath(new URL("./fake-codex.mjs", import.meta.url));
 const discover = (mode: string, timeoutMs = 2000) =>
@@ -57,3 +58,14 @@ it.each(["cli-model", "gpt-5.3-codex", "gpt-5.4"])(
     ).toEqual(["--model", id]);
   },
 );
+
+it("lets MCP tool calls outlast slow card runs", () => {
+  const args = codexArgs({
+    cwd: process.cwd(),
+    prompt: "hi",
+    mcpServers: { lemmata: { type: "http", url: "http://x/mcp" } },
+  });
+  expect(args).toContain(
+    `mcp_servers.lemmata.tool_timeout_sec=${MCP_TOOL_TIMEOUT_MS / 1000}`,
+  );
+});

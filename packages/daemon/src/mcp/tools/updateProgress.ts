@@ -12,7 +12,8 @@ export const registerUpdateProgress: RegisterTool = (server, { db, run }) => {
       description: [
         "Record where work on a hypothesis or attack stands. It replaces the card's whole progress record, which the canvas shows as its own section, so send the full current state, not just what changed.",
         "established: results proved toward the card, each citing the cards that establish it (evidence: ids or labels of passing python or lean checks, supported hypotheses, worked attacks or paper cards). A step without such evidence belongs in remaining.",
-        "remaining: the exact open steps. next: the first step the next run should take.",
+        "remaining: the exact open steps. next: the first step the next run should take. Steps the user marked done stay done: they are kept and dropped from remaining and next.",
+        "This record is where progress lives: keep the card's markdown a description of its current state, not a run log.",
         "Update it at the end of every run on an open attack or hypothesis. A new established item is what counts as progress for the attack's run budget.",
       ].join(" "),
       inputSchema: {

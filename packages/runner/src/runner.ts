@@ -4,6 +4,13 @@ export type McpServer = {
   headers?: Record<string, string>;
 };
 
+/**
+ * How long an agent CLI waits on one MCP tool call. Both CLIs default to 60 s,
+ * which kills run_card on any slow card; this must outlast the daemon's own
+ * limits (Python 10 min, Lean toolbox build plus check 20 min each).
+ */
+export const MCP_TOOL_TIMEOUT_MS = 45 * 60_000;
+
 export type StartOptions = {
   captureRawEvents?: boolean;
   cwd: string;

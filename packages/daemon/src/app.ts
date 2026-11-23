@@ -47,7 +47,7 @@ export function createApp({
     .all("/mcp", mcpHandler({ db, workspaceDir, toolchain, arxiv, devMode }))
     .use("/api/*", requireToken(security))
     .get("/api/health", (c) => c.json({ ok: true }))
-    .route("/api/projects", projectRoutes(db))
+    .route("/api/projects", projectRoutes(db, workspaceDir))
     .route("/api/fs", fsRoutes())
     .route("/api/settings", settingsRoutes(workspaceDir))
     .route("/api/search", searchRoutes(db))

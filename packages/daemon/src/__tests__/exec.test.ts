@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import {
-  inlineLeanToolbox,
+  importsToolbox,
   MAX_OUTPUT,
   parseLeanOutput,
   runLean,
@@ -61,6 +61,37 @@ it("drops secrets from an isolated environment", async () => {
 
   expect(open.stdout.trim()).toBe("leak");
   expect(isolated.stdout.trim()).toBe("");
+});
+
+it("stops a process when its signal aborts", async () => {
+  const controller = new AbortController();
+  const running = runProcess("sh", ["-c", "echo up; sleep 10"], {
+    signal: controller.signal,
+  });
+
+  setTimeout(() => controller.abort(), 200);
+  const result = await running;
+
+  expect(result).toMatchObject({
+    stdout: "up\n",
+    stopped: true,
+    timedOut: false,
+  });
+  expect(result.durationMs).toBeLessThan(5000);
+});
+
+it("dumps the python stack before killing a card that timed out", async () => {
+  const result = await runPython(
+    "import time\ndef slow_part():\n    while True:\n        time.sleep(0.05)\nslow_part()",
+    python,
+    { timeoutMs: 500 },
+  );
+
+  expect(result.timedOut).toBe(true);
+  expect(result.stderr).toContain("most recent call first");
+  expect(result.stderr).toMatch(/File "<card>", line \d+ in slow_part/);
+  expect(result.stderr).not.toContain("lemmata-py-");
+  expect(result.stderr).not.toContain("<frozen runpy>");
 });
 
 it("runs python and reports stdout", async () => {
@@ -265,16 +296,60 @@ it("lets a python card import the toolbox module", async () => {
   expect(out.stdout.trim()).toBe("42");
 });
 
-it("inlines the lean toolbox and keeps card lines in place", () => {
-  const { source, offset } = inlineLeanToolbox(
-    "import Toolbox\nimport Mathlib.Tactic\n\ntheorem t : double 1 = 2 := rfl",
-    "import Mathlib.Data.Nat.Defs\ndef double (n : Nat) := 2 * n",
+it("only builds the lean toolbox for cards that import it", () => {
+  expect(importsToolbox("import Toolbox\ntheorem t : True := trivial")).toBe(
+    true,
   );
-  const lines = source.split("\n");
-
-  expect(lines[0]).toBe("import Mathlib.Data.Nat.Defs import Mathlib.Tactic");
-  expect(lines[offset + 3]).toBe("theorem t : double 1 = 2 := rfl");
-  expect(
-    inlineLeanToolbox("theorem a : True := trivial", "def x := 1"),
-  ).toEqual({ source: "theorem a : True := trivial", offset: 0 });
+  expect(importsToolbox("import Mathlib.Tactic import Toolbox")).toBe(true);
+  expect(importsToolbox("import ToolboxExtra\ndef x := 1")).toBe(false);
+  expect(importsToolbox("theorem a : True := trivial")).toBe(false);
 });
+
+it.skipIf(!hasLean)(
+  "imports a compiled lean toolbox and builds it once",
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "lemmata-lean-"));
+    const toolbox =
+      "def double (n : Nat) := 2 * n\ntheorem dbl : double 1 = 2 := rfl\ntheorem bad : double 2 = 4 := sorry";
+    const first = await runLean(
+      "import Toolbox\n\ntheorem t : double 1 = 2 := dbl",
+      dir,
+      {},
+      undefined,
+      toolbox,
+    );
+    const builds = await readdir(join(dir, "toolbox"));
+    const second = await runLean(
+      "import Toolbox\n\ntheorem u : double 2 = 4 := bad",
+      dir,
+      {},
+      undefined,
+      toolbox,
+    );
+
+    expect(first.output.exitCode).toBe(0);
+    expect(first.report.hasSorry).toBe(false);
+    expect(builds).toHaveLength(1);
+    expect(await readdir(join(dir, "toolbox"))).toEqual(builds);
+    expect(second.report.hasSorry).toBe(true);
+  },
+  120_000,
+);
+
+it.skipIf(!hasLean)(
+  "reports a broken lean toolbox without checking the card",
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "lemmata-lean-"));
+    const { report } = await runLean(
+      "import Toolbox\n\ntheorem t : True := trivial",
+      dir,
+      {},
+      undefined,
+      'def x : Nat := "no"',
+    );
+
+    expect(report.diagnostics[0]).toMatchObject({ line: 1, severity: "error" });
+    expect(report.diagnostics[0]!.message).toMatch(/^\[toolbox 1:\d+\] /);
+  },
+  60_000,
+);

@@ -4,8 +4,11 @@ import { loadDetail } from "../../cards/load.js";
 import { ToolRefusal, type RunContext } from "../../cards/types.js";
 import { registerAddPaper } from "./addPaper.js";
 import { registerArchiveCards } from "./archiveCards.js";
+import { registerCheckLean, registerCheckPython } from "./checkSource.js";
 import { registerConnectCards } from "./connectCards.js";
+import { registerDisconnectCards } from "./disconnectCards.js";
 import { registerCreateCards } from "./createCards.js";
+import { registerEditCard } from "./editCard.js";
 import { registerGetCard } from "./getCard.js";
 import { registerGetCanvasIndex } from "./getCanvasIndex.js";
 import { registerGetToolbox } from "./getToolbox.js";
@@ -15,6 +18,7 @@ import { registerRecordLiterature } from "./recordLiterature.js";
 import { registerRemember } from "./remember.js";
 import { registerResolveNote } from "./resolveNote.js";
 import { registerRunCard } from "./runCard.js";
+import { registerStopCard } from "./stopCard.js";
 import { registerSearchLiterature } from "./searchLiterature.js";
 import { registerSearchLibraries } from "./searchLibraries.js";
 import { registerSearchCards } from "./searchCards.js";
@@ -38,10 +42,15 @@ const TOOLS: RegisterTool[] = [
   registerGetToolbox,
   registerCreateCards,
   registerUpdateCard,
+  registerEditCard,
   registerUpdateProgress,
   registerResolveNote,
   registerConnectCards,
+  registerDisconnectCards,
   registerRunCard,
+  registerCheckPython,
+  registerCheckLean,
+  registerStopCard,
   registerRemember,
   registerSearchLiterature,
   registerSearchLibraries,

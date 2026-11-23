@@ -2,7 +2,11 @@ import { fileURLToPath } from "node:url";
 import { afterEach, expect, it } from "vitest";
 import { ClaudeAdapter } from "../../../adapters/claude/adapter.js";
 import { claudeArgs } from "../../../adapters/claude/args.js";
-import type { RunEvent, RunHandle } from "../../../runner.js";
+import {
+  MCP_TOOL_TIMEOUT_MS,
+  type RunEvent,
+  type RunHandle,
+} from "../../../runner.js";
 
 const fake = fileURLToPath(new URL("./fake-claude.mjs", import.meta.url));
 const adapter = new ClaudeAdapter({ command: "node", commandArgs: [fake] });
@@ -121,7 +125,10 @@ it("isolates MCP config and loads tools up front", async () => {
     "Glob",
     "Grep",
   ]);
-  expect(env).toEqual({ ENABLE_TOOL_SEARCH: "false" });
+  expect(env).toEqual({
+    ENABLE_TOOL_SEARCH: "false",
+    MCP_TOOL_TIMEOUT: String(MCP_TOOL_TIMEOUT_MS),
+  });
 
   process.env.FAKE_CLAUDE = "crash";
   const events = await collect(adapter.start(options));

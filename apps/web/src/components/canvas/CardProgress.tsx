@@ -3,8 +3,11 @@ import clsx from "clsx";
 import { Button } from "@heroui/react";
 import {
   ArrowRight,
+  ArrowRotateLeft,
+  Check,
   ChevronDown,
   CircleCheck,
+  CircleCheckFill,
   CircleDashed,
   Play,
 } from "@gravity-ui/icons";
@@ -53,17 +56,49 @@ function WorkButton({
   );
 }
 
-/** Where work on a hypothesis or attack stands, as recorded by agents. */
+/** Marks a step done, or undoes the mark; absent when the card cannot be changed. */
+function DoneButton({
+  step,
+  done,
+  onDone,
+}: {
+  step: string;
+  done: boolean;
+  onDone?: (step: string, done: boolean) => void;
+}) {
+  if (!onDone) {
+    return null;
+  }
+  const Icon = done ? ArrowRotateLeft : Check;
+  return (
+    <Button
+      isIconOnly
+      size="sm"
+      variant="tertiary"
+      className="size-6 min-w-0 shrink-0"
+      aria-label={done ? `Mark not done: ${step}` : `Mark done: ${step}`}
+      onPress={() => onDone(step, !done)}
+    >
+      <Icon width={12} height={12} aria-hidden="true" />
+    </Button>
+  );
+}
+
+/** Where work on a hypothesis or attack stands, as recorded by agents and marked by the user. */
 export function ProgressSection({
   progress,
   nodes,
   onWork,
+  onDone,
 }: {
   progress: CardProgress;
   nodes: CanvasNode[];
   /** Starts a prover run on the given remaining or next step. */
   onWork?: (step: string) => void;
+  /** Marks a remaining or next step done (true), or undoes that (false). */
+  onDone?: (step: string, done: boolean) => void;
 }) {
+  const done = progress.done ?? [];
   const [open, setOpen] = useState(true);
 
   return (
@@ -151,6 +186,7 @@ export function ProgressSection({
                       <Markdown inline>{step}</Markdown>
                     </div>
                     <WorkButton step={step} onWork={onWork} />
+                    <DoneButton step={step} done={false} onDone={onDone} />
                   </li>
                 ))}
               </ul>
@@ -170,6 +206,34 @@ export function ProgressSection({
                 <Markdown inline>{progress.next}</Markdown>
               </div>
               <WorkButton step={progress.next} onWork={onWork} />
+              <DoneButton step={progress.next} done={false} onDone={onDone} />
+            </div>
+          )}
+
+          {done.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-lm-ink2">
+                Marked done · {done.length}
+              </span>
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                {done.map((step) => (
+                  <li
+                    key={step.text}
+                    className="flex min-w-0 gap-2 text-sm text-lm-muted"
+                  >
+                    <CircleCheckFill
+                      width={14}
+                      height={14}
+                      className="mt-0.5 shrink-0 text-lm-ok"
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0 flex-1 line-through">
+                      <Markdown inline>{step.text}</Markdown>
+                    </div>
+                    <DoneButton step={step.text} done onDone={onDone} />
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </>
@@ -192,6 +256,12 @@ export function ProgressSummary({ progress }: { progress?: CardProgress }) {
         <CircleCheck width={12} height={12} aria-hidden="true" />
         {progress.established.length} established
       </span>
+      {progress.done?.length ? (
+        <>
+          <span>·</span>
+          <span>{progress.done.length} done</span>
+        </>
+      ) : null}
       <span>·</span>
       <span>{progress.remaining.length} remaining</span>
     </div>

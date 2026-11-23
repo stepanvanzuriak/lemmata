@@ -16,6 +16,7 @@ import {
   useBranchNode,
   useCanvas,
   useDeleteNode,
+  useMarkStepDone,
   useRestoreNodes,
   useUpdateNode,
 } from "../../api/canvases";
@@ -83,10 +84,12 @@ function ReadView({
   node,
   nodes,
   actions,
+  onDone,
 }: {
   node: CanvasNode;
   nodes: CanvasNode[];
   actions: ReactNode;
+  onDone?: (step: string, done: boolean) => void;
 }) {
   const p = fieldsOf(node);
   const send = useChatStore((state) => state.send);
@@ -106,6 +109,7 @@ function ReadView({
           progress={p.progress}
           nodes={nodes}
           onWork={send ? (step) => send(workOnStep(node, step)) : undefined}
+          onDone={onDone}
         />
       )}
       {p.markdown && node.kind !== "literature" && (
@@ -239,6 +243,7 @@ export function CardViewer({
 }) {
   const [editing, setEditing] = useState(false);
   const updateNode = useUpdateNode(canvasId);
+  const markDone = useMarkStepDone(canvasId);
   const deleteNode = useDeleteNode(canvasId);
   const restore = useRestoreNodes(canvasId);
   const branch = useBranchNode(canvasId);
@@ -388,6 +393,7 @@ export function CardViewer({
           node={node}
           nodes={canvas.data?.nodes ?? []}
           actions={<AgentActions canvasId={canvasId} node={node} />}
+          onDone={(step, done) => markDone.mutate({ id: node.id, step, done })}
         />
       )}
 

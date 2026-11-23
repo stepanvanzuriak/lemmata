@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateProjectInput, Project, UpdateProjectInput } from "shared";
+import {
+  projectExportFileName,
+  type CreateProjectInput,
+  type Project,
+  type UpdateProjectInput,
+} from "shared";
 import { api } from "./http";
 
 export async function createProject(input: CreateProjectInput) {
@@ -30,6 +35,21 @@ export async function updateProject({
   const { data } = await api.patch<Project>(`/projects/${id}`, input);
 
   return data;
+}
+
+/** Downloads the project as a `<title>.lemmata` zip archive. */
+export async function exportProject(project: Project) {
+  const { data } = await api.get<Blob>(`/projects/${project.id}/export`, {
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(data);
+  const link = Object.assign(document.createElement("a"), {
+    href: url,
+    download: projectExportFileName(project.title),
+  });
+
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export const projectsKey = ["projects"] as const;
@@ -66,4 +86,8 @@ export function useUpdateProject() {
     mutationFn: updateProject,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey }),
   });
+}
+
+export function useExportProject() {
+  return useMutation({ mutationFn: exportProject });
 }

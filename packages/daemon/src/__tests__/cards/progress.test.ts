@@ -4,7 +4,11 @@ import { createCards } from "../../cards/apply.js";
 import { describeOne } from "../../cards/describe.js";
 import { attackProgressAt, frontierContext } from "../../cards/frontier.js";
 import { loadDetail } from "../../cards/load.js";
-import { setProgress } from "../../cards/progress.js";
+import {
+  describeProgress,
+  markStepDone,
+  setProgress,
+} from "../../cards/progress.js";
 import { fieldsOf } from "../../cards/types.js";
 import { canvasSetup } from "./helpers.js";
 
@@ -94,4 +98,45 @@ it("records progress, moves advancedAt only on new results, and shows it to agen
       { title: "/prover A1", startedAt: "9999-01-01" },
     ]),
   ).toContain("Continue from its progress record");
+});
+
+it("keeps steps the user marked done across agent updates, and undoes the mark", async () => {
+  const { db, run, attack, good } = await withAttack();
+  await setProgress(db, run, "A1", {
+    established: [{ text: "Helper identity", evidence: [good.id] }],
+    remaining: ["Chain rule", "Tail limit"],
+    next: "Chain rule",
+  });
+
+  const marked = await markStepDone(db, attack.id, "Chain rule", true);
+  expect(fieldsOf(marked!).progress).toMatchObject({
+    remaining: ["Tail limit"],
+    done: [{ text: "Chain rule" }],
+  });
+  expect(fieldsOf(marked!).progress?.next).toBeUndefined();
+
+  // An agent that still lists the step does not bring it back.
+  const { card } = await setProgress(db, run, "A1", {
+    established: [{ text: "Helper identity", evidence: [good.id] }],
+    remaining: ["chain rule", "Tail limit"],
+    next: "Chain rule",
+  });
+  expect(fieldsOf(card).progress).toMatchObject({
+    remaining: ["Tail limit"],
+    done: [{ text: "Chain rule" }],
+  });
+  expect(fieldsOf(card).progress?.next).toBeUndefined();
+  expect(
+    describeProgress(
+      fieldsOf(card).progress!,
+      await loadDetail(db, run.canvasId),
+    ).join("\n"),
+  ).toContain("marked done by the user");
+
+  const undone = await markStepDone(db, attack.id, "Chain rule", false);
+  expect(fieldsOf(undone!).progress?.remaining).toEqual([
+    "Tail limit",
+    "Chain rule",
+  ]);
+  expect(fieldsOf(undone!).progress?.done).toBeUndefined();
 });

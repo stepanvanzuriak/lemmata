@@ -4,6 +4,7 @@ export type {
   CreateProjectInput,
   UpdateProjectInput,
 } from "./project.js";
+export { PROJECT_EXPORT_EXTENSION, projectExportFileName } from "./project.js";
 export type { Toolchain, WorkspaceInfo } from "./workspace.js";
 export type { FsEntry, FsListResponse, MkdirInput } from "./fs.js";
 export type { SearchResult } from "./search.js";
@@ -28,6 +29,7 @@ export type {
   PlainPayload,
   ProgressItem,
   CardProgress,
+  DoneStep,
   Resolved,
   RunOutput,
 } from "./cards.js";

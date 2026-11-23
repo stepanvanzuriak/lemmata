@@ -54,9 +54,18 @@ export type CardProgress = {
   established: ProgressItem[];
   remaining: string[];
   next?: string;
+  /** Steps the user marked done. Agents' updates keep them and drop them from remaining and next. */
+  done?: DoneStep[];
   updatedAt: string;
   /** When established last gained an item: the attack run budget counts from here. */
   advancedAt?: string;
+};
+
+/** A step of a card's progress that the user marked done. */
+export type DoneStep = {
+  text: string;
+  /** ISO time the user marked it. */
+  at: string;
 };
 
 export type HypothesisPayload = BasePayload & {
@@ -88,6 +97,8 @@ export type RunOutput = {
   stderr: string;
   exitCode: number | null;
   timedOut: boolean;
+  /** Stopped on request (stop_card) before it finished. */
+  stopped?: boolean;
   durationMs: number;
 };
 

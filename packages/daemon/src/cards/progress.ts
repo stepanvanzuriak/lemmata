@@ -112,6 +112,10 @@ export async function setProgress(
   });
 
   const previous = fieldsOf(card).progress;
+  const done = previous?.done ?? [];
+  const isDone = (step: string) =>
+    done.some((d) => normalize(d.text) === normalize(step));
+  const next = input.next?.trim();
   const known = new Set(
     (previous?.established ?? []).map((e) => normalize(e.text)),
   );
@@ -119,8 +123,11 @@ export async function setProgress(
   const now = isoNow();
   const progress: CardProgress = {
     established,
-    remaining: input.remaining.map((r) => r.trim()).filter(Boolean),
-    ...(input.next?.trim() && { next: input.next.trim() }),
+    remaining: input.remaining
+      .map((r) => r.trim())
+      .filter((r) => r && !isDone(r)),
+    ...(next && !isDone(next) && { next }),
+    ...(done.length > 0 && { done }),
     updatedAt: now,
     ...((advanced ? now : previous?.advancedAt) && {
       advancedAt: advanced ? now : previous?.advancedAt,
@@ -133,6 +140,55 @@ export async function setProgress(
   });
 
   return { card: toCanvasNode(row!), advanced, restored };
+}
+
+/**
+ * Marks one step of a card's progress done for the user, or undoes that. A done
+ * step leaves remaining and next; undoing puts it back in remaining. Agents'
+ * later updates keep the user's marks.
+ */
+export async function markStepDone(
+  db: Db,
+  id: string,
+  step: string,
+  done: boolean,
+): Promise<CanvasNode | undefined> {
+  const row = await db.query.canvasNode.findFirst({ where: { id } });
+  if (!row) {
+    return undefined;
+  }
+  const card = toCanvasNode(row);
+  const progress = fieldsOf(card).progress;
+  if (!progress) {
+    throw new ToolRefusal("This card has no progress record.");
+  }
+
+  const text = step.trim();
+  const key = normalize(text);
+  const others = (progress.done ?? []).filter((d) => normalize(d.text) !== key);
+  let { remaining, next } = progress;
+
+  if (done) {
+    remaining = remaining.filter((r) => normalize(r) !== key);
+    if (next && normalize(next) === key) {
+      next = undefined;
+    }
+  } else if (others.length < (progress.done ?? []).length) {
+    remaining = [...remaining, text];
+  }
+  const doneSteps = done ? [...others, { text, at: isoNow() }] : others;
+
+  const updated = await updateNode(db, id, {
+    progress: {
+      established: progress.established,
+      remaining,
+      ...(next && { next }),
+      ...(doneSteps.length > 0 && { done: doneSteps }),
+      updatedAt: progress.updatedAt,
+      ...(progress.advancedAt && { advancedAt: progress.advancedAt }),
+    },
+  });
+  return updated && toCanvasNode(updated);
 }
 
 /** The progress record as agents read it; brief gives one line. */
@@ -148,7 +204,7 @@ export function describeProgress(
 
   if (brief) {
     return [
-      `  progress: ${progress.established.length} established, ${progress.remaining.length} remaining${progress.next ? `; next: ${progress.next.slice(0, 160)}` : ""}`,
+      `  progress: ${progress.established.length} established, ${progress.done?.length ? `${progress.done.length} marked done by the user, ` : ""}${progress.remaining.length} remaining${progress.next ? `; next: ${progress.next.slice(0, 160)}` : ""}`,
     ];
   }
   return [
@@ -159,6 +215,12 @@ export function describeProgress(
           (e) => `    - ${e.text} [${e.evidence.map(label).join(", ")}]`,
         )
       : ["    - none yet"]),
+    ...(progress.done?.length
+      ? [
+          "    marked done by the user (treat as finished; do not list them as remaining):",
+          ...progress.done.map((d) => `    - ${d.text}`),
+        ]
+      : []),
     "    remaining:",
     ...(progress.remaining.length
       ? progress.remaining.map((r) => `    - ${r}`)

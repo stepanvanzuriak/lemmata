@@ -92,3 +92,39 @@ it("names the card by id in the prover request", () => {
   expect(request).toContain("Chain rule");
   expect(request).toContain("update_progress");
 });
+
+it("marks remaining and next steps done, and undoes a done step", () => {
+  const onDone = vi.fn();
+  render(
+    <ProgressSection
+      progress={{
+        ...progress,
+        done: [{ text: "Old step", at: progress.updatedAt }],
+      }}
+      nodes={[]}
+      onDone={onDone}
+    />,
+  );
+  const section = screen.getByRole("region", { name: "Card progress" });
+  expect(section.textContent).toContain("Marked done · 1");
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "Mark done: Chain rule" }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Mark done: Formalize the chain rule" }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Mark not done: Old step" }),
+  );
+  expect(onDone.mock.calls).toEqual([
+    ["Chain rule", true],
+    ["Formalize the chain rule", true],
+    ["Old step", false],
+  ]);
+});
+
+it("has no done buttons when the card cannot be changed", () => {
+  render(<ProgressSection progress={progress} nodes={[]} />);
+  expect(screen.queryByRole("button", { name: /Mark done/ })).toBeNull();
+});

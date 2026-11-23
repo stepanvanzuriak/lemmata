@@ -68,6 +68,23 @@ export async function updateNode({
   return data;
 }
 
+export async function markStepDone({
+  id,
+  step,
+  done,
+}: {
+  id: string;
+  step: string;
+  done: boolean;
+}) {
+  const { data } = await api.post<CanvasNode>(`/nodes/${id}/progress/done`, {
+    step,
+    done,
+  });
+
+  return data;
+}
+
 export async function saveNodePositions({
   canvasId,
   nodes,
@@ -222,6 +239,10 @@ export function useAddNode(canvasId: string) {
 
 export function useUpdateNode(canvasId: string) {
   return useCanvasMutation(canvasId, updateNode);
+}
+
+export function useMarkStepDone(canvasId: string) {
+  return useCanvasMutation(canvasId, markStepDone);
 }
 
 export function useSaveNodePositions(canvasId: string) {

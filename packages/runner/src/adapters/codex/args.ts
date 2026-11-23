@@ -1,4 +1,4 @@
-import type { StartOptions } from "../../runner.js";
+import { MCP_TOOL_TIMEOUT_MS, type StartOptions } from "../../runner.js";
 
 function tomlInlineTable(value: Record<string, string>) {
   const entries = Object.entries(value).map(
@@ -32,6 +32,8 @@ export function codexArgs(options: StartOptions) {
       `mcp_servers.${name}.url=${JSON.stringify(server.url)}`,
       "--config",
       `mcp_servers.${name}.default_tools_approval_mode="approve"`,
+      "--config",
+      `mcp_servers.${name}.tool_timeout_sec=${MCP_TOOL_TIMEOUT_MS / 1000}`,
     );
     if (server.headers) {
       args.push(

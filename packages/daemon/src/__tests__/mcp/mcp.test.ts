@@ -15,6 +15,7 @@ import type { ArxivClient } from "../../arxiv/arxiv.js";
 import { feedArxiv } from "../helpers/arxiv.js";
 import { authed, HOST, testApp } from "../helpers/app.js";
 import { hasPillow, STUB_PYPLOT } from "../helpers/matplotlib.js";
+import { isCardRunning } from "../../runCard.js";
 import { callTool, connectMcp, textOf, type App } from "../helpers/mcp.js";
 
 async function setup(arxiv?: ArxivClient) {
@@ -89,9 +90,13 @@ it("lists tools for a live secret", async () => {
   expect(tools.map((t) => t.name).sort()).toEqual([
     "add_paper",
     "archive_cards",
+    "check_lean",
+    "check_python",
     "connect_cards",
     "create_cards",
     "delete_toolbox",
+    "disconnect_cards",
+    "edit_card",
     "get_canvas_index",
     "get_card",
     "get_toolbox_function",
@@ -108,6 +113,7 @@ it("lists tools for a live secret", async () => {
     "search_literature",
     "search_project_cards",
     "search_python",
+    "stop_card",
     "update_card",
     "update_progress",
   ]);
@@ -506,6 +512,49 @@ it.skipIf(!hasPillow)(
   },
 );
 
+it("stop_card ends a running card and run_card returns what it printed", async () => {
+  const { app, secret } = await setup();
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+  const created = await call(client, "create_cards", {
+    cards: [
+      {
+        kind: "python",
+        title: "spin",
+        source:
+          "import time\nprint('started')\ndef spin():\n    while True:\n        time.sleep(0.05)\nspin()",
+      },
+    ],
+  });
+  const id = textOf(created).match(/\[(\w+)\]/)![1]!;
+
+  expect(textOf(await call(client, "stop_card", { id }))).toContain(
+    "is not running",
+  );
+
+  const running = call(client, "run_card", { id });
+  for (let i = 0; i < 200 && !isCardRunning(id); i++) {
+    await new Promise((done) => setTimeout(done, 25));
+  }
+  // Let python start and print before it is stopped.
+  await new Promise((done) => setTimeout(done, 500));
+  const stopped = await call(client, "stop_card", { id });
+  const result = await running;
+
+  expect(textOf(stopped)).toContain(`Stopped [${id}]`);
+  expect(textOf(result)).toContain("Result: Stopped");
+  expect(textOf(result)).toContain("started");
+  expect(textOf(result)).toContain("in spin");
+  expect(textOf(result)).toContain("The run was stopped");
+  expect(isCardRunning(id)).toBe(false);
+  expect(textOf(await call(client, "stop_card", { id: "goal" }))).toContain(
+    "cannot be run",
+  );
+});
+
 const PAPER_TEX = [
   "\\documentclass{article}",
   "\\begin{document}",
@@ -608,6 +657,44 @@ it("tells agents when updating or linking a card restored it from the archive", 
     markdown: "still relevant, twice",
   });
   expect(textOf(again)).not.toContain("restored");
+});
+
+it("disconnect_cards removes links between two cards", async () => {
+  const { app, secret } = await setup();
+  const client = await connect(app, {
+    cwd: "/tmp",
+    prompt: "",
+    mcpServers: mcpConfigFor(secret, 4317),
+  });
+  await call(client, "create_cards", {
+    cards: [
+      { kind: "hypothesis", title: "Claim" },
+      { kind: "note", title: "Stale note" },
+    ],
+  });
+  await call(client, "connect_cards", {
+    from: "H1",
+    to: "Stale note",
+    kind: "depends-on",
+  });
+
+  const wrongKind = await call(client, "disconnect_cards", {
+    from: "H1",
+    to: "Stale note",
+    kind: "tested-by",
+    reason: "wrong",
+  });
+  expect(wrongKind.isError).toBe(true);
+
+  const removed = await call(client, "disconnect_cards", {
+    from: "Stale note",
+    to: "H1",
+    reason: "no longer relevant",
+  });
+  expect(textOf(removed)).toContain("Removed 1 link (depends-on)");
+  expect(textOf(await call(client, "get_card", { id: "H1" }))).not.toContain(
+    "Stale note",
+  );
 });
 
 it("updates one markdown section without resending the card", async () => {

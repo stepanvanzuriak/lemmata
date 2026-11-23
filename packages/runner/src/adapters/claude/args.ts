@@ -1,4 +1,4 @@
-import type { StartOptions } from "../../runner.js";
+import { MCP_TOOL_TIMEOUT_MS, type StartOptions } from "../../runner.js";
 
 const DEFAULT_TOOLS = ["Read", "Glob", "Grep"];
 
@@ -44,6 +44,7 @@ export function claudeArgs(options: StartOptions) {
     );
     // Claude Code otherwise hides MCP tool descriptions behind ToolSearch.
     env.ENABLE_TOOL_SEARCH = "false";
+    env.MCP_TOOL_TIMEOUT = String(MCP_TOOL_TIMEOUT_MS);
   }
 
   return { args, env };

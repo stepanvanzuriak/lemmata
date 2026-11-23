@@ -27,6 +27,7 @@ import {
 import type { CanvasDetail, CanvasNode, NodeKind, Toolchain } from "shared";
 import { ArxivError, type ArxivClient } from "../arxiv/arxiv.js";
 import { fetchPaperSource, addPaper } from "../cards/paper.js";
+import { markStepDone } from "../cards/progress.js";
 import { ToolRefusal, type RunContext } from "../cards/types.js";
 import { validate } from "../validate.js";
 import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../runCard.js";
@@ -270,6 +271,31 @@ export function canvasRoutes(
           return c.json({ error: "node not found" }, 404);
         }
         return c.json(toNode(node), 200);
+      },
+    )
+    .post(
+      "/nodes/:id/progress/done",
+      validate(
+        "json",
+        z.object({
+          step: z.string().trim().min(1).max(600),
+          done: z.boolean(),
+        }),
+      ),
+      async (c) => {
+        const { step, done } = c.req.valid("json");
+        try {
+          const node = await markStepDone(db, c.req.param("id"), step, done);
+          if (!node) {
+            return c.json({ error: "node not found" }, 404);
+          }
+          return c.json(node, 200);
+        } catch (error) {
+          if (error instanceof ToolRefusal) {
+            return c.json({ error: error.message }, 400);
+          }
+          throw error;
+        }
       },
     )
     .patch("/nodes/:id", validate("json", payload), async (c) => {

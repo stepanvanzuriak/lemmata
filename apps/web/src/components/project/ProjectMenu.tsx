@@ -1,13 +1,20 @@
 import { useState } from "react";
 import { Button, Dropdown, Label } from "@heroui/react";
-import { EllipsisVertical, TrashBin, Pencil } from "@gravity-ui/icons";
+import {
+  ArrowDownToLine,
+  EllipsisVertical,
+  TrashBin,
+  Pencil,
+} from "@gravity-ui/icons";
 import type { Project } from "shared";
+import { useExportProject } from "../../api/projects";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { EditProjectDialog } from "./EditProjectDialog";
 
 export function ProjectMenu({ project }: { project: Project }) {
   const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const exportProject = useExportProject();
 
   return (
     <>
@@ -27,6 +34,13 @@ export function ProjectMenu({ project }: { project: Project }) {
                 setEditProjectOpen(true);
               }
 
+              if (key === "export") {
+                exportProject.mutate(project, {
+                  onError: (error) =>
+                    window.alert(`Export failed: ${error.message}`),
+                });
+              }
+
               if (key === "delete") {
                 setConfirmingDelete(true);
               }
@@ -35,6 +49,14 @@ export function ProjectMenu({ project }: { project: Project }) {
             <Dropdown.Item id="edit" textValue="Edit">
               <Pencil width={14} height={14} aria-hidden="true" />
               <Label>Edit</Label>
+            </Dropdown.Item>
+            <Dropdown.Item
+              id="export"
+              textValue="Export"
+              isDisabled={exportProject.isPending}
+            >
+              <ArrowDownToLine width={14} height={14} aria-hidden="true" />
+              <Label>Export</Label>
             </Dropdown.Item>
             <Dropdown.Item id="delete" textValue="Delete" variant="danger">
               <TrashBin

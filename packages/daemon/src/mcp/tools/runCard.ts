@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { CanvasNode, CardFigure, CardRun } from "shared";
+import type { CardFigure, CardRun } from "shared";
 import { toCanvasNode } from "../../cards/load.js";
 import { ToolRefusal } from "../../cards/types.js";
 import { figuresDir, RUNNABLE_KINDS, runCardNode } from "../../runCard.js";
@@ -19,9 +19,11 @@ function picturesOf(figures: CardFigure[]): Picture[] {
   }));
 }
 
-function describeRun(card: CanvasNode, attached: Set<string>, notes: string[]) {
-  const run = (card.payload as { run?: CardRun }).run;
-
+function describeRun(
+  run: CardRun | undefined,
+  attached: Set<string>,
+  notes: string[],
+) {
   if (!run) {
     return "No result.";
   }
@@ -44,20 +46,24 @@ function describeRun(card: CanvasNode, attached: Set<string>, notes: string[]) {
       `diagnostics:\n${run.diagnostics.map((d) => `${d.line}:${d.column} ${d.severity}: ${d.message}`).join("\n")}`,
     run.axioms?.length && `axioms: ${run.axioms.join(", ")}`,
     figures.length && `figures:\n${figures.join("\n")}`,
+    run.output.stopped
+      ? "The run was stopped. stdout above is what it printed before; a python card's stderr shows the stack where it stopped."
+      : run.output.timedOut &&
+        `The run timed out after ${Math.round(run.output.durationMs / 1000)} s. stdout above is what it printed before; a python card's stderr shows the stack where it was killed. Print progress as you go, or make the card cheaper.`,
     notes.length && notes.join("\n"),
   ]
     .filter(Boolean)
     .join("\n\n");
 }
 
-async function runResult(
-  card: CanvasNode,
+export async function runResult(
+  run: CardRun | undefined,
   dir: string,
+  extraNotes: string[] = [],
 ): Promise<CallToolResult> {
-  const run = (card.payload as { run?: CardRun }).run;
   const images: CallToolResult["content"] = [];
   const attached = new Set<string>();
-  const notes: string[] = [];
+  const notes: string[] = [...extraNotes];
 
   for (const { file } of picturesOf(run?.figures ?? [])) {
     const path = join(dir, file);
@@ -83,7 +89,7 @@ async function runResult(
 
   return {
     content: [
-      { type: "text", text: describeRun(card, attached, notes) },
+      { type: "text", text: describeRun(run, attached, notes) },
       ...images,
     ],
   };
@@ -97,7 +103,7 @@ export const registerRunCard: RegisterTool = (
     "run_card",
     {
       description:
-        "Run a python or lean card and read its output. Runs in a stripped environment.",
+        "Run a python or lean card and read its output. Runs in a stripped environment. Python runs stop after 10 minutes, Lean after 20; stop_card ends a run early.",
       inputSchema: { id: cardRef },
     },
     ({ id }) =>
@@ -122,7 +128,7 @@ export const registerRunCard: RegisterTool = (
         }
 
         return runResult(
-          toCanvasNode(updated),
+          (toCanvasNode(updated).payload as { run?: CardRun }).run,
           figuresDir(workspaceDir, card.id),
         );
       }),

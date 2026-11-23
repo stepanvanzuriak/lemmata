@@ -1,8 +1,19 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import type { LeanDiagnostic, RunOutput } from "shared";
 
 export const MAX_OUTPUT = 200 * 1024;
@@ -35,12 +46,26 @@ export type RunOptions = {
   env?: Record<string, string>;
   isolated?: boolean;
   outDir?: string;
+  /** Aborting it stops the process; the output comes back with `stopped`. */
+  signal?: AbortSignal;
+  /** Sent before the kill on a timeout or stop, so the process can report where it was. */
+  dumpSignal?: NodeJS.Signals;
 };
+
+/** How long a process gets to print its stack after `dumpSignal` before it is killed. */
+export const DUMP_GRACE_MS = 2000;
 
 export function runProcess(
   cmd: string,
   args: string[],
-  { cwd, timeoutMs = 60_000, env = {}, isolated = false }: RunOptions = {},
+  {
+    cwd,
+    timeoutMs = 60_000,
+    env = {},
+    isolated = false,
+    signal,
+    dumpSignal,
+  }: RunOptions = {},
 ): Promise<RunOutput> {
   const started = Date.now();
 
@@ -50,6 +75,7 @@ export function runProcess(
     let size = 0;
     let truncated = false;
     let timedOut = false;
+    let stopped = false;
 
     const child = spawn(cmd, args, {
       cwd,
@@ -77,18 +103,44 @@ export function runProcess(
     child.stdout.on("data", collect("out"));
     child.stderr.on("data", collect("err"));
 
+    let killing = false;
+    let killTimer: NodeJS.Timeout | undefined;
+    const kill = () => {
+      if (killing) {
+        return;
+      }
+      killing = true;
+      if (dumpSignal && child.kill(dumpSignal)) {
+        killTimer = setTimeout(() => child.kill("SIGKILL"), DUMP_GRACE_MS);
+      } else {
+        child.kill("SIGKILL");
+      }
+    };
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGKILL");
+      kill();
     }, timeoutMs);
+    const onAbort = () => {
+      if (!timedOut) {
+        stopped = true;
+      }
+      kill();
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      onAbort();
+    }
 
     const finish = (exitCode: number | null, error?: Error) => {
       clearTimeout(timer);
+      clearTimeout(killTimer);
+      signal?.removeEventListener("abort", onAbort);
       done({
         stdout,
         stderr: error ? `${stderr}${error.message}` : stderr,
         exitCode,
         timedOut,
+        ...(stopped ? { stopped } : {}),
         durationMs: Date.now() - started,
       });
     };
@@ -102,6 +154,11 @@ const PYTHON_WRAPPER = `
 import runpy, sys
 outdir, card = sys.argv[1], sys.argv[2]
 sys.argv = [card]
+
+import faulthandler, signal
+if hasattr(signal, "SIGUSR1"):
+    # The daemon sends SIGUSR1 before killing a card that timed out or was stopped.
+    faulthandler.register(signal.SIGUSR1, all_threads=True)
 
 MAX_FIGURES = 8
 AZIMUTHS = (-60, 30, 120, 210)
@@ -206,6 +263,7 @@ export async function runPython(
       [...python.args, "-u", "-c", PYTHON_WRAPPER, outDir, card],
       {
         timeoutMs: 600000,
+        ...(process.platform === "win32" ? {} : { dumpSignal: "SIGUSR1" }),
         ...processOptions,
         env: {
           PYTHONDONTWRITEBYTECODE: "1",
@@ -284,63 +342,173 @@ export function parseLeanOutput(output: string): LeanReport {
   };
 }
 
-const LEAN_IMPORT = /^import\s+\S+(?:\s+import\s+\S+)*\s*$/;
-const TOOLBOX_IMPORT = /^import\s+Toolbox\s*$/m;
+const TOOLBOX_IMPORT = /(?:^|\s)import\s+Toolbox(?:\s|$)/m;
+
+export const importsToolbox = (source: string) => TOOLBOX_IMPORT.test(source);
+
+export type ToolboxBuild =
+  | { ok: true; dir: string }
+  | { ok: false; output: RunOutput; report: LeanReport };
+
+const toolboxBuilds = new Map<string, Promise<ToolboxBuild>>();
+
+const readOptional = (path: string) => readFile(path, "utf8").catch(() => "");
 
 /**
- * Lean has no local modules here, so `import Toolbox` inlines the toolbox's
- * source ahead of the card. Imports are hoisted to line 1 and the card's own
- * import lines are blanked, which keeps the card's lines at a fixed offset.
+ * Compiles the toolbox to `Toolbox.olean` once per source and toolchain, so
+ * cards import it instead of re-elaborating it on every check. Builds land in
+ * `<leanDir>/toolbox/<hash>`; a finished folder is reused across restarts.
  */
-export function inlineLeanToolbox(source: string, toolbox: string) {
-  if (!TOOLBOX_IMPORT.test(source)) {
-    return { source, offset: 0 };
-  }
+export function buildLeanToolbox(
+  toolbox: string,
+  leanDir: string,
+  options: RunOptions = {},
+  lean: RunCommand = { cmd: "lean", args: [] },
+): Promise<ToolboxBuild> {
+  const cwd = lean.cwd ?? options.cwd;
+  const key = Promise.all([
+    readOptional(join(cwd ?? ".", "lean-toolchain")),
+    readOptional(join(cwd ?? ".", "lake-manifest.json")),
+  ]).then(([toolchain, manifest]) =>
+    createHash("sha1")
+      .update(
+        JSON.stringify([
+          toolbox,
+          lean.cmd,
+          lean.args,
+          cwd,
+          toolchain,
+          manifest,
+        ]),
+      )
+      .digest("hex"),
+  );
 
-  const imports = new Set<string>();
-  const body: string[] = [];
-
-  for (const line of toolbox.split("\n")) {
-    if (LEAN_IMPORT.test(line.trim())) {
-      imports.add(line.trim().replace(/\s+/g, " "));
-    } else {
-      body.push(line);
+  return key.then((hash) => {
+    const pending = toolboxBuilds.get(hash);
+    if (pending) {
+      return pending;
     }
-  }
-
-  const card = source.split("\n").map((line) => {
-    if (!LEAN_IMPORT.test(line.trim())) {
-      return line;
-    }
-    for (const part of line.trim().split(/\s+/).slice(1)) {
-      if (part !== "Toolbox" && part !== "import") {
-        imports.add(`import ${part}`);
-      }
-    }
-    return "";
+    const build = compileToolbox(toolbox, join(leanDir, "toolbox", hash), {
+      ...options,
+      cwd,
+      lean,
+    });
+    toolboxBuilds.set(hash, build);
+    // Successes are found on disk next time (which keeps their folder fresh);
+    // failures stay cached unless the build never ran or timed out.
+    build.then(
+      (result) => {
+        if (
+          result.ok ||
+          result.output.timedOut ||
+          result.output.exitCode === null
+        ) {
+          toolboxBuilds.delete(hash);
+        }
+      },
+      () => toolboxBuilds.delete(hash),
+    );
+    return build;
   });
-  const head = [...imports].join(" ").replace(/ import import /g, " import ");
-
-  return {
-    source: [head, ...body, ...card].join("\n"),
-    offset: body.length + 1,
-  };
 }
 
-/** Maps diagnostics back to card lines; those inside the inlined toolbox are tagged. */
-function shiftReport(report: LeanReport, offset: number): LeanReport {
-  if (!offset) {
-    return report;
+const TOOLBOX_BUILD_TTL = 7 * 24 * 60 * 60 * 1000;
+
+/** Drops toolbox builds no check has used for a week; each canvas has its own. */
+async function pruneToolboxBuilds(root: string, keep: string) {
+  const cutoff = Date.now() - TOOLBOX_BUILD_TTL;
+  const names = await readdir(root).catch(() => [] as string[]);
+
+  await Promise.all(
+    names.map(async (name) => {
+      const path = join(root, name);
+      if (path === keep) {
+        return;
+      }
+      const info = await stat(path).catch(() => null);
+      if (info && info.mtimeMs < cutoff) {
+        await rm(path, { recursive: true, force: true });
+      }
+    }),
+  );
+}
+
+async function compileToolbox(
+  toolbox: string,
+  dir: string,
+  { lean, ...options }: RunOptions & { lean: RunCommand },
+): Promise<ToolboxBuild> {
+  if (existsSync(join(dir, "Toolbox.olean"))) {
+    await utimes(dir, new Date(), new Date()).catch(() => undefined);
+    return { ok: true, dir };
   }
 
-  return {
-    ...report,
-    diagnostics: report.diagnostics.map((d) =>
-      d.line > offset
-        ? { ...d, line: d.line - offset }
-        : { ...d, line: 1, message: `[toolbox] ${d.message}` },
-    ),
-  };
+  await mkdir(dirname(dir), { recursive: true });
+  const tmp = await mkdtemp(`${dir}.tmp-`);
+
+  try {
+    const file = join(tmp, "Toolbox.lean");
+    await writeFile(file, toolbox);
+    const output = await runProcess(
+      lean.cmd,
+      [...lean.args, `--root=${tmp}`, "-o", join(tmp, "Toolbox.olean"), file],
+      { timeoutMs: 1200000, ...options },
+    );
+    const text = `${output.stdout}\n${output.stderr}`.replaceAll(
+      file,
+      "<toolbox>",
+    );
+    const report = parseLeanOutput(text);
+
+    if (
+      output.exitCode !== 0 ||
+      report.diagnostics.some((d) => d.severity === "error")
+    ) {
+      return {
+        ok: false,
+        output: {
+          ...output,
+          stdout: output.stdout.replaceAll(file, "<toolbox>"),
+          stderr: output.stderr.replaceAll(file, "<toolbox>"),
+        },
+        report: {
+          ...report,
+          diagnostics: report.diagnostics.length
+            ? report.diagnostics.map((d) => ({
+                ...d,
+                line: 1,
+                column: 0,
+                message: `[toolbox ${d.line}:${d.column}] ${d.message}`,
+              }))
+            : [
+                {
+                  line: 1,
+                  column: 0,
+                  severity: "error",
+                  message: `[toolbox] ${
+                    output.timedOut
+                      ? "build timed out"
+                      : output.stderr.replaceAll(file, "<toolbox>").trim() ||
+                        `build exited with ${output.exitCode}`
+                  }`,
+                },
+              ],
+        },
+      };
+    }
+
+    await rename(tmp, dir).catch(async (error) => {
+      // Another process finished the same build first; its copy is identical.
+      if (!existsSync(join(dir, "Toolbox.olean"))) {
+        throw error;
+      }
+    });
+    await pruneToolboxBuilds(dirname(dir), dir);
+    return { ok: true, dir };
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
 }
 
 const THEOREM = /^\s*(?:theorem|lemma)\s+([^\s:({[]+)/m;
@@ -353,21 +521,41 @@ export async function runLean(
   toolbox?: string,
 ): Promise<{ output: RunOutput; report: LeanReport; found: boolean }> {
   const name = source.match(THEOREM)?.[1];
-  const inlined = toolbox
-    ? inlineLeanToolbox(source, toolbox)
-    : { source, offset: 0 };
-  const hash = createHash("sha1").update(inlined.source).digest("hex");
+  let env = options.env;
+
+  if (toolbox && importsToolbox(source)) {
+    // The build is shared by every card on the canvas, so stopping one card leaves it running.
+    const { signal: _signal, ...buildOptions } = options;
+    const build = await buildLeanToolbox(toolbox, leanDir, buildOptions, lean);
+    if (!build.ok) {
+      const found = !(
+        build.output.exitCode === null && build.output.stderr.includes("ENOENT")
+      );
+      return {
+        output: found
+          ? build.output
+          : { ...build.output, stderr: "Lean not found" },
+        report: build.report,
+        found,
+      };
+    }
+    const inherited = options.env?.LEAN_PATH ?? process.env.LEAN_PATH;
+    env = {
+      ...options.env,
+      LEAN_PATH: inherited ? `${build.dir}${delimiter}${inherited}` : build.dir,
+    };
+  }
+
+  const hash = createHash("sha1").update(source).digest("hex");
   const file = join(leanDir, `check-${hash}.lean`);
 
   await mkdir(leanDir, { recursive: true });
-  await writeFile(
-    file,
-    name ? `${inlined.source}\n\n#print axioms ${name}\n` : inlined.source,
-  );
+  await writeFile(file, name ? `${source}\n\n#print axioms ${name}\n` : source);
 
   const output = await runProcess(lean.cmd, [...lean.args, file], {
     timeoutMs: 1200000,
     ...options,
+    env,
     cwd: lean.cwd ?? options.cwd,
   });
   const found = !(output.exitCode === null && output.stderr.includes("ENOENT"));
@@ -381,7 +569,7 @@ export async function runLean(
         ? output.stderr.replaceAll(file, "<card>")
         : "Lean not found",
     },
-    report: shiftReport(parseLeanOutput(text), inlined.offset),
+    report: parseLeanOutput(text),
     found,
   };
 }

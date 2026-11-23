@@ -27,7 +27,7 @@ export const registerUpdateCard: RegisterTool = (
           })
           .optional()
           .describe(
-            'Replace one section of markdown, e.g. { heading: "Progress", content: "**Established** …" }: the body under that heading (any level) up to the next heading of the same level is replaced, and a missing section is appended. The rest of the markdown is kept. Use it instead of markdown to update part of a long card. Not together with markdown.',
+            'Replace one section of markdown, e.g. { heading: "Route", content: "…" }: the body under that heading (any level) up to the next heading of the same level is replaced, and a missing section is appended. The rest of the markdown is kept. Use it instead of markdown to update part of a long card. Not together with markdown. For hypotheses and attacks, rewrite the description of the current state; record established results and remaining steps with update_progress, not as run-by-run sections here.',
           ),
       },
     },
