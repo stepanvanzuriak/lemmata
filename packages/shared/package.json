@@ -15,6 +15,6 @@
   },
   "dependencies": {
     "core": "workspace:*",
-    "elkjs": "^0.12.0"
+    "elkjs": "^0.12.1"
   }
 }
